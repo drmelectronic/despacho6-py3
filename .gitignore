@@ -1,6 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.py
+*.py[co]
 
 # C extensions
 *.so
@@ -59,3 +59,5 @@ target/
 #Personalizado
 *.iss
 ejecutar.sh
+mtc.py
+setup.py
