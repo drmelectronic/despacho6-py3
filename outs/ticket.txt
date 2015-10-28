@@ -1,0 +1,38 @@
+ELECTRÓNICA DE CONTROL Y AUTOMATIZACIÓN INDUSTRIAL S.A.C. 
+Jr. San Lucas 211 - Urb. Palao - S.M.P. 
+           R.U.C.: 2051631854           
+        DETALLE DE  LIQUIDACION         
+PROP: DANIEL JONATHAN ROBLES MARTÍNEZ
+  PLACA  a6f111        PADRON  001       
+
+DETALLE DE SALIDAS DEL DIA: 23-10-2015
+   1.0 A 08:10                 147.8   
+   1.0 A 11:52                 192.0   
+   1.5 A 13:10                 241.2   
+--------------------------------------
+   TOTAL:                      581.0   
+CONDUCTOR: CONDUCTOR TEMPORAL
+COBRADOR:  ROBLES MARTINEZ ROBERT DAN
+--------------------------------------
+PRODUCCION FLOTA:                 986.0
+VUELTAS FLOTA:                      3.0
+PAGO x VTA:                      328.66
+--------------------------------------
+VUELTAS:                            1.5
+TOTAL COMISION:                  492.99
+--------------------------------------
+  EGRESOS                        MONTO 
+CONDUCTOR                         64.08
+COBRADOR                          29.58
+VIATICOS                          18.00
+Administración                    81.33
+--------------------------------------
+TOTAL EGRESOS                    192.99
+--------------------------------------
+DIFERENCIA                       300.00
+
+     24/10/2015  09:06  SuperAdmin      
+ 
+ 
+ 
+ 
