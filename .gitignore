@@ -58,6 +58,5 @@ target/
 
 #Personalizado
 *.iss
-ejecutar.sh
 mtc.py
 setup.py
