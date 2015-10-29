@@ -97,7 +97,6 @@ class Hilo(threading.Thread):
         lista.append(folder + 'Preparar')
         self.play(lista, folder)
         texto = 'Unidad %d preparar' % padron
-        Widgets.OSD(texto)
 
     def ubicar(self, padron, folder):
         lista = [folder + 'Unidad']
@@ -105,7 +104,6 @@ class Hilo(threading.Thread):
         lista.append(folder + 'Ubicar')
         self.play(lista, folder)
         texto = 'Unidad %d ubicar' % padron
-        Widgets.OSD(texto)
 
     def salir(self, padron, folder):
         lista = [folder + 'Unidad']
@@ -113,7 +111,6 @@ class Hilo(threading.Thread):
         lista.append(folder + 'Salir')
         self.play(lista, folder)
         texto = 'Unidad %d salir' % padron
-        Widgets.OSD(texto)
 
     def ultimo(self, padron, folder):
         lista = [folder + 'Ultimo']
@@ -121,7 +118,6 @@ class Hilo(threading.Thread):
         lista.append(folder + 'CasoContrario')
         self.play(lista, folder)
         texto = 'Ultimo llamado  %d' % padron
-        Widgets.OSD(texto)
 
     def custom(self, padron, personal, lugar, folder):
         lista = [folder + 'personal/%s' % personal]
@@ -129,7 +125,6 @@ class Hilo(threading.Thread):
         lista.append(folder + 'lugares/%s' % lugar)
         self.play(lista, folder)
         texto = '%s de la unidad %d acercarse a %s' % (personal, padron, lugar)
-        Widgets.OSD(texto)
 
     def error(self):
         self.lista.append(self.path + '/mensajes/error')

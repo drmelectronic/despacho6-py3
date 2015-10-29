@@ -10,9 +10,6 @@ import gtk
 import gobject
 import datetime
 import os
-if os.name != 'nt':
-    import pynotify
-    pynotify.init('despacho')
 import time
 import json
 import base64
@@ -37,16 +34,6 @@ class Entry(gtk.Entry):
         #self.modify_text(gtk.STATE_ACTIVE, gtk.gdk.color_parse('#00FF00'))
         #self.modify_text(gtk.STATE_SELECTED, gtk.gdk.color_parse('#0000FF'))
         #self.modify_text(gtk.STATE_PRELIGHT, gtk.gdk.color_parse('#FFFF00'))
-
-
-class OSD:
-
-    def __init__(self, text):
-        if os.name != 'nt':
-            ruta = os.getcwd() + '/'
-            p = pynotify.Notification(
-                'Sonido', text, ruta + 'images/PNG-48/sonido.png')
-            p.show()
 
 
 class Frame(gtk.Frame):

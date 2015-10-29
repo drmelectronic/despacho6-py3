@@ -24,7 +24,7 @@ else:
     import sh
 infinito = True
 version = 5.22
-dia = 'Actualización Sábado 24 de octubre de 2015'
+dia = 'Actualización Jueves 29 de octubre de 2015'
 if local:
     localhost = 'localhost'
     #localhost = 'localhost'
