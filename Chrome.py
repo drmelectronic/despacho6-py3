@@ -3,13 +3,9 @@ import os
 import ctypes
 if os.name == 'nt':
     from cefpython1 import cefpython_py27 as cefpython
-else:
-    if sys.maxint == 2147483647:
-        libcef_so = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libcef.so')
-        ctypes.CDLL(libcef_so, ctypes.RTLD_GLOBAL)
-        import cefpython_py27 as cefpython
-    else:
-        import webkit
+#else:
+#    import webkit
+#    import jswebkit
 import gobject
 import gtk
 import pygtk
@@ -66,29 +62,8 @@ def init():
             "release_dcheck_enabled": True # Enable only when debugging.
         }
         cefpython.Initialize(settings)
-    #elif platform.platform()[-5:] != 'saucy':
-    else:
-        if sys.maxint == 2147483647:
-            version = '.'.join(map(str, list(gtk.gtk_version)))
-            print('GTK version: %s' % version)
-            sys.excepthook = ExceptHook
-            cefpython.g_debug = False
-            a = os.path.abspath("outs/debug.log")
-            if sys.maxint == 2147483647:
-                cefpython.g_debugFile = GetApplicationPath(a)
-                settings = {
-                    "log_severity": cefpython.LOGSEVERITY_INFO,
-                    "log_file": GetApplicationPath(a),
-                    "release_dcheck_enabled": True, # Enable only when debugging.
-                    # This directories must be set on Linux
-                    "locales_dir_path": cefpython.GetModuleDirectory()+"/locales",
-                    "resources_dir_path": cefpython.GetModuleDirectory()
-                }
-                cefpython.Initialize(settings)
 
 def close():
-    if sys.maxint == 2147483647:
-        cefpython.Shutdown()
     os._exit(1)
 
 class Window(gtk.Window):
@@ -103,6 +78,7 @@ class Window(gtk.Window):
         hbox = gtk.VBox()
         self.add(hbox)
         hbox.pack_start(self.www)
+        self.show_all()
         self.realize()
         self.set_url(url)
         self.connect('delete-event', self.esconder)
@@ -134,6 +110,7 @@ class Browser(gtk.DrawingArea): # Windows
         self.set_size_request(x, y)
 
     def mostrar(self, *args):
+        print 'BROWSER MOSTRAR'
         windowID = self.get_window().handle
         windowInfo = cefpython.WindowInfo()
         windowInfo.SetAsChild(windowID)
@@ -164,6 +141,7 @@ class Browser(gtk.DrawingArea): # Windows
         self.emit('mostrar')
 
     def open(self, url):
+        print url
         self.frame.LoadUrl(url)
         self.emit('mostrar')
 
@@ -191,11 +169,10 @@ class IFrame(gtk.ScrolledWindow): # Ubuntu
             self.connect_after('realize', self.mostrar)
             self.set_size_request(x, y)
             self.set_policy(gtk.POLICY_NEVER, gtk.POLICY_NEVER)
-            if sys.maxint != 2147483647:
-                self.browser = webkit.WebView()
-                self.browser_frame = self.browser.get_main_frame()
-                self.add(self.browser)
-                self.browser.open(url)
+            self.browser = webkit.WebView()
+            self.browser_frame = self.browser.get_main_frame()
+            self.add(self.browser)
+            self.browser.open(url)
         except:
             print 'error'
 
@@ -205,19 +182,6 @@ class IFrame(gtk.ScrolledWindow): # Ubuntu
         windowID = int(hexID, 16)
         #print 'windowID', windowID, hexID, self.get_window().xid
         #windowID = self.get_window().xid
-        if sys.maxint == 2147483647:
-            windowInfo = cefpython.WindowInfo()
-            windowInfo.SetAsChild(windowID)
-            gobject.threads_init()  # timer for messageloop
-            self.browser = cefpython.CreateBrowserSync(windowInfo,
-                    browserSettings={"plugins_disabled": False},
-                    navigateUrl=self.url)
-            print self.url
-            self.show_all()
-            self.frame = self.browser.GetFocusedFrame()
-            self.connect('focus-in-event', self.OnFocusIn)
-            self.mapa = True
-            gobject.timeout_add(10, self.OnTimer)
 
     def OnTimer(self):
         if self.exiting:
@@ -226,30 +190,22 @@ class IFrame(gtk.ScrolledWindow): # Ubuntu
         return True
 
     def OnFocusIn(self, widget, data):
-        # This function is currently not called by any of code, but if you would like
-        # for browser to have automatic focus add such line:
-        # self.mainWindow.connect('focus-in-event', self.OnFocusIn)
         cefpython.WindowUtils.OnSetFocus(self.w.handle, 0, 0, 0)
 
     def open(self, url):
-        #if platform.platform()[-5:] != 'saucy':
-        if sys.maxint == 2147483647:
-            self.url = url
-            self.frame.LoadUrl(url)
-            print self.url
-        else:
-            print 'browser', url
-            self.browser.open(url)
+        print 'browser', url
+        #self.browser.open(url)
 
     def execute_script(self, url):
-        #if platform.platform()[-5:] != 'saucy' and self.mapa:
         print url
-        if sys.maxint == 2147483647:
-            print url
-            self.frame.ExecuteJavascript(url)
+        # self.browser.execute_script(url)
+        try:
+            ctx = jswebkit.JSContext(self.browser_frame.get_global_context())
+            ctx.EvaluateScript(url)
+        except:
+            pass
 
     def switch(self, server):
-        #if platform.platform()[-5:] != 'saucy':
         lista = (('Mapa', 0), ('Claro', 1), ('Movistar', 2), ('Ayuda', 3))
         enlaces = (self.url, 'http://www.internetclaro.com.pe',
             'http://www.movistar.com.pe/im', server + '/ayuda')

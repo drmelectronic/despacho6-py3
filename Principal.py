@@ -1,12 +1,10 @@
- #! /usr/bin/python
-# -*- coding: utf-8 -*-
-local = 0
+#! /usr/bin/python
+# -*- encoding: utf-8 -*-
 import gtk
 import Salidas
 import Modulos
 import Widgets
 import threading
-import os
 import urllib3
 import Chrome
 import gobject
@@ -18,23 +16,33 @@ import Sonido
 import Impresion
 import pickle
 import datetime
-if os.name == 'nt':
-    import win32api
-else:
+local = 1
+if os.name != 'nt':
     import sh
 infinito = True
-version = 5.22
-dia = 'Actualización Jueves 29 de octubre de 2015'
+version = 5.6
+dia = 'Actualización lunes 20 de noviembre de 2017'
 if local:
     localhost = 'localhost'
-    #localhost = 'localhost'
     appengine_ip = appengine = localhost
-    web = compute = titulo = localhost
+    web = web_pack = compute = titulo = localhost
 else:
-    titulo = "Sistema de Despacho TCONTUR v%s" % version
+    titulo = 'Sistema de Despacho TCONTUR v%s' % version
     compute = '104.197.24.168'
-    appengine_ip = appengine = 'tcontur2.appspot.com'
-    web = 'urbano.tcontur.com'
+    if os.name == 'nt':
+        appengine_ip = appengine = 'despacho.tcontur2.appspot.com'
+    else:
+        appengine_ip = appengine = 'ocho.gps.tcontur2.appspot.com'
+        # appengine_ip = appengine = 'despacho.tcontur2.appspot.com'
+
+    test = urllib3.HTTPConnectionPool('urbano.tcontur.com')
+    try:
+        test.urlopen('HEAD', '/', assert_same_host=False)
+    except:
+        web = 'default.tcontur2.appspot.com'
+    else:
+        web = 'urbano.tcontur.com'
+    print web
     try:
         ips = socket.gethostbyname_ex(appengine)
     except socket.gaierror:
@@ -45,8 +53,9 @@ else:
             if isinstance(ip, list) and len(ip) > 0:
                 digit = True
                 for n in ip[0].split('.'):
-                 if not n.isdigit():
-                    digit = False
+                    if not n.isdigit():
+                        digit = False
+
                 if digit:
                     appengine_ip = ip[0]
                     break
@@ -55,23 +64,20 @@ import webbrowser
 try:
     webbrowser.get('google-chrome')
 except:
-    pass
-try:
-    webbrowser.get('firefox')
-except:
-    pass
-try:
-    webbrowser.get('opera')
-except:
-    pass
-try:
-    webbrowser.get('safari')
-except:
-    pass
-try:
-    webbrowser.get('windows-default')
-except:
-    pass
+    try:
+        webbrowser.get('firefox')
+    except:
+        try:
+            webbrowser.get('opera')
+        except:
+            try:
+                webbrowser.get('safari')
+            except:
+                try:
+                    webbrowser.get('windows-default')
+                except:
+                    pass
+
 gobject.threads_init()
 
 class Splash(gtk.Window):
@@ -96,7 +102,9 @@ class Splash(gtk.Window):
         self.a = Aplicacion()
         self.hide_all()
 
-class Aplicacion:
+
+class Aplicacion():
+
     def __init__(self):
         self.grupo = gtk.WindowGroup()
         self.ventanas = []
@@ -124,17 +132,14 @@ class Aplicacion:
             dialog.cerrar()
 
     def salidas(self, *args):
-        global dia
         global version
+        global dia
         status_bar = Widgets.Statusbar()
         status_bar.push(dia)
-        herramientas = [
-            ('Nueva Ventana (Ctrl + N)', 'salidas.png', self.salidas),
-            #('Ingresar (Ctrl + L)', 'login.png', self.login)
-            ]
+        herramientas = [('Nueva Ventana (Ctrl + N)', 'salidas.png', self.salidas)]
         toolbar = Widgets.Toolbar(herramientas)
-        twist = Widgets.ButtonTwist('desconectado.png', 'conectado.png')
-        ticketera = Widgets.Button('imprimir.png', '', 16)
+        twist = Widgets.ButtonTwist('desconectado.png', 'conectado.png', tooltip='Reconectar al servidor GPS')
+        ticketera = Widgets.Button('imprimir.png', '', 16, tooltip='Configuración de Impresión')
         ventana = Salidas.Ventana(self, titulo, toolbar, twist, status_bar, version, ticketera)
         self.grupo.add_window(ventana)
         self.ventanas.append(ventana)
@@ -143,57 +148,28 @@ class Aplicacion:
         ventana.connect('salidas', self.salidas)
         twist.connect('clicked', self.http.twist.resume)
         ticketera.connect('button-press-event', self.ticketera)
-        self.menu = gtk.Menu()
-        for p in self.http.ticketera.seriales:
-            item1 = gtk.MenuItem(p)
-            item1.connect('activate', self.impresora_serial, p)
-            self.menu.append(item1)
-        item2 = gtk.MenuItem('LPT1')
-        item2.connect('activate', self.impresora_paralela)
-        self.menu.append(item2)
-        item3 = gtk.MenuItem('Probar')
-        item3.connect('activate', self.impresora_probar)
-        self.menu.append(item3)
-        item4 = gtk.MenuItem('Reimprimir Último')
-        item4.connect('activate', self.impresora_reimprimir)
-        self.menu.append(item4)
         if len(self.ventanas) > 1:
             ventana.login(self.sessionid)
         ventana.grab_focus()
         return ventana
 
-    def impresora_serial(self, menu, puerto):
-        self.http.ticketera.conectar_serial(puerto)
-
-    def impresora_paralela(self, *args):
-        self.http.ticketera.paralela()
-
-    def impresora_probar(self, *args):
-        self.http.ticketera.probar()
-
-    def impresora_reimprimir(self, *args):
-        self.http.ticketera.reimprimir()
-
     def ticketera(self, widgets, event):
-        if event.button == 1:
-            x = int(event.x)
-            y = int(event.y)
-            t = event.time
-            self.menu.popup(None, None, None, event.button, t)
-            self.menu.show_all()
-            return True
+        dialogo = Widgets.Configuracion(self.http.ticketera)
+        dialogo.cerrar()
 
     def cerrar(self, ventana):
         self.ventanas.remove(ventana)
         del ventana
         if len(self.ventanas) == 0:
+            try:
+                self.http.load('salir')
+            except:
+                pass
             gtk.main_quit()
 
 
 class Reloj(gtk.EventBox):
-
-    __gsignals__ = {'tic-tac': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE,
-        ())}
+    __gsignals__ = {'tic-tac': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())}
 
     def __init__(self):
         super(Reloj, self).__init__()
@@ -215,33 +191,41 @@ class Reloj(gtk.EventBox):
         infinito = False
         self.hilo.join()
 
-class Http:
+
+class Http():
 
     def __init__(self, ventanas):
-        global appengine_ip
-        global appengine
+        global web
         global compute
-        global version
+        global appengine
+        global appengine_ip
         self.conn = urllib3.HTTPConnectionPool(appengine_ip)
         self.ventanas = ventanas
         self.funciones = [self.nada]
         self.signals = {'update': self.funciones}
         self.compute = compute
+        self.appengine = appengine
         self.server = '/despacho/'
         self.dominio = appengine
-        global web
         self.web = web
         self.csrf = ''
-        #self.server = 'http://localhost:8000/despacho'
         self.login_ok = False
         self.timeout = None
-        self.backup = True
+        self.backup = False
         self.backup_urls = ('actualizar-tablas', 'solo-unidad', 'unidad-salida', 'datos-salida', 'flota-llegada')
         self.backup_dia = None
-        #self.cookies = {'Cookie': {}}
-        self.headers = {'Cookie': '', 'Origin': appengine, 'Host': appengine ,'Content-Type': 'application/x-www-form-urlencoded'}
+        self.headers = {'Cookie': '',
+            'Origin': appengine,
+            'Host': appengine,
+            'Content-Type': 'application/x-www-form-urlencoded'}
         self.datos = {'rutas': (('Vacio', 0),),
             'despacho': None}
+        try:
+            f = open('outs/config', 'rb')
+            self.config = json.loads(f.read())
+            f.close()
+        except:
+            self.config = {}
         self.username = ''
         self.password = ''
         self.sessionid = ''
@@ -252,7 +236,7 @@ class Http:
         self.despachador_id = None
         self.unidad = {}
         self.salida = {}
-        self.pagos = []
+        self.pagos = {}
         self.castigos = []
         self.seriacion = []
         self.boletos_limites = []
@@ -260,42 +244,54 @@ class Http:
         self.grifo = False
         self.sonido = Sonido.Hilo()
         self.sonido.start()
-        self.http_funciones = {
-            'aporte': Modulos.Aporte
-            }
+        self.http_funciones = {'aporte': Modulos.Aporte}
         self.reloj = Reloj()
-        self.ticketera = Impresion.ESCPOS()
+        self.ticketera = Impresion.ESCPOS('puerto')
+        self.ticketeraSunat = Impresion.ESCPOS('sunat')
         self.twist = Twist(self)
 
+    def guardar_config(self):
+        ticket = open('outs/config', 'wb')
+        ticket.write(json.dumps(self.config))
+        ticket.close()
+
     def login(self, usuario, password, clave):
-        self.headers = {'Cookie': '', 'Origin': appengine, 'Host': appengine ,'Content-Type': 'application/x-www-form-urlencoded'}
+        self.headers = {'Cookie': '',
+         'Origin': appengine,
+         'Host': appengine,
+         'Content-Type': 'application/x-www-form-urlencoded'}
         self.login_ok = False
         self.username = usuario
         self.password = password
         url = 'ingresar'
         self.load(url)
         self.csrf = self.set_cookie('csrftoken')
-        login = {
-            'username': self.username,
-            'password': self.password,
-            'clave': clave
-            }
+        login = {'username': self.username,
+         'password': self.password,
+         'clave': clave}
         if self.send_login(login):
             print 'DATOS', self.datos
             self.empresa = self.datos['empresa']
+            try:
+                self.compute = self.datos['rutas'][0][3]
+                self.twist.compute = self.datos['rutas'][0][3]
+            except:
+                pass
             self.despachador = self.datos['despachador']
             self.despachador_id = self.datos['despachador_id']
             self.piezas = self.datos['piezas']
             self.grifo = self.datos['grifo']
             self.seriacion = self.datos['seriacion']
             self.boletos_limites = self.datos['boletos_limites']
+            self.datos['boleto_gasto'] = json.loads(self.datos['boleto_gasto'])
             self.productos = []
             self.conductores = []
             self.cobradores = []
+            self.unidades = []
             self.twist.despacho = self.datos['despacho']
             rutas = ''
-            for c, r, v in self.datos['rutas']:
-                rutas += ',%d' % r
+            for r in self.datos['rutas']:
+                rutas += ',%d' % r[1]
             self.twist.rutas = rutas
             print 'Twi'
             self.twist.resume()
@@ -312,27 +308,31 @@ class Http:
                 self.login_ok = True
         if isinstance(self.datos, dict):
             version = float(self.datos['version'])
-            if os.name != 'nt' and self.version < version:
-                mensaje = 'Hay una nueva versión de TCONTUR disponible\n'
-                mensaje += '¿Desea instalarla?'
-                dialogo = Widgets.Alerta_SINO('Actualización Pendiente',
-                            'update.png', mensaje, False)
+            if os.name != 'nt' and self.version < version and False:
+                mensaje = 'Hay una nueva versi\xc3\xb3n de TCONTUR disponible\n'
+                mensaje += '\xc2\xbfDesea instalarla?'
+                dialogo = Widgets.Alerta_SINO('Actualizaci\xc3\xb3n Pendiente', 'update.png', mensaje, False)
                 respuesta = dialogo.iniciar()
                 dialogo.cerrar()
                 if respuesta:
                     self.update()
             return True
-        else:
-            titulo = 'Elija una empresa'
-            imagen = 'dar_prioridad.png'
-            mensaje = '¿A qué empresa desea ingresar?'
-            dialogo = Widgets.Alerta_Combo(titulo, imagen, mensaje, self.datos)
-            dialogo.set_focus(dialogo.but_ok)
-            respuesta = dialogo.iniciar()
-            dialogo.cerrar()
-            if respuesta:
-                self.empresa = respuesta
-                return self.send_login(login)
+        titulo = 'Elija una empresa'
+        imagen = 'dar_prioridad.png'
+        mensaje = '\xc2\xbfA qu\xc3\xa9 empresa desea ingresar?'
+        dialogo = Widgets.Alerta_Combo(titulo, imagen, mensaje, self.datos)
+        try:
+            dialogo.combo.set_id(self.config['empresa'])
+        except:
+            pass
+        dialogo.set_focus(dialogo.but_ok)
+        respuesta = dialogo.iniciar()
+        dialogo.cerrar()
+        if respuesta:
+            self.empresa = respuesta
+            self.config['empresa'] = self.empresa
+            self.guardar_config()
+            return self.send_login(login)
 
     def update(self):
         sh.git.stash()
@@ -347,14 +347,20 @@ class Http:
         Widgets.Alerta(titulo, 'update.png', mensaje)
 
     def set_cookie(self, key):
-        cookies = self.req.getheaders()['set-cookie']
+        print self.req.getheaders()
+        print self.req.getheaders()['set-cookie']
+        try:
+            cookies = self.req.getheaders()['set-cookie']
+        except:
+            self.headers['Cookie'] += '%s=%s; ' % (key, cook[n + 1:m])
+            return cookie
         i = cookies.find(key)
         if i == -1:
             return False
         cook = cookies[i:]
         n = cook.find('=')
         m = cook.find(';')
-        cookie = cook[n + 1: m]
+        cookie = cook[n + 1:m]
         self.headers['Cookie'] += '%s=%s; ' % (key, cook[n + 1:m])
         return cookie
 
@@ -363,7 +369,10 @@ class Http:
             d = datos['dia']
         else:
             d = datetime.datetime.strptime(datos['dia'], '%Y-%m-%d')
-        carpeta = 'backup/%d/%d/%d/%d/' % (datos['ruta_id'], d.year, d.month, d.day)
+        carpeta = 'backup/%d/%d/%d/%d/' % (datos['ruta_id'],
+         d.year,
+         d.month,
+         d.day)
         if consulta == 'actualizar-tablas':
             print 'Buscando', carpeta + 'data.pkl'
             f = open(carpeta + 'data.pkl', 'rb')
@@ -373,20 +382,25 @@ class Http:
             else:
                 tabla = data['b']
             print 'Salidas', data['s']
-            return {'enruta': tabla, 'disponibles': [(0, 0, '00:00', 0, 0, 0, 'BACKUP', 'B', '#B00', '00:00', 0)], 'excluidos': [], 'inicio': '2000-01-01 00:00:00', 'frecuencia':0, 'manual': 0}
-        elif consulta == 'solo-unidad':
+            return {'enruta': tabla,
+             'disponibles': [(0, 0, '00:00', 0, 0, 0, 'BACKUP', 'B', '#B00', '00:00', 0)],
+             'excluidos': [],
+             'inicio': '2000-01-01 00:00:00',
+             'frecuencia': 0,
+             'manual': 0}
+        if consulta == 'solo-unidad':
             print 'Buscando', carpeta + 'data.pkl'
             f = open(carpeta + 'data.pkl', 'rb')
             return pickle.loads(f.read())['u'][datos['padron']]
-        elif consulta == 'datos-salida':
+        if consulta == 'datos-salida':
             print 'Buscando', carpeta + str(datos['salida_id'])
             f = open(carpeta + str(datos['salida_id']) + '.pkl', 'rb')
             return pickle.loads(f.read())
-        elif consulta == 'flota-llegada':
+        if consulta == 'flota-llegada':
             print 'Buscando', carpeta + 'data.pkl'
             f = open(carpeta + 'data.pkl', 'rb')
             return pickle.loads(f.read())['f']
-        elif consulta == 'unidad-salida':
+        if consulta == 'unidad-salida':
             print 'Buscando', carpeta + str(datos['salida_id'])
             f = open(carpeta + str(datos['salida_id']) + '.pkl', 'rb')
             salida = pickle.loads(f.read())
@@ -396,27 +410,38 @@ class Http:
             data = pickle.loads(f.read())['u']
             print 'DATA KEYS', data.keys()
             salidas = data[str(datos['padron'])]
-            unidad = {
-                'padron': datos['padron'],
-                'modelo': 'Información de Backup',
-                'hora_check': '2100-01-01 00:00:00',
-                'unidad_check': [True, u'Información de Backup'],
-                'propietario': 'Información de Backup',
-                'id': 0,
-                'salidas': salidas,
-                'faltan': False,
-                'salida': datos['salida_id'],
-                'salida_tablas': None,
-                'conductores': [[u'CONDUCTOR TEMPORAL', None, 1L, None]],
-                'cobradores': [[u'COBRADOR TEMPORAL', None, 2L, None]],
-                'conductor': [u'CONDUCTOR TEMPORAL', None, 1L, None],
-                'cobrador': [u'COBRADOR TEMPORAL', None, 2L, None],
-                'bloqueado': True,
-            }
+            unidad = {'padron': datos['padron'],
+             'modelo': 'Informaci\xc3\xb3n de Backup',
+             'hora_check': '2100-01-01 00:00:00',
+             'unidad_check': [True, u'Informaci\xf3n de Backup'],
+             'propietario': 'Informaci\xc3\xb3n de Backup',
+             'id': 0,
+             'salidas': salidas,
+             'faltan': False,
+             'salida': datos['salida_id'],
+             'salida_tablas': None,
+             'conductores': [[u'CONDUCTOR TEMPORAL',
+                              None,
+                              1L,
+                              None]],
+             'cobradores': [[u'COBRADOR TEMPORAL',
+                             None,
+                             2L,
+                             None]],
+             'conductor': [u'CONDUCTOR TEMPORAL',
+                           None,
+                           1L,
+                           None],
+             'cobrador': [u'COBRADOR TEMPORAL',
+                          None,
+                          2L,
+                          None],
+             'bloqueado': True}
             print 'DATA VALUE', unidad
-            return {'unidad': unidad, 'salida': salida}
+            return {'unidad': unidad,
+             'salida': salida}
 
-    def load(self, consulta, datos={}):
+    def load(self, consulta, datos = {}):
         if self.backup and consulta in self.backup_urls:
             try:
                 js = self.get_backup(consulta, datos)
@@ -431,6 +456,7 @@ class Http:
                 print '+++++++++'
                 if js:
                     return js
+
         get = datos == {}
         post_data = ''
         if not get:
@@ -448,11 +474,13 @@ class Http:
                 elif isinstance(datos[k], tuple) or isinstance(datos[k], list):
                     for d in datos[k]:
                         post_data += '%s=%s&' % (k, d)
+
                 else:
                     post_data += '%s=%s&' % (k, datos[k])
+
             post_data = post_data[:-1]
         url = '%s%s/' % (self.server, consulta)
-        l = len(post_data)
+        l = len(str(post_data))
         self.headers['Content-Length'] = str(l)
         try:
             if get:
@@ -460,14 +488,12 @@ class Http:
             else:
                 r = self.conn.urlopen('POST', url, body=post_data, headers=self.headers, assert_same_host=False)
         except:
-            print ('********************************')
-            print (url)
-            print ('********************************')
-            Widgets.Alerta('Error', 'error_envio.png',
-                'No es posible conectarse al servidor,\n' +
-                'asegúrese de estar conectado a internet\n' +
-                'e intente de nuevo.')
+            print '********************************'
+            print url
+            print '********************************'
+            Widgets.Alerta('Error', 'error_envio.png', 'No es posible conectarse al servidor,\n' + 'aseg\xc3\xbarese de estar conectado a internet\n' + 'e intente de nuevo.')
             return False
+
         self.req = r
         a = os.path.abspath('outs/index.html')
         f = open(a, 'wb')
@@ -478,28 +504,30 @@ class Http:
         try:
             js = json.loads(r.data)
         except:
-            print ('********************************')
-            print (url)
-            print ('********************************')
+            print '********************************'
+            print url
+            print '********************************'
             print 'json', url, post_data, self.headers
             print r.status
             for v in self.ventanas:
                 v.status_bar.push('Error de conexion')
+
             return False
+
         return self.ejecutar(js)
 
     def ejecutar(self, js):
         if len(js) < 2:
-            #return True
             return False
         primero = js[0]
         segundo = js[1]
         if primero == 'Json':
             return segundo
-        if primero == 'Dialogo':
+        elif primero == 'Dialogo':
             Widgets.Alerta('Aviso', 'info.png', segundo)
             for v in self.ventanas:
                 v.status_bar.push(segundo.split('\n')[0])
+
             return self.ejecutar(js[2:])
         elif primero == 'Comando':
             self.comando(segundo)
@@ -507,12 +535,15 @@ class Http:
         elif primero == 'OK':
             for v in self.ventanas:
                 v.status_bar.push(segundo)
+
             return self.ejecutar(js[2:])
         elif primero == 'Error':
             self.sonido.error()
+            print segundo
             Widgets.Alerta('Error', 'error_dialogo.png', segundo)
             for v in self.ventanas:
                 v.status_bar.push(segundo.split('\n')[0])
+
             return False
         elif primero == 'print':
             print 'imprimiendo'
@@ -547,7 +578,7 @@ class Http:
         if os.name == 'nt':
             os.system('start outs/reporte.pdf')
         else:
-            os.system("gnome-open outs/reporte.pdf")
+            os.system('gnome-open outs/reporte.pdf')
         return True
 
     def imagen(self, consulta):
@@ -562,7 +593,10 @@ class Http:
         return True
 
     def ticket(self, comandos):
-        #Widgets.Alerta('Impresion', 'imprimir.png', 'Se ha recibido un ticket para imprimir\nCorte el papel y de un click en Aceptar.')
+        for c in comandos:
+            if 'AUTORIZACION:' in c[1]:
+                self.ticketeraSunat.imprimir(comandos)
+                return
         self.ticketera.imprimir(comandos)
 
     def connect(self, string, funcion):
@@ -575,6 +609,22 @@ class Http:
     def nada(self, *args):
         pass
 
+    def get_pagos(self, ruta):
+        if ruta in self.pagos:
+            return self.pagos[ruta]
+        else:
+            data = self.load('pagos-por-tipo', {
+                'ruta': ruta,
+                'lado': 0,
+                'padron': 0
+            })
+            print 'pagos', data
+            if data:
+                self.pagos[ruta] = data
+                return data
+            else:
+                return []
+
     def comando(self, params):
         funcion = params['funcion']
         default = params['default']
@@ -584,12 +634,13 @@ class Http:
             self.load(funcion, dialogo.datos)
         dialogo.cerrar()
 
-    def webbrowser(self, url):
+    def webbrowser(self, url, backup=False):
         uri = 'http://%s/despacho/ingresar?sessionid=%s&next=%s' % (self.web, self.sessionid, url)
         webbrowser.open(uri)
 
 
 class Twist(threading.Thread):
+
     def __init__(self, http):
         super(Twist, self).__init__()
         self.despacho = 0
@@ -599,34 +650,33 @@ class Twist(threading.Thread):
         self.state = threading.Event()
         self.state.clear()
         self.daemon = False
+        self.sonido = http.sonido
+        global local
+        self.local = local
         self.start()
 
     def run(self):
-        global infinito
         while infinito:
             self.state.wait()
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.settimeout(None)
             try:
-                print self.compute
+                print 'Compute', self.compute
                 self.socket.connect((self.compute, 22222))
                 self.socket.send('D,%s%s' % (self.despacho, self.rutas))
             except:
-                raise
                 self.state.clear()
-                gobject.idle_add(self.desconectado, 'No se pudo establecer la conexión')
+                gobject.idle_add(self.desconectado, 'No se pudo establecer la conexi\xc3\xb3n')
             else:
                 while infinito:
                     self.state.wait()
                     try:
                         recibido = self.socket.recv(64)
                     except:
-                        self.state.clear()
-                        gobject.idle_add(self.desconectado, 'Se cerró la conexión')
-                        break
+                        continue
                     if recibido == '':
                         self.state.clear()
-                        gobject.idle_add(self.desconectado, 'Se perdió la conexión')
+                        gobject.idle_add(self.desconectado, 'Se perdi\xc3\xb3 la conexi\xc3\xb3n')
                         break
                     print 'TWIST', recibido
                     params = recibido.split(',')
@@ -638,19 +688,20 @@ class Twist(threading.Thread):
         for v in self.ventanas:
             v.twist_recibido(params)
 
-    def desconectado(self, status=''):
+    def desconectado(self, status = ''):
         for v in self.ventanas:
             v.twist.desactivar()
             v.status_bar.push(status)
-        Widgets.AlertaTwist('Error de conexión', 'error_envio.png',
-            status + '\n' +
-            'Presione el botón para reconectar\n' +
-            'si el problema persiste informe a TCONTUR.')
+        if os.name != 'nt' and not self.local:
+            print 'INICIO EMERGENCIA'
+            self.sonido.emergencia()
+            print 'SONIDO EMERGENCIA'
+        Widgets.AlertaTwist('Error de conexi\xc3\xb3n', 'error_envio.png', status + '\n' + 'Presione el bot\xc3\xb3n para reconectar\n' + 'si el problema persiste informe a TCONTUR.')
 
     def resume(self, *args):
         for v in self.ventanas:
             v.twist.activar()
-            v.status_bar.push('Conexión activa')
+            v.status_bar.push('Conexi\xc3\xb3n activa')
         self.state.set()
 
     def cerrar(self):

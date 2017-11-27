@@ -67,10 +67,11 @@ class Ventana(gtk.Window):
         self.toolbar.add_button('Mantenimiento (Ctrl + M)', 'mantenimiento.png', self.mantenimiento)
         self.toolbar.add_button('Grifo (Ctrl + G)', 'grifo.png', self.grifo)
         self.toolbar.add_button('Buscar Boleto (Ctrl + B)', 'buscar.png', self.buscar)
+        self.toolbar.add_button('Sistema Web (Ctrl + T)', 'chrome.png', self.chrome_web)
 
         self.selector.vertical()
         frame_selector.add(self.selector)
-        self.enruta = Modulos.EnRuta(self.http)
+        self.enruta = Modulos.EnRuta(self)
         vbox1.pack_start(self.enruta, True, True, 0)
             #VBox 2
         vbox2 = gtk.VBox(False, 0)
@@ -125,6 +126,8 @@ class Ventana(gtk.Window):
         vbox3.pack_start(hbox_opciones, False, False, 0)
         self.check_llamar = gtk.CheckButton('Llamar auto')
         hbox_opciones.pack_start(self.check_llamar)
+        self.check_sonido_gps = gtk.CheckButton('Sonido GPS')
+        hbox_opciones.pack_start(self.check_sonido_gps)
         self.check_imprimir = gtk.CheckButton('Imprimir')
         hbox_opciones.pack_start(self.check_imprimir)
                 #Botones
@@ -202,7 +205,7 @@ class Ventana(gtk.Window):
             self.frecuencia_manual)
         self.connect('key-release-event', self.on_key_release)
         self.datos_unidad.connect('hora-revisada', self.frecuencia_reloj)
-        self.datos_unidad.but_relojes.connect('clicked',
+        self.datos_unidad.connect('cambiar-a-llegadas',
             self.cambiar_a_llegadas)
         self.llamada.connect('llamar', self.llamar_custom)
         self.llamada.connect('stop', self.sonido_stop)
@@ -212,6 +215,9 @@ class Ventana(gtk.Window):
 
     def buscar(self, *args):
         Modulos.BuscarBoleto(self.http, self.ruta)
+
+    def chrome_web(self, *args):
+        self.http.webbrowser('/')
 
     def liquidar(self, *args):
         Modulos.Liquidaciones(self.http, self.ruta, self.lado)
@@ -322,11 +328,8 @@ class Ventana(gtk.Window):
             dialogo1.cerrar()
             if respuesta:
                 if self.datos_unidad.button_stock.ok and padron == self.datos_unidad.entry_padron.get_int():
-                    if self.http.datos['boleto-obligatorio']:
-                        Widgets.Alerta('Falta Stock', 'error_numero.png',
-                            'No puede despachar la unidad, asígnele stock.')
-                        return
-                    else:
+                    self.datos_unidad.stock_clicked()
+                    if self.datos_unidad.button_stock.ok:
                         mensaje = 'La unidad no tiene boletos suficientes.\n'
                         mensaje += '¿Desea despacharla de todas maneras?.'
                         dialogo2 = Widgets.Alerta_SINO('Falta Stock',
@@ -353,7 +356,7 @@ class Ventana(gtk.Window):
                             dialog.cerrar()
                             if not respuesta:
                                 if self.http.datos['boleto-obligatorio']:
-                                    Widgets.Alerta('Falta Stock', 'falta_stock.png',
+                                    Widgets.Alerta('Falta Stock', 'error.png',
                                         'No puede despachar la unidad, asígnele stock.')
                                     return
                             actualizar_unidad = False
@@ -423,10 +426,12 @@ class Ventana(gtk.Window):
     def cambiar_a_llegadas(self, *args):
         self.notebook.set_current_page(1)
         self.datos_unidad.llegadas.treeview.grab_focus()
+        self.datos_unidad.llegadas.set_cursor()
 
     def cambiar_a_boletos(self, *args):
         self.notebook.set_current_page(2)
         self.datos_unidad.boletaje.treeview.grab_focus()
+        self.datos_unidad.boletaje.set_cursor()
 
     def cambiar_a_inspectoria(self, *args):
         self.notebook.set_current_page(3)
@@ -485,13 +490,9 @@ class Ventana(gtk.Window):
     def llamar(self, obligatorio=False):
         if obligatorio:
             try:
-                path, column = self.disponibles.treeview.get_cursor()
-                padron = self.disponibles.model[path][1]
+                padron = self.disponibles.model[0][1]
             except:
-                try:
-                   padron = self.disponibles.model[0][1]
-                except:
-                    return
+                return
             self.sonido.ubicar(padron, self.sonido_folder)
         else:
             try:
@@ -596,7 +597,6 @@ Ctrl + E = Cola de Espera"""
                     'dia': dialogo.fecha.get_date(),
                     'ruta_id': self.ruta,
                     'lado': self.lado,
-                    'dia': self.dia,
                 }
                 data = self.http.load('cambiar-hora', datos)
                 if data:
@@ -734,6 +734,9 @@ Ctrl + E = Cola de Espera"""
         elif k == 101:  # Ctrl + E
             if event.state & gtk.gdk.CONTROL_MASK:  # Control + C
                 self.cola_espera()
+        elif k == 116:  # Ctrl + T
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + T
+                self.chrome_web()
         else:
             if event.state & gtk.gdk.CONTROL_MASK:  # Control ++
                 print k

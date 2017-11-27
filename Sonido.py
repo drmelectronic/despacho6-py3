@@ -13,9 +13,10 @@ import sys
 if os.name == 'nt':
     import winsound
 else:
+    pass
     #if sys.maxint == 2147483647:
-        import pygame
-        pygame.mixer.init()
+        #import pygame
+        #pygame.mixer.init()
         #pygame.mixer.pre_init(22050, -16, 2, 1024 * 3)
 import gobject
 import time
@@ -89,7 +90,7 @@ class Hilo(threading.Thread):
         else:
             self.lista = []
             #if sys.maxint == 2147483647:
-            pygame.mixer.music.stop()
+            #pygame.mixer.music.stop()
 
     def preparar(self, padron, folder):
         lista = [folder + 'Unidad']
@@ -154,8 +155,9 @@ class Hilo(threading.Thread):
             winsound.PlaySound(path, winsound.SND_FILENAME|winsound.SND_ASYNC)
         else:
             #if sys.maxint == 2147483647:
-            pygame.mixer.music.load(path)
-            pygame.mixer.music.play()
+            #pygame.mixer.music.load(path)
+            #pygame.mixer.music.play()
+            pass
         time.sleep(t + 0.05)
 
 if __name__ == '__main__':
