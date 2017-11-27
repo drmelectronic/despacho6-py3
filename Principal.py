@@ -21,7 +21,7 @@ if os.name != 'nt':
     import sh
 infinito = True
 version = 5.61
-dia = 'Actualización lunes 20 de noviembre de 2017'
+dia = 'Actualización lunes 27 de noviembre de 2017'
 if local:
     localhost = 'localhost'
     appengine_ip = appengine = localhost
