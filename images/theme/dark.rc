@@ -1,0 +1,25 @@
+# Set the default color scheme:
+gtk_color_scheme = "fg_color:#000\nbg_color:#ede9e3\nbase_color:#fff\ntext_color:#000\nselected_bg_color:#5598d7\nselected_fg_color:#fff"
+style "default"
+{
+  fg[NORMAL]        = @fg_color
+  fg[PRELIGHT]      = @fg_color
+  fg[SELECTED]      = @selected_fg_color
+  fg[ACTIVE]        = @fg_color
+  # There are color expressions to change the colors
+  fg[INSENSITIVE]   = darker (@bg_color)
+}
+style "progress"
+{
+  # You can override symbolic colors per style (XXX did I get this right?)
+  color["fg_color"] = "#00ff00"
+  # Not that this will *NOT* change the foreground colors as they
+  # were set in the default style. For that to work, everything using
+  # fg_color needs to be copied.
+  # This is a design limitation. (Hm, should report a bug really ...)
+  fg[NORMAL]        = @fg_color
+  fg[PRELIGHT]      = @fg_color
+  fg[ACTIVE]        = @fg_color
+}
+class "GtkWidget"    style "default"
+class "GtkProgress"  style "default"
