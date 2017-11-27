@@ -16,11 +16,11 @@ import Sonido
 import Impresion
 import pickle
 import datetime
-local = 1
+local = 0
 if os.name != 'nt':
     import sh
 infinito = True
-version = 5.6
+version = 5.61
 dia = 'Actualización lunes 20 de noviembre de 2017'
 if local:
     localhost = 'localhost'
