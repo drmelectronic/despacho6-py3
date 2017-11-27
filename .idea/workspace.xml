@@ -3,7 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="aa5c3d0d-091e-4287-80e4-6b134f8d8211" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Principal.py" afterPath="$PROJECT_DIR$/Principal.py" />
     </list>
     <ignored path="Despacho.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -1098,7 +1097,14 @@
       <option name="project" value="LOCAL" />
       <updated>1511799340649</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Version 5.61">
+      <created>1511819446085</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1511819446085</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TodoView">
@@ -1177,7 +1183,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Version 3.6" />
-    <option name="LAST_COMMIT_MESSAGE" value="Version 3.6" />
+    <MESSAGE value="Version 5.61" />
+    <option name="LAST_COMMIT_MESSAGE" value="Version 5.61" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
