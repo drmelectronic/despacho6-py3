@@ -4,30 +4,15 @@
     <bookmark url="file://$PROJECT_DIR$/Widgets.py" line="2994" mnemonic="8" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="aa5c3d0d-091e-4287-80e4-6b134f8d8211" name="Default" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/sonarIssues.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/Despacho.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Despacho.iml" afterDir="false" />
+    <list default="true" id="aa5c3d0d-091e-4287-80e4-6b134f8d8211" name="Default" comment="Version 5.61">
+      <change afterPath="$PROJECT_DIR$/outs/root.dll" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Chrome.py" beforeDir="false" afterPath="$PROJECT_DIR$/Chrome.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Impresion.py" beforeDir="false" afterPath="$PROJECT_DIR$/Impresion.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Modulos.py" beforeDir="false" afterPath="$PROJECT_DIR$/Modulos.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Principal.py" beforeDir="false" afterPath="$PROJECT_DIR$/Principal.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Principal.py.save" beforeDir="false" afterPath="$PROJECT_DIR$/Principal.py.save" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Salidas.py" beforeDir="false" afterPath="$PROJECT_DIR$/Salidas.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Sonido.py" beforeDir="false" afterPath="$PROJECT_DIR$/Sonido.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Widgets.py" beforeDir="false" afterPath="$PROJECT_DIR$/Widgets.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/outs/config" beforeDir="false" afterPath="$PROJECT_DIR$/outs/config" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/outs/imagen.png" beforeDir="false" afterPath="$PROJECT_DIR$/outs/imagen.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/outs/impresion.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/outs/impresion.pdf" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/outs/impresion.txt" beforeDir="false" afterPath="$PROJECT_DIR$/outs/impresion.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/outs/pdfcreator.dll" beforeDir="false" afterPath="$PROJECT_DIR$/outs/pdfcreator.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/outs/ticket.lpt" beforeDir="false" afterPath="$PROJECT_DIR$/outs/ticket.lpt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/outs/ticket.lst" beforeDir="false" afterPath="$PROJECT_DIR$/outs/ticket.lst" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/outs/ticket.txt" beforeDir="false" afterPath="$PROJECT_DIR$/outs/ticket.txt" afterDir="false" />
     </list>
     <ignored path="Despacho.iws" />
     <ignored path=".idea/workspace.xml" />
     <ignored path=".idea/dataSources.local.xml" />
+    <ignored path=".idea/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -37,7 +22,7 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/Despacho$Modulos.coverage" NAME="Modulos Coverage Results" MODIFIED="1469033396056" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Despacho$Principal.coverage" NAME="Principal Coverage Results" MODIFIED="1544484432171" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Despacho$Principal.coverage" NAME="Principal Coverage Results" MODIFIED="1544544158343" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Despacho$Impresion.coverage" NAME="Impresion Coverage Results" MODIFIED="1513779251502" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
   <component name="CreatePatchCommitExecutor">
@@ -56,11 +41,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="Principal.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="Principal.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Principal.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="9248">
-              <caret line="593" column="30" selection-start-line="593" selection-start-column="30" selection-end-line="593" selection-end-column="30" />
+            <state relative-caret-position="304">
+              <caret line="34" column="14" selection-start-line="34" selection-start-column="14" selection-end-line="34" selection-end-column="14" />
               <folding>
                 <element signature="e#45#55#0" expanded="true" />
               </folding>
@@ -68,11 +53,29 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="Modulos.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="root.dll" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/outs/root.dll">
+          <provider selected="true" editor-type-id="text-editor">
+            <state>
+              <caret column="11" selection-start-column="11" selection-end-column="11" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="Widgets.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Widgets.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="387">
+              <caret line="2150" column="27" selection-start-line="2136" selection-start-column="33" selection-end-line="2150" selection-end-column="27" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="Modulos.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Modulos.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1555">
-              <caret line="6859" column="41" selection-start-line="6859" selection-start-column="41" selection-end-line="6859" selection-end-column="41" />
+            <state relative-caret-position="179">
+              <caret line="6749" selection-start-line="6749" selection-end-line="6749" />
             </state>
           </provider>
         </entry>
@@ -81,7 +84,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>self.series</find>
       <find>'seriacion'</find>
       <find>servicio</find>
       <find>detalle</find>
@@ -111,6 +113,7 @@
       <find>PY</find>
       <find>json</find>
       <find>dia</find>
+      <find>password</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -134,8 +137,9 @@
         <option value="$PROJECT_DIR$/Impresion.py" />
         <option value="$PROJECT_DIR$/Widgets.py" />
         <option value="$PROJECT_DIR$/Principal.py.save" />
-        <option value="$PROJECT_DIR$/Principal.py" />
         <option value="$PROJECT_DIR$/Modulos.py" />
+        <option value="$PROJECT_DIR$/root.dll" />
+        <option value="$PROJECT_DIR$/Principal.py" />
       </list>
     </option>
   </component>
@@ -146,10 +150,10 @@
     <sorting>DEFINITION_ORDER</sorting>
   </component>
   <component name="ProjectFrameBounds" extendedState="4">
-    <option name="x" value="981" />
-    <option name="y" value="27" />
-    <option name="width" value="929" />
-    <option name="height" value="1053" />
+    <option name="x" value="43" />
+    <option name="y" value="25" />
+    <option name="width" value="939" />
+    <option name="height" value="1055" />
   </component>
   <component name="ProjectInspectionProfilesVisibleTreeState">
     <entry key="Project Default">
@@ -175,6 +179,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -186,20 +191,19 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="last_opened_file_path" value="$USER_HOME$/immersive-ui" />
-    <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
-    <property name="nodejs_interpreter_path" value="node" />
-    <property name="js.eslint.eslintPackage" value="" />
-    <property name="js-jscs-nodeInterpreter" value="/usr/bin/node" />
-    <property name="node.js.path.for.package.tslint" value="project" />
-    <property name="node.js.detected.package.tslint" value="true" />
-    <property name="node.js.selected.package.tslint" value="" />
     <property name="SONARLINT_ANALYSIS_RESULTS_SCOPE" value="VCS changed files" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="js-jscs-nodeInterpreter" value="/usr/bin/node" />
+    <property name="js.eslint.eslintPackage" value="" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/.idea" />
+    <property name="node.js.detected.package.tslint" value="true" />
+    <property name="node.js.path.for.package.tslint" value="project" />
+    <property name="node.js.selected.package.tslint" value="" />
+    <property name="nodejs_interpreter_path" value="node" />
+    <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
@@ -488,7 +492,21 @@
       <option name="project" value="LOCAL" />
       <updated>1511819446085</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Version 5.61">
+      <created>1544542620443</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1544542620444</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Version 5.61">
+      <created>1544542827657</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1544542827657</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TodoView">
@@ -501,17 +519,17 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="981" y="27" width="929" height="1053" extended-state="4" />
+    <frame x="43" y="25" width="939" height="1055" extended-state="4" />
     <editor active="true" />
     <layout>
       <window_info anchor="bottom" id="TODO" order="6" weight="0.32964602" />
       <window_info anchor="bottom" id="Event Log" order="7" sideWeight="0.5090909" side_tool="true" weight="0.44623655" />
       <window_info anchor="bottom" id="Database Changes" order="8" show_stripe_button="false" />
-      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49317312" weight="0.20498915" />
-      <window_info anchor="bottom" id="Version Control" order="10" weight="0.3286334" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" sideWeight="0.49317312" visible="true" weight="0.20498915" />
+      <window_info anchor="bottom" id="Version Control" order="10" weight="0.3275488" />
       <window_info anchor="bottom" id="Python Console" order="8" weight="0.22619048" />
       <window_info anchor="bottom" id="Terminal" order="9" weight="0.32683983" />
-      <window_info content_ui="combo" id="Project" order="0" weight="0.3449048" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.3449048" />
       <window_info anchor="bottom" id="Docker" order="11" show_stripe_button="false" />
       <window_info anchor="right" id="Database" order="3" />
       <window_info anchor="right" id="SciView" order="3" />
@@ -613,7 +631,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/Principal.py</url>
-          <line>334</line>
+          <line>343</line>
           <option name="timeStamp" value="47" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -732,20 +750,34 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Principal.py">
+    <entry file="file://$PROJECT_DIR$/Modulos.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="9248">
-          <caret line="593" column="30" selection-start-line="593" selection-start-column="30" selection-end-line="593" selection-end-column="30" />
-          <folding>
-            <element signature="e#45#55#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="179">
+          <caret line="6749" selection-start-line="6749" selection-end-line="6749" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Modulos.py">
+    <entry file="file://$PROJECT_DIR$/Widgets.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1555">
-          <caret line="6859" column="41" selection-start-line="6859" selection-start-column="41" selection-end-line="6859" selection-end-column="41" />
+        <state relative-caret-position="387">
+          <caret line="2150" column="27" selection-start-line="2136" selection-start-column="33" selection-end-line="2150" selection-end-column="27" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/outs/root.dll">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret column="11" selection-start-column="11" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Principal.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="304">
+          <caret line="34" column="14" selection-start-line="34" selection-start-column="14" selection-end-line="34" selection-end-column="14" />
+          <folding>
+            <element signature="e#45#55#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

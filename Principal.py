@@ -16,12 +16,23 @@ import Sonido
 import Impresion
 import pickle
 import datetime
-local = 1
 
+try:
+    a = os.path.abspath("outs/root.dll")
+    archivo = open(a, 'rb')
+    content = archivo.read()
+    archivo.close()
+    d = json.loads(content)
+    beta = d['beta']
+except:
+    raise
+    beta = 0
+local = 0
+print 'local', local
 if os.name != 'nt':
     import sh
 infinito = True
-version = 5.81
+version = 5.82
 dia = 'Actualización viernes 2 de febrero de 2018'
 if local:
     localhost = 'localhost'
@@ -30,12 +41,10 @@ if local:
 else:
     titulo = 'Sistema de Despacho TCONTUR v%s' % version
     compute = '104.197.24.168'
-    if os.name == 'nt':
-        appengine_ip = appengine = 'despacho.tcontur2.appspot.com'
+    if beta:
+        appengine_ip = appengine = 'beta.default.tcontur2.appspot.com'
     else:
-#        appengine_ip = appengine = 'rapido.gps.tcontur2.appspot.com'
-        appengine_ip = appengine = '1.despacho.tcontur2.appspot.com'
-
+        appengine_ip = appengine = 'despacho.tcontur2.appspot.com'
     test = urllib3.HTTPConnectionPool('urbano.tcontur.com')
     try:
         test.urlopen('HEAD', '/', assert_same_host=False)
