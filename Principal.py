@@ -16,12 +16,13 @@ import Sonido
 import Impresion
 import pickle
 import datetime
-local = 0
+local = 1
+
 if os.name != 'nt':
     import sh
 infinito = True
-version = 5.61
-dia = 'Actualización lunes 27 de noviembre de 2017'
+version = 5.81
+dia = 'Actualización viernes 2 de febrero de 2018'
 if local:
     localhost = 'localhost'
     appengine_ip = appengine = localhost
@@ -32,8 +33,8 @@ else:
     if os.name == 'nt':
         appengine_ip = appengine = 'despacho.tcontur2.appspot.com'
     else:
-        appengine_ip = appengine = 'ocho.gps.tcontur2.appspot.com'
-        # appengine_ip = appengine = 'despacho.tcontur2.appspot.com'
+#        appengine_ip = appengine = 'rapido.gps.tcontur2.appspot.com'
+        appengine_ip = appengine = '1.despacho.tcontur2.appspot.com'
 
     test = urllib3.HTTPConnectionPool('urbano.tcontur.com')
     try:
@@ -42,13 +43,13 @@ else:
         web = 'default.tcontur2.appspot.com'
     else:
         web = 'urbano.tcontur.com'
-    print web
+    print(web)
     try:
         ips = socket.gethostbyname_ex(appengine)
     except socket.gaierror:
         pass
     else:
-        print ips
+        print(ips)
         for ip in ips:
             if isinstance(ip, list) and len(ip) > 0:
                 digit = True
@@ -117,16 +118,12 @@ class Aplicacion():
     def login(self, *args):
         dialog = Widgets.Login(self.http)
         s.hide_all()
-        print dialog
         respuesta = dialog.iniciar()
-        print respuesta
-        print dialog.sessionid
         if respuesta:
             self.ventana.login(dialog.sessionid)
             self.sessionid = dialog.sessionid
             self.usuario = dialog.user
             self.password = dialog.pw
-            print self.usuario
             dialog.cerrar()
         else:
             dialog.cerrar()
@@ -142,6 +139,7 @@ class Aplicacion():
         ticketera = Widgets.Button('imprimir.png', '', 16, tooltip='Configuración de Impresión')
         ventana = Salidas.Ventana(self, titulo, toolbar, twist, status_bar, version, ticketera)
         self.grupo.add_window(ventana)
+        ventana.present()
         self.ventanas.append(ventana)
         ventana.connect('cerrar', self.cerrar)
         ventana.connect('login', self.login)
@@ -154,7 +152,7 @@ class Aplicacion():
         return ventana
 
     def ticketera(self, widgets, event):
-        dialogo = Widgets.Configuracion(self.http.ticketera)
+        dialogo = Widgets.Configuracion(self.http)
         dialogo.cerrar()
 
     def cerrar(self, ventana):
@@ -184,7 +182,6 @@ class Reloj(gtk.EventBox):
             self.emit('tic-tac')
             gtk.gdk.threads_leave()
             time.sleep(1)
-        print 'Fin Reloj'
 
     def cerrar(self):
         global infinito
@@ -270,7 +267,6 @@ class Http():
          'password': self.password,
          'clave': clave}
         if self.send_login(login):
-            print 'DATOS', self.datos
             self.empresa = self.datos['empresa']
             try:
                 self.compute = self.datos['rutas'][0][3]
@@ -293,9 +289,7 @@ class Http():
             for r in self.datos['rutas']:
                 rutas += ',%d' % r[1]
             self.twist.rutas = rutas
-            print 'Twi'
             self.twist.resume()
-            print 'sT'
         return self.sessionid
 
     def send_login(self, login):
@@ -347,8 +341,6 @@ class Http():
         Widgets.Alerta(titulo, 'update.png', mensaje)
 
     def set_cookie(self, key):
-        print self.req.getheaders()
-        print self.req.getheaders()['set-cookie']
         try:
             cookies = self.req.getheaders()['set-cookie']
         except:
@@ -374,14 +366,12 @@ class Http():
          d.month,
          d.day)
         if consulta == 'actualizar-tablas':
-            print 'Buscando', carpeta + 'data.pkl'
             f = open(carpeta + 'data.pkl', 'rb')
             data = pickle.loads(f.read())
             if datos['lado'] == 0:
                 tabla = data['a']
             else:
                 tabla = data['b']
-            print 'Salidas', data['s']
             return {'enruta': tabla,
              'disponibles': [(0, 0, '00:00', 0, 0, 0, 'BACKUP', 'B', '#B00', '00:00', 0)],
              'excluidos': [],
@@ -389,26 +379,19 @@ class Http():
              'frecuencia': 0,
              'manual': 0}
         if consulta == 'solo-unidad':
-            print 'Buscando', carpeta + 'data.pkl'
             f = open(carpeta + 'data.pkl', 'rb')
             return pickle.loads(f.read())['u'][datos['padron']]
         if consulta == 'datos-salida':
-            print 'Buscando', carpeta + str(datos['salida_id'])
             f = open(carpeta + str(datos['salida_id']) + '.pkl', 'rb')
             return pickle.loads(f.read())
         if consulta == 'flota-llegada':
-            print 'Buscando', carpeta + 'data.pkl'
             f = open(carpeta + 'data.pkl', 'rb')
             return pickle.loads(f.read())['f']
         if consulta == 'unidad-salida':
-            print 'Buscando', carpeta + str(datos['salida_id'])
             f = open(carpeta + str(datos['salida_id']) + '.pkl', 'rb')
             salida = pickle.loads(f.read())
-            print 'DATA SALIDA', salida
-            print 'Buscando', carpeta + 'data.pkl'
             f = open(carpeta + 'data.pkl', 'rb')
             data = pickle.loads(f.read())['u']
-            print 'DATA KEYS', data.keys()
             salidas = data[str(datos['padron'])]
             unidad = {'padron': datos['padron'],
              'modelo': 'Informaci\xc3\xb3n de Backup',
@@ -437,7 +420,6 @@ class Http():
                           2L,
                           None],
              'bloqueado': True}
-            print 'DATA VALUE', unidad
             return {'unidad': unidad,
              'salida': salida}
 
@@ -446,14 +428,14 @@ class Http():
             try:
                 js = self.get_backup(consulta, datos)
             except IOError:
-                print ' No existe backup'
+                print(' No existe backup')
             else:
-                print '+++++++++'
-                print consulta
-                print '+++++++++'
-                print datos
-                print js
-                print '+++++++++'
+                print('+++++++++')
+                print(consulta)
+                print('+++++++++')
+                print(datos)
+                print(js)
+                print('+++++++++')
                 if js:
                     return js
 
@@ -488,9 +470,9 @@ class Http():
             else:
                 r = self.conn.urlopen('POST', url, body=post_data, headers=self.headers, assert_same_host=False)
         except:
-            print '********************************'
-            print url
-            print '********************************'
+            print('********************************')
+            print(url)
+            print('********************************')
             Widgets.Alerta('Error', 'error_envio.png', 'No es posible conectarse al servidor,\n' + 'aseg\xc3\xbarese de estar conectado a internet\n' + 'e intente de nuevo.')
             return False
 
@@ -504,9 +486,9 @@ class Http():
         try:
             js = json.loads(r.data)
         except:
-            print '********************************'
-            print url
-            print '********************************'
+            print('********************************')
+            print(url)
+            print('********************************')
             print 'json', url, post_data, self.headers
             print r.status
             for v in self.ventanas:
@@ -543,7 +525,6 @@ class Http():
             Widgets.Alerta('Error', 'error_dialogo.png', segundo)
             for v in self.ventanas:
                 v.status_bar.push(segundo.split('\n')[0])
-
             return False
         elif primero == 'print':
             print 'imprimiendo'
@@ -576,7 +557,8 @@ class Http():
         f.close()
         a = os.path.abspath(a)
         if os.name == 'nt':
-            os.system('start outs/reporte.pdf')
+            com = 'cd "%s" & start reporte.pdf' % a[:12]
+            os.system(com)
         else:
             os.system('gnome-open outs/reporte.pdf')
         return True

@@ -7,7 +7,6 @@ if os.name == 'nt':
 #    import webkit
 #    import jswebkit
 import gobject
-import gtk
 import pygtk
 pygtk.require('2.0')
 import gtk

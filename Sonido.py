@@ -43,14 +43,20 @@ class Hilo(threading.Thread):
             'OCHOCIENTOS', 'NOVECIENTOS')
 
     def convertir(self, numero, output, folder):
-        n = str(numero).zfill(3)
+        n = str(numero).zfill(4)
         carpeta = folder + "1-99/"
-        if(n == '100'):
+        if(n == '1000'):
+            output.append(carpeta + "MIL")
+            return output
+        elif(n == '100'):
             output.append(carpeta + "100")
             return output
-        elif(n[0] != '0'):
-            output.append(carpeta + self.CENTENAS[int(n[0]) - 1])
-        output.append(carpeta + str(int(n[1:])))
+        if(n[0] != '0'):  # hay millares
+            output.append(carpeta + n[0])
+            output.append(carpeta + "MIL")
+        if(n[1] != '0'):  # hay centenas
+            output.append(carpeta + self.CENTENAS[int(n[1]) - 1])
+        output.append(carpeta + str(int(n[2:])))
         return output
         k = int(n[1:])
         if(k <= 20):

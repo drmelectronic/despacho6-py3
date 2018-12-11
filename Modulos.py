@@ -584,7 +584,6 @@ class Excluidos(gtk.ScrolledWindow):
         self.model.clear()
         for fila in lista:
             self.model.append(fila)
-
         self.label.set_markup('<b>EXCLUIDOS (%d)</b>' % len(lista))
 
 
@@ -691,6 +690,7 @@ class Datos(gtk.VBox):
         super(Datos, self).__init__()
         self.padron = 0
         self.salida = 0
+        self._media_vuelta = False
         self._vuelta_completa = False
         self.combustible = ''
         self.http = salidas.http
@@ -708,9 +708,18 @@ class Datos(gtk.VBox):
         hbox_padron.pack_start(label_padron, False, False, 5)
         self.button_padron = Widgets.ButtonDoble('no_castigado.png', 'castigado.png', '+H.Sal')
         hbox_padron.pack_start(self.button_padron, False, False, 0)
+        self.entry_codigo = Widgets.Texto(7)
+        hbox_padron.pack_start(self.entry_codigo, False, False, 0)
+        self.entry_codigo.connect('activate', self.codigo_activate)
+        self.entry_completion = gtk.EntryCompletion()
+        self.entry_codigo.set_completion(self.entry_completion)
+        self.completion_liststore = gtk.ListStore(str)
+        self.entry_completion.set_model(self.completion_liststore)
         self.entry_padron = Widgets.Numero(4)
         hbox_padron.pack_start(self.entry_padron, False, False, 0)
+        self.entry_padron.set_sensitive(False)
         self.entry_padron.connect('activate', self.padron_activate)
+
         self.entry_padron.connect('key-release-event', self.padron_release)
         self.but_celular = Widgets.Button('celular.png', size=16, tooltip='Llamar')
         hbox_padron.pack_start(self.but_celular, False, False, 0)
@@ -858,6 +867,39 @@ class Datos(gtk.VBox):
         self.cortes = Cortes(self.http)
         self.conectar()
 
+    def codigo_activate(self, *args):
+        codigo = self.entry_codigo.get_text()
+        if codigo == '':
+            self.padron_activate()
+            return
+        elif codigo.isdigit():
+            self.entry_padron.set_text(codigo)
+            self.padron_activate()
+        else:
+            data = {
+                'tipo': 'unidad',
+                'codigo': self.entry_codigo.get_text()
+            }
+            opciones = self.http.load('buscar-codigo', data)
+            if len(opciones) == 1:
+                self.entry_padron.set_text(str(opciones[0]['padron']))
+                self.entry_codigo.set_text(str(opciones[0]['placa']))
+                self.padron_activate()
+            elif len(opciones) == 0:
+                self.entry_padron.set_text('')
+            else:
+                self.menu_codigo = gtk.Menu()
+                for o in opciones:
+                    item = gtk.MenuItem('%s (%s)' % (o['padron'], o['placa']))
+                    self.menu_codigo.append(item)
+                    item.connect('activate', self.set_padron, str(o['padron']))
+                    self.menu_codigo.popup(None, None, None, event.button, event.time)
+                    self.menu.show_all()
+
+    def set_padron(self, widget, padron):
+        self.entry_padron.set_text(padron)
+        self.padron_activate()
+
     def downgrade_conductor(self, *args):
         js = self.combo_conductor.get_item()
         nombre = 'CONDUCTOR: %s' % js[0]
@@ -901,23 +943,14 @@ class Datos(gtk.VBox):
          'dia': str(self.dia),
          'ruta_id': self.ruta,
          'lado': self.lado}
-        if self.bloqueado:
-            dial = Widgets.Alerta_Texto('Motivo de Desbloqueo', [])
-            resp = dial.iniciar()
-            dial.cerrar()
-            datos['motivo'] = resp
-        else:
-            dial = Widgets.Alerta_Dia_Hora_Texto('Bloquear Unidad', 'bloqueado.png', 'Indique la hora del fin y el motivo del bloqueo')
-            dial.hora.set_time('00:00')
-            resp = dial.iniciar()
-            dial.cerrar()
-            datos['hora'] = resp[0]
-            datos['motivo'] = resp[1]
-
-        respuesta = self.http.load('bloquear-unidad', datos)
-        if respuesta:
-            self.escribir(None, respuesta['unidad'])
-            self.emit('actualizar', respuesta['tablas'])
+        bloqueos = self.http.load('bloqueos-unidad', datos)
+        antes = len(bloqueos) > 0
+        dialogo = Widgets.DesbloquearUnidad(self, bloqueos, datos)
+        respuesta = dialogo.iniciar()
+        despues = dialogo.bloqueado
+        dialogo.cerrar()
+        if antes != despues:
+            self.padron_activate()
 
     def update_selector(self):
         self.dia, self.ruta, self.lado = self.selector.get_datos()
@@ -1051,6 +1084,7 @@ class Datos(gtk.VBox):
         try:
             self.padron = int(txt)
         except:
+            print txt
             Widgets.Alerta('Error', 'error_numero.png', 'Escriba un n\xc3\xbamero de padron. S\xc3\xb3lo n\xc3\xbameros.')
             self.entry_padron.set_text('')
             self.padron = None
@@ -1108,6 +1142,7 @@ class Datos(gtk.VBox):
         if data:
             self.padron_dia = self.dia
             self.datos = data['unidad']
+            self.entry_codigo.set_text(data['unidad']['placa'])
             self.escribir_datos_unidad()
             self.salida = data['salida']['id']
             self.vueltas.guardar_salida(data['salida'])
@@ -1140,6 +1175,7 @@ class Datos(gtk.VBox):
     def escribir_datos_unidad(self):
         self.combo_conductor.set_lista(self.datos['conductores'])
         self.combo_cobrador.set_lista(self.datos['cobradores'])
+        self.entry_codigo.set_text(self.datos['placa'])
         print self.datos['unidad_check']
         self.button_placa.set(self.datos['unidad_check'][0], self.datos['id'])
         self.label_placa.set_markup(self.datos['modelo'])
@@ -1745,21 +1781,25 @@ class Boletos(gtk.VBox):
         self.treeview.set_cursor(0, self.column, True)
 
     def liquidar(self, *args):
-        datos = {'padron': self.padron,
-         'liquidacion_id': '0',
-         'ruta_id': self.ruta,
-         'lado': self.lado}
+        datos = {
+            'padron': self.padron,
+            'liquidacion_id': '0',
+            'ruta_id': self.ruta,
+            'lado': self.lado
+        }
         self.liquidacion = self.http.load('liquidar', datos)
         if self.liquidacion:
             Liquidar(self.http, self.padron, '0', self)
 
     def deudas(self, *args):
         if self.padron:
-            data = self.http.load('deudas-unidad', {'ruta_id': self.ruta,
-             'lado': self.lado,
-             'padron': self.padron})
+            data = self.http.load('deudas-unidad', {
+                'ruta_id': self.ruta,
+                'lado': self.lado,
+                'padron': self.padron
+            })
             if isinstance(data, list):
-                dialogo = Deudas(self, data, self.padron)
+                dialogo = Deudas(self, data, self.padron, self.dia)
                 respuesta = dialogo.iniciar()
                 dialogo.cerrar()
 
@@ -1943,7 +1983,6 @@ class Boletos(gtk.VBox):
                 if respuesta:
                     hora = dialogo.hora.get_time()
                     dia = dialogo.fecha.get_date()
-                    dialogo.cerrar()
                     datos = {
                         'dia': dia,
                         'hora': hora,
@@ -1952,6 +1991,7 @@ class Boletos(gtk.VBox):
                         'padron': self.padron
                     }
                     data = self.http.load('despachar-otrolado', datos)
+                dialogo.cerrar()
             if data:
                 self.emit('actualizar', data)
                 if self.padre._vuelta_completa:
@@ -2824,18 +2864,24 @@ class Liquidaciones(gtk.Window):
         self.but_nueva = Widgets.Button('nuevo.png', 'Nueva Liq.')
         hbox.pack_start(self.but_nueva, False, False, 0)
         self.but_nueva.connect('clicked', self.nueva)
-        self.but_actualizar = Widgets.Button('actualizar.png', 'Actualizar')
+        self.but_actualizar = Widgets.Button('actualizar.png', 'Reporte Padrón')
         hbox.pack_start(self.but_actualizar, False, False, 0)
         self.but_actualizar.connect('clicked', self.actualizar)
+        self.but_reporte = Widgets.Button('reporte.png', 'Reporte Flota')
+        hbox.pack_start(self.but_reporte, False, False, 0)
+        self.but_reporte.connect('clicked', self.reporte)
+
+        hbox = gtk.HBox(False, 2)
+        vbox_main.pack_start(hbox, False, False, 0)
         self.but_anular = Widgets.Button('error.png', 'Anular')
         hbox.pack_start(self.but_anular, False, False, 0)
         self.but_anular.connect('clicked', self.anular)
         self.but_imprimir = Widgets.Button('imprimir.png', 'Imprimir')
         hbox.pack_start(self.but_imprimir, False, False, 0)
         self.but_imprimir.connect('clicked', self.imprimir)
-        self.but_reporte = Widgets.Button('reporte.png', 'Flota')
-        hbox.pack_start(self.but_reporte, False, False, 0)
-        self.but_reporte.connect('clicked', self.reporte)
+        self.but_previa = Widgets.Button('buscar.png', 'Vista Previa')
+        hbox.pack_start(self.but_previa, False, False, 0)
+        self.but_previa.connect('clicked', self.previa)
         self.but_bloquear = Widgets.Button('bloqueado.png', 'Bloquear/Desbloquear')
         hbox.pack_start(self.but_bloquear, False, False, 0)
         self.but_bloquear.connect('clicked', self.bloquear)
@@ -2895,15 +2941,22 @@ class Liquidaciones(gtk.Window):
             raise
             return
 
-        datos = {'dia': self.fecha.get_date(),
-         'ruta_id': self.ruta,
-         'lado': self.lado,
-         'padron': self.model[path][0],
-         'liquidacion': True}
-        data = self.http.load('bloquear-unidad', datos)
-        if data:
-            self.escribir(data)
-            self.por_unidad = False
+        datos = {
+            'dia': self.fecha.get_date(),
+            'ruta_id': self.ruta,
+            'lado': self.lado,
+            'padron': self.model[path][0],
+            'liquidacion': True
+        }
+
+        bloqueos = self.http.load('bloqueos-unidad', datos)
+        antes = len(bloqueos) > 0
+        dialogo = Widgets.DesbloquearUnidad(self, bloqueos, datos)
+        respuesta = dialogo.iniciar()
+        despues = dialogo.bloqueado
+        dialogo.cerrar()
+        if antes != despues:
+            self.actualizar()
 
     def imprimir(self, *args):
         try:
@@ -2923,6 +2976,18 @@ class Liquidaciones(gtk.Window):
         data = self.http.load('liquidacion-imprimir', datos)
         if data:
             self.destroy()
+
+    def previa(self, *args):
+        try:
+            path, column = self.treeview.get_cursor()
+            path = int(path[0])
+            row = self.model[path]
+            liq_id = row[len(row) - 1]
+        except:
+            raise
+            return
+        url = 'liquidacion/%d' % (liq_id)
+        self.http.webbrowser(url)
 
     def escribir(self, data):
         if data:
@@ -3618,7 +3683,8 @@ class Liquidar(Widgets.Window):
             data = self.http.load('anular-pago', datos)
             if data:
                 treeiter = model.get_iter(path)
-                model.remove(treeiter)
+                child_iter = model.convert_iter_to_child_iter(None, treeiter)
+                model.get_model().remove(child_iter)
                 for k in self.salidas_json.keys():
                     print k
                     v = self.salidas_json[k]
@@ -4842,7 +4908,8 @@ class Reporte(gtk.Window):
             try:
                 self.model.append(fila)
             except:
-                print fila
+                print len(data['liststore']), data['liststore']
+                print len(fila), fila
                 raise
 
         self.cambiar_contenido()
@@ -4974,8 +5041,9 @@ class Reporte(gtk.Window):
         reporte = Impresion.Excel('Reporte de Voladas', 'D\xc3\xada: %s Ruta: %s Lado: %s' % (self.fecha.get_date(), self.ruta.get_text(), self.lado.get_text()), self.cabeceras, list(self.model), self.widths)
         a = os.path.abspath(reporte.archivo)
         if os.name == 'nt':
-            print 'start "%s"' % a
-            os.system('start "%s"' % a)
+            com = 'cd "%s" & start reporte.xls' % a[:12]
+            print com
+            os.system(com)
         else:
             os.system('gnome-open ' + a)
 
@@ -5906,10 +5974,10 @@ class Mantenimiento(Widgets.Window):
         datos = {'ruta': self.ruta, 'lado': self.lado, 'almacen_id': json.dumps(almacenes)}
         data = self.http.load('almacen', datos)
         if data:
-            self.http.datos['productos'] = data['productos']
+            self.http.productos = data['productos']
         for r in self.model:
-            if r[4] in self.http.datos['productos']:
-                p = self.http.datos['productos']
+            if r[4] in self.http.productos:
+                p = self.http.productos
                 r[2] = p[2]
                 r[5] = p[3]
         self.calcular()
@@ -5967,9 +6035,9 @@ class Productos(gtk.Dialog):
         self.entry_nombre.set_text(search)
         self.entry_nombre.connect('key-release-event', self.filtrar)
         self.row = False
-        if self.http.datos['productos'] == []:
+        if self.http.productos == []:
             self.actualizar()
-        self.lista = self.http.datos['productos']
+        self.lista = self.http.productos
         self.filtrar()
 
     def actualizar(self, *args):
@@ -6566,7 +6634,7 @@ class Servicio(gtk.Dialog):
 
 class Deudas(gtk.Dialog):
 
-    def __init__(self, parent, lista, padron):
+    def __init__(self, parent, lista, padron, dia):
         super(Deudas, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
         ventanas = gtk.window_list_toplevels()
         parent = ventanas[0]
@@ -6574,7 +6642,7 @@ class Deudas(gtk.Dialog):
             if v.is_active():
                 parent = v
                 break
-
+        self.dia = dia
         self.http = parent.http
         self.padron = padron
         self.set_modal(True)
@@ -6586,9 +6654,9 @@ class Deudas(gtk.Dialog):
         sw.set_size_request(600, 500)
         sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = gtk.ListStore(str, str, str)
+        self.model = gtk.ListStore(str, str, str, gobject.TYPE_PYOBJECT)
         self.treeview = gtk.TreeView(self.model)
-        columnas = ('DIA', 'DETALLE')
+        columnas = ('DIA', 'DETALLE', 'MONTO')
         sw.add(self.treeview)
         for i, columna in enumerate(columnas):
             cell_text = gtk.CellRendererText()
@@ -6599,7 +6667,7 @@ class Deudas(gtk.Dialog):
             tvcolumn.encabezado()
 
         for l in lista:
-            self.model.append(l)
+            self.model.append((l['dia'], l['nombre'], l['saldo'], l))
 
         but_prestamo = Widgets.Button('credito.png', '_Nuevo Pr\xc3\xa9stamo')
         but_prestamo.connect('clicked', self.prestamo)
@@ -6627,7 +6695,7 @@ class Deudas(gtk.Dialog):
             path = int(path[0])
         except:
             return
-        dialogo = PagarDeuda(self, self.model[path][4])
+        dialogo = PagarDeuda(self, self.model[path][3], self.dia)
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
 
@@ -6709,7 +6777,7 @@ class Facturar(gtk.Dialog):
 
 class PagarDeuda(gtk.Dialog):
 
-    def __init__(self, parent, venta):
+    def __init__(self, parent, cobranza, dia):
         super(PagarDeuda, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
         ventanas = gtk.window_list_toplevels()
         parent = ventanas[0]
@@ -6717,81 +6785,80 @@ class PagarDeuda(gtk.Dialog):
             if v.is_active():
                 parent = v
                 break
-
+        self.cobranza = cobranza
+        self.dia = dia
         self.http = parent.http
         self.set_modal(True)
         self.set_transient_for(parent)
-        self.set_title('Pagar Deuda Cr\xc3\xa9dito: ')
+        self.set_title('Pagar Deuda Cr\xc3\xa9dito: %s' % cobranza['nombre'])
         self.set_position(gtk.WIN_POS_CENTER)
         self.connect('delete_event', self.cerrar)
-        self.vbox.pack_start(self.combo_serie, False, False, 0)
+        hbox = gtk.HBox(False, 0)
+        hbox.pack_start(gtk.Label('Monto Total:'), False, False, 0)
+        self.vbox.pack_start(hbox, False, False, 0)
+        self.entry_total = gtk.Entry()
+        self.entry_total.set_sensitive(False)
+        self.entry_total.set_text(str(round(cobranza['saldo'], 2)))
+        hbox.pack_start(self.entry_total, False, False, 0)
         hbox = gtk.HBox(False, 0)
         hbox.pack_start(gtk.Label('Monto a Pagar:'), False, False, 0)
-        self.entry_monto = gtk.Entry()
-        hbox.pack_start(self.entry_monto, False, False, 0)
-        self.entry_monto.connect('key-release', self.calcular)
         self.vbox.pack_start(hbox, False, False, 0)
 
-        sw = gtk.ScrolledWindow()
-        sw.set_size_request(600, 500)
-        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
-        self.vbox.pack_start(sw, False, False, 0)
-        self.model = gtk.ListStore(str, str, str, str, bool, str)
-        self.treeview = gtk.TreeView(self.model)
-        columnas = ('PAGAR', 'DETALLE', 'DEUDA', 'MONTO A PAGAR')
-        sw.add(self.treeview)
-        for i, columna in enumerate(columnas):
-            if i == 0:
-                cell = gtk.CellRendererToggle()
-                tvcolumn = Widgets.TreeViewColumn(columna)
-                tvcolumn.pack_start(cell, True)
-                tvcolumn.set_attributes(cell, active=i)
-                cell.connect('toogled', self.calcular)
-            else:
-                cell_text = gtk.CellRendererText()
-                tvcolumn = Widgets.TreeViewColumn(columna)
-                tvcolumn.pack_start(cell_text, True)
-                tvcolumn.set_attributes(cell_text, markup=i)
-            self.treeview.append_column(tvcolumn)
-            tvcolumn.encabezado()
+        self.entry_monto = gtk.Entry()
+        hbox.pack_start(self.entry_monto, False, False, 0)
+        self.entry_monto.connect('key-release-event', self.calcular)
+        hbox = gtk.HBox(False, 0)
+        hbox.pack_start(gtk.Label('Saldo Restante:'), False, False, 0)
+        self.entry_saldo = gtk.Entry()
+        self.entry_saldo.set_sensitive(False)
+        hbox.pack_start(self.entry_saldo, False, False, 0)
 
-        for l in lista:
-            self.model.append(l)
-        self.but_ok = Widgets.Button('dinero.png', '_Pagar')
+        self.vbox.pack_start(hbox, False, False, 0)
         but_salir = Widgets.Button('cancelar.png', '_Salir')
+        self.but_ok = Widgets.Button('dinero.png', '_Pagar')
+        self.but_pagar = Widgets.Button('dinero.png', '_Pagar')
         self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
+        self.action_area.pack_start(self.but_pagar, False, False, 0)
         self.entry_monto.connect('activate', self.entry_activate)
+        self.but_pagar.connect('activate', self.pagar)
         self.set_focus(self.entry_monto)
 
     def calcular(self, *args):
-        total = Decimal(self.entry_monto.get_text())
-        for r in self.model:
-            total -= Decimal(r[3])
-        for r in self.model:
-            if total > 0:
-                deuda = Decimal(r[3])
-                pagar = Decimal(r[4])
-                falta_pagar = deuda- pagar
-                if falta_pagar:
-                    r[1] = True
-                    if falta_pagar < total:
-                        total -= falta_pagar
-                        r[4] = r[3]  # pagar total
-                    else:
-                        r[4] = str(pagar + total)
-                        total = 0
+        try:
+            total = Decimal(self.entry_total.get_text())
+            pagar = Decimal(self.entry_monto.get_text())
+        except:
+            self.entry_saldo.set_text('ERROR')
+            self.but_pagar.set_sensitive(False)
+        else:
+            saldo = total - pagar
+            self.entry_saldo.set_text(str(saldo))
+            self.but_pagar.set_sensitive(True)
 
     def entry_activate(self, *args):
-        self.set_focus(self.but_ok)
+        self.set_focus(self.but_pagar)
+
+    def pagar(self, *args):
+        pagar = Decimal(self.entry_monto.get_text())
+        saldo = Decimal(self.entry_saldo.get_text())
+        datos = {
+            'dia': self.dia,
+            'padron': self.cobranza['padron'],
+            'pagar': str(pagar),
+            'saldo': str(saldo),
+            'cobranza': self.cobranza['id']
+        }
+        self.data = self.http.load('pagar-deuda', datos)
+        if self.data:
+            self.but_ok.clicked()
+
 
     def iniciar(self):
         self.show_all()
+        self.but_ok.hide_all()
         if self.run() == gtk.RESPONSE_OK:
-            serie = self.combo_serie.get_id()
-            monto = self.entry_monto.get_text()
-            dia = self.fecha.get_date()
-            return (serie, monto, dia)
+            return self.data
         else:
             return False
 
@@ -7071,7 +7138,7 @@ class Fondo(gtk.Dialog):
         self.connect('delete_event', self.cerrar)
         frame = Widgets.Frame('Aportante')
         self.vbox.pack_start(frame, False, False, 0)
-        hb = gtk.HBox(False, 0)
+        hb = gtk.HBox(False, 5)
         frame.add(hb)
         self.entry_codigo = Widgets.Numero(8)
         hb.pack_start(self.entry_codigo, False, False, 0)
@@ -7096,38 +7163,70 @@ class Fondo(gtk.Dialog):
                     self.fondos.append(f)
             self.http.fondos = self.fondos
             self.http.multas = self.multas
-        frame = Widgets.Frame('Cuenta Destino')
+
+
+        frame = Widgets.Frame('Tipo de Cuenta')
+        if len(self.http.multas):  # solo STA CRUZ, por compatibilidad
+            self.vbox.pack_start(frame, False, False, 0)
+        hb = gtk.HBox(False, 5)
+        frame.add(hb)
+        self.radio_fondos = gtk.RadioButton(None, 'Fondos y Deudas', False)
+        hb.pack_start(self.radio_fondos, False, False, 0)
+        self.radio_multas = gtk.RadioButton(self.radio_fondos, 'Multas y otros', False)
+        hb.pack_start(self.radio_multas, False, False, 0)
+        self.radio_fondos.connect('toggled', self.radio_toggled)
+
+        frame = Widgets.Frame('Detalle del Pago')
         self.vbox.pack_start(frame, False, False, 0)
-        vbox = gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 5)
         frame.add(vbox)
-        self.series = []
-        grupo = None
+
+        self.hbox_fondos = gtk.HBox(False, 5)
+        vbox.pack_start(self.hbox_fondos)
+        self.hbox_fondos.pack_start(gtk.Label('Cuenta:'), False, False, 0)
+        self.combo_fondos = Widgets.ComboBox()
+        fondos = []
         for f in self.http.datos['seriacion']['fondo']:
-            if self.ruta == f[1]:
-                radiobutton = gtk.RadioButton(grupo, f[0], False)
-                vbox.pack_start(radiobutton, False, False, 0)
-                self.series.append((radiobutton, f[2]))
-                radiobutton.set_active(False)
-                if grupo is None:
-                    grupo = radiobutton
-        hbox = gtk.HBox(False, 0)
-        vbox.pack_start(hbox, False, False, 0)
-        radiobutton = gtk.RadioButton(grupo, 'Multas', False)
-        hbox.pack_start(radiobutton, False, False, 0)
-        self.series.append([radiobutton, None])
-        radiobutton.set_active(True)
+            fondos.append((f[0], f[2]))
+        self.combo_fondos.set_lista(fondos)
+        self.hbox_fondos.pack_start(self.combo_fondos)
+
+        # self.series = []
+        # grupo = None
+        # for f in self.http.datos['seriacion']['fondo']:
+        #     if self.ruta == f[1]:
+        #         radiobutton = gtk.RadioButton(grupo, f[0], False)
+        #         vbox.pack_start(radiobutton, False, False, 0)
+        #         self.series.append((radiobutton, f[2]))
+        #         radiobutton.set_active(False)
+        #         if grupo is None:
+        #             grupo = radiobutton
+        self.hbox_multas = gtk.HBox(False, 5)
+        vbox.pack_start(self.hbox_multas, False, False, 0)
+        # radiobutton = gtk.RadioButton(grupo, 'Multas', False)
+        # if len(self.http.multas):
+        #     self.hbox_multas.pack_start(radiobutton, False, False, 0)
+        # self.series.append([radiobutton, None])
+        # radiobutton.set_active(True)
+
+        self.hbox_multas.pack_start(gtk.Label('Multa:'), False, False, 5)
         self.combo_multa = Widgets.ComboBox()
         self.combo_multa.set_lista(self.http.multas)
-        hbox.pack_start(self.combo_multa, False, False, 0)
+        self.hbox_multas.pack_start(self.combo_multa)
+
         self.entry_monto = Widgets.Texto(7)
-        hb = gtk.HBox(False, 0)
+        hb = gtk.HBox(False, 5)
         vbox.pack_start(hb, False, False, 0)
+        self.entry_almacen = Widgets.Texto(16)
+        hb.pack_start(gtk.Label('Ref. Almacén:'), False, False, 0)
+        hb.pack_start(self.entry_almacen, False, False, 0)
+        self.entry_almacen.connect('activate', self.buscar_producto)
+        hb.pack_start(gtk.Label('Padrón Referencia:'), False, False, 0)
+        self.entry_padron = Widgets.Texto(4)
+        hb.pack_start(self.entry_padron, False, False, 0)
+        hb = gtk.HBox(False, 5)
         hb.pack_start(gtk.Label('Monto:'), False, False, 0)
         hb.pack_start(self.entry_monto, False, False, 0)
-        self.entry_padron = Widgets.Texto(4)
-        hb.pack_end(self.entry_padron, False, False, 0)
-        hb.pack_end(gtk.Label('Padrón Referencia:'), False, False, 0)
-        hb = gtk.HBox(False, 0)
         vbox.pack_start(hb, False, False, 0)
         self.entry_concepto = Widgets.Texto(32)
         hb.pack_start(gtk.Label('Detalle:'), False, False, 0)
@@ -7139,6 +7238,16 @@ class Fondo(gtk.Dialog):
         self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.codigo_back = None
         self.cuenta_back = None
+
+    def radio_toggled(self, *args):
+        if self.radio_multas.get_active():
+            self.hbox_multas.show_all()
+            self.hbox_fondos.hide_all()
+        else:
+            self.hbox_multas.hide_all()
+            self.hbox_fondos.show_all()
+
+
 
     def buscar_dni(self, dni):
         for l in self.lista:
@@ -7236,6 +7345,24 @@ class Fondo(gtk.Dialog):
             self.llave = llave
             self.codigo = codigo
 
+    def buscar_producto(self, *args):
+        codigo = self.entry_almacen.get_text()
+        self.entry_monto.set_text('')
+        self.entry_concepto.set_text('')
+        if self.http.productos == []:
+            almacenes = []
+            for a in self.http.datos['almacen']:
+                almacenes.append(a[1])
+            datos = {'ruta': self.ruta, 'lado': self.lado, 'almacen_id': json.dumps(almacenes)}
+            data = self.http.load('almacen', datos)
+            if data:
+                self.http.productos = data['productos']
+
+        for p in self.http.productos:
+            if p[0] == codigo:
+                self.entry_concepto.set_text(p[1])
+                self.entry_monto.set_text(p[2])
+
     def cobrar(self, *args):
         monto = self.entry_monto.get_text()
         try:
@@ -7247,13 +7374,12 @@ class Fondo(gtk.Dialog):
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
         if respuesta:
-            for s in self.series:
-                if s[0].get_active():
-                    seriacion = s[1]
-            if seriacion is None:
+            if self.radio_multas.get_active():
                 multa = self.combo_multa.get_id()
             else:
                 multa = None
+                self.hbox_fondos.show_all()
+            seriacion = self.combo_fondos.get_id()
             concepto = self.entry_concepto.get_text()
             datos = {
                 'llave': self.llave,
@@ -7277,6 +7403,7 @@ class Fondo(gtk.Dialog):
 
     def iniciar(self):
         self.show_all()
+        self.hbox_multas.hide_all()
         self.run()
 
     def cerrar(self, *args):
@@ -9348,12 +9475,12 @@ class Trackers(gtk.Window):
         hbox.pack_start(gtk.Label('Mensaje (max 64):'), False, False, 0)
         self.entry_mensaje = Widgets.Texto(64)
         hbox.pack_start(self.entry_mensaje, False, False, 0)
-        self.radio_todos = gtk.RadioButton(None, 'Todos', True)
-        vbox.pack_start(self.radio_todos, False, False, 0)
-        self.radio_padrones = gtk.RadioButton(self.radio_todos, 'Solo a: ', False)
+        self.radio_padrones = gtk.RadioButton(None, 'Enviar a: ', False)
         hbox = gtk.HBox(False, 0)
         vbox.pack_start(hbox, False, False, 0)
         hbox.pack_start(self.radio_padrones, False, False, 0)
+        self.radio_todos = gtk.RadioButton(self.radio_padrones, 'Todos', True)
+        vbox.pack_start(self.radio_todos, False, False, 0)
         self.entry_padrones = Widgets.Texto(64)
         hbox.pack_end(self.entry_padrones, False, False, 0)
         but_enviar = Widgets.Button('SMS.png', 'Enviar Mensaje', 48)
@@ -9364,6 +9491,7 @@ class Trackers(gtk.Window):
         self.unidad = None
         if self.padron:
             self.entry_padron.set_text(str(self.padron))
+            self.entry_padrones.set_text(str(self.padron))
             self.buscar_padron()
         self.show_all()
 
@@ -9408,7 +9536,7 @@ class Trackers(gtk.Window):
             self.but_emparejar.set_sensitive(False)
 
     def enviar_mensaje(self, *args):
-        mensaje = self.entry_mensaje.get_text()
+        mensaje = self.entry_mensaje.get_text().replace(' ', '_')
         todos = self.radio_todos.get_active()
         padrones = self.entry_padrones.get_text()
         datos = {

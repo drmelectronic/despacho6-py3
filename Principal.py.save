@@ -16,7 +16,7 @@ import Sonido
 import Impresion
 import pickle
 import datetime
-local = 1
+local = 0
 if os.name != 'nt':
     import sh
 infinito = True

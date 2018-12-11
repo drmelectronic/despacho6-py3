@@ -16,7 +16,7 @@ import time
 import json
 import base64
 from uuid import getnode
-
+import xlrd
 
 class Entry(gtk.Entry):
 
@@ -726,6 +726,19 @@ class ButtonDoblePersonal(gtk.Button):
         self.datos = datos
         if respuesta:
             if 'castigos' in respuesta:
+                js = respuesta['json']
+                if 'conductor' in respuesta:
+                    if respuesta['conductor']:
+                        for c in self.http.conductores:
+                            if c[2] == js[2]:
+                                c[3] = js[3]
+                                break
+                    else:
+                        for c in self.http.cobradores:
+                            if c[2] == js[2]:
+                                c[3] = js[3]
+                                break
+                self.set(js[3], js[2])
                 self.dialogo = Alerta_SINO(respuesta['nombre'], '../../outs/imagen.png', respuesta['motivo'])
                 self.dialogo.but_ok.set_text('Pagar Multas')
                 boton = Button('editar.png', 'Avalar')
@@ -1420,9 +1433,9 @@ class Alerta_Dia_Hora(gtk.Dialog):
         self.destroy()
 
 
-class Alerta_Dia_Hora_Texto(gtk.Dialog):
-    def __init__(self, titulo, imagen, mensaje):
-        super(Alerta_Dia_Hora_Texto, self).__init__(
+class BloquearUnidad(gtk.Dialog):
+    def __init__(self, datos):
+        super(BloquearUnidad, self).__init__(
             flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
         ventanas = gtk.window_list_toplevels()
         parent = ventanas[0]
@@ -1431,61 +1444,213 @@ class Alerta_Dia_Hora_Texto(gtk.Dialog):
                 parent = v
                 break
         self.set_modal(True)
+        self.datos = datos
         self.set_transient_for(parent)
         self.set_default_size(200, 50)
-        self.set_title(titulo)
+        self.set_title('Bloquear Unidad')
         self.set_position(gtk.WIN_POS_CENTER)
         self.connect("delete_event", self.cerrar)
         hbox = gtk.HBox(False, 0)
         self.vbox.pack_start(hbox, False, False, 10)
         image = gtk.Image()
-        image.set_from_file('images/PNG-48/' + imagen)
+        image.set_from_file('images/PNG-48/bloqueado.png')
         hbox.pack_start(image, False, False, 5)
         vbox = gtk.VBox()
-        hbox.pack_start(vbox, False, False, 5)
+        hbox.pack_start(vbox)
+        frame = gtk.Frame()
+        vbox.pack_start(frame)
+        vb = gtk.VBox()
+        frame.add(vb)
         label = gtk.Label()
-        label.set_markup(mensaje)
-        vbox.pack_start(label, False, False, 15)
+        label.set_markup('Indique el día y hora del fin del bloqueo')
+        vb.pack_start(label)
+        self.radio1 = gtk.RadioButton(None, 'Hasta Nuevo Aviso')
+        vb.pack_start(self.radio1)
+        self.radio2 = gtk.RadioButton(self.radio1, 'Fecha y Hora')
+        vb.pack_start(self.radio2)
         hbox = gtk.HBox()
-        vbox.pack_start(hbox, False, False, 5)
-        label = gtk.Label()
-        label.set_markup('Fin de Bloqueo')
-        hbox.pack_start(label, False, False, 15)
+        vb.pack_start(hbox, False, False, 5)
+        label = gtk.Label('Día: ')
+        hbox.pack_start(label, False, False, 5)
         self.fecha = Fecha()
         hbox.pack_start(self.fecha, False, False, 0)
+        label = gtk.Label('Hora: ')
         self.hora = Hora()
         hbox.pack_start(self.hora, False, False, 0)
-        button = Button(None, 'HNA')
-        hbox.pack_start(button, False, False, 0)
-        button.connect('clicked', self.hna)
         hbox = gtk.HBox()
-        vbox.pack_start(hbox, False, False, 15)
-        label = gtk.Label()
-        label.set_markup('Detalle:')
-        hbox.pack_start(label, False, False, 15)
+        vbox.pack_start(hbox, False, False, 5)
+        label = gtk.Label('Detalle:')
+        hbox.pack_start(label, False, False, 5)
         self.entry = Texto(64)
-        hbox.pack_start(self.entry, False, False, 15)
+        hbox.pack_start(self.entry, False, False, 5)
+        hbox = gtk.HBox()
+        vbox.pack_start(hbox, False, False, 5)
+        label = gtk.Label('Tipo de Bloqueo:')
+        hbox.pack_start(label, False, False, 5)
+        self.radio3 = gtk.RadioButton(None, 'Por nivel')
+        hbox.pack_start(self.radio3, False, False, 5)
+        radio4 = gtk.RadioButton(self.radio3, 'Por usuario')
+        hbox.pack_start(radio4, False, False, 5)
+        hbox = gtk.HBox()
+        vbox.pack_start(hbox, False, False, 5)
+        label = gtk.Label('Bloquear en:')
+        hbox.pack_start(label, False, False, 5)
+        self.radio5 = gtk.RadioButton(None, 'Lado A')
+        hbox.pack_start(self.radio5, False, False, 5)
+        self.radio6 = gtk.RadioButton(self.radio5, 'Lado B')
+        hbox.pack_start(self.radio6, False, False, 5)
+        self.radio7 = gtk.RadioButton(self.radio5, 'Ambos')
+        hbox.pack_start(self.radio7, False, False, 5)
+        self.radio1.connect('toggled', self.toggled_tipo)
         but_salir = Button('cancelar.png', "_Cancelar")
         self.but_ok = Button('aceptar.png', "_Aceptar")
         self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.hora.connect('enter', lambda s, w: self.but_ok.clicked())
         self.hora.connect('escape', lambda s, w: but_salir.clicked())
+        self.hna()
         self.set_focus(self.hora)
+
+    def por_hora(self):
+        self.fecha.set_sensitive(True)
+        self.hora.set_sensitive(True)
+        if datetime.datetime.now().time() > datetime.time(14, 0):
+            self.hora.set_time('03:00')
+            self.fecha.set_date(datetime.datetime.today() + datetime.timedelta(1))
+        else:
+            self.hora.set_time('18:00')
+            self.fecha.set_date(datetime.datetime.today())
+
+    def hna(self, *args):
+        self.hora.set_text('--:--')
+        self.fecha.set_sensitive(False)
+        self.hora.set_sensitive(False)
+
+    def toggled_tipo(self, *args):
+        if self.radio1.get_active():
+            self.hna()
+        else:
+            self.por_hora()
 
     def iniciar(self):
         self.show_all()
         if self.run() == gtk.RESPONSE_OK:
-            return self.hora.get_time(), self.entry.get_text()
+            if self.radio2.get_active():
+                self.datos['dia'] = self.fecha.get_text()
+                self.datos['hora'] = self.hora.get_text()
+            self.datos['motivo'] = self.entry.get_text()
+            if self.radio5.get_active():
+                self.datos['bloqueo_lado'] = 'A'
+            elif self.radio6.get_active():
+                self.datos['bloqueo_lado'] = 'B'
+            else:
+                self.datos['bloqueo_lado'] = 'Ambos'
+            if self.radio3.get_active():
+                self.datos['tipo'] = 'NIVEL'
+            else:
+                self.datos['tipo'] = 'USUARIO'
+            self.datos['tipo']
+            return self.datos
         else:
             return False
-
-    def hna(self, *args):
-        self.hora.set_text('--:--')
 
     def cerrar(self, *args):
         self.destroy()
 
+
+class DesbloquearUnidad(gtk.Dialog):
+    def __init__(self, padre, bloqueos, datos):
+        super(DesbloquearUnidad, self).__init__(
+            flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+        self.http = padre.http
+        self.set_modal(True)
+        self.datos = datos
+        self.set_transient_for(parent)
+        self.set_default_size(200, 50)
+        self.set_title('Desbloquear Unidad')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect("delete_event", self.cerrar)
+        self.bloqueos = []
+        self.bloqueado = False
+        self.label = gtk.Label('No hay bloqueos activos')
+        self.vbox.pack_start(self.label, False, False, 15)
+        self.escribir(bloqueos)
+        self.but_ok = Button('aceptar.png', "_Aceptar")
+        self.but_bloquear = Button('bloqueado.png', "_Bloquear")
+        self.but_bloquear.connect('clicked', self.bloquear)
+        self.action_area.pack_start(self.but_bloquear)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
+
+    def escribir(self, bloqueos):
+        if self.bloqueos:
+            for b in self.bloqueos:
+                self.vbox.remove(b['hbox'])
+        else:
+            self.vbox.remove(self.label)
+        self.bloqueos = bloqueos
+        if self.bloqueos:
+            for b in self.bloqueos:
+                hbox = gtk.HBox(True, 0)
+                b['hbox'] = hbox
+                self.vbox.pack_start(hbox)
+                frame = gtk.Frame('TIPO')
+                frame.set_border_width(10)
+                hbox.pack_start(frame, True, True, 3)
+                label = gtk.Label()
+                frame.add(label)
+                if b['tipo'] == 'NIVEL':
+                    label.set_label('NIVEL: %s' % b['nivel'])
+                else:
+                    label.set_label('USUARIO:\n  %s' % b['usuario'])
+                frame = gtk.Frame('DETALLES')
+                frame.set_border_width(10)
+                hb = gtk.HBox(False, 0)
+                hbox.pack_start(hb, True, True, 3)
+                hb.pack_start(frame)
+                label = gtk.Label()
+                frame.add(label)
+                label.set_label('Por: %s\nFinaliza: %s\nMotivo: %s\nLado: %s' % (b['despachador'], b['fin'], b['motivo'], b['lado']))
+                button = Button('no_bloqueado.png')
+                hb.pack_end(button, False, False, 0)
+                button.connect('clicked', self.desbloquear, b)
+            self.bloqueado = True
+            self.vbox.show_all()
+        else:
+            self.label = gtk.Label('No hay bloqueos activos')
+            self.vbox.pack_start(self.label, False, False, 15)
+            self.bloqueado = False
+            self.vbox.show_all()
+
+    def bloquear(self, *args):
+        dialogo = BloquearUnidad(self.datos)
+        datos = dialogo.iniciar()
+        dialogo.cerrar()
+        if datos:
+            respuesta = self.http.load('bloquear-unidad', datos)
+            if isinstance(respuesta, list):
+                self.escribir(respuesta)
+
+    def desbloquear(self, widget, bloqueo):
+        self.datos['bloqueoId'] = bloqueo['bloqueoId']
+        respuesta = self.http.load('desbloquear-unidad', self.datos)
+        if isinstance(respuesta, list):
+            self.escribir(respuesta)
+
+    def iniciar(self):
+        self.show_all()
+        if self.run() == gtk.RESPONSE_OK:
+            return True
+        else:
+            return False
+
+    def cerrar(self, *args):
+        self.destroy()
 
 class Alerta_FechaNumero(gtk.Dialog):
 
@@ -2657,9 +2822,10 @@ class Window(gtk.Window):
 
 class Configuracion(gtk.Dialog):
 
-    def __init__(self, ticketera):
+    def __init__(self, http):
         super(Configuracion, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
-        self.ticketera = ticketera
+        self.ticketera = http.ticketera
+        self.http = http
         ventanas = gtk.window_list_toplevels()
         parent = ventanas[0]
         for v in ventanas:
@@ -2727,6 +2893,9 @@ class Configuracion(gtk.Dialog):
         self.combo_tarjetas = ComboBox()
         hbox.pack_start(self.combo_tarjetas, False, False, 0)
         self.combo_tarjetas.set_lista(self.lista_tarjeta)
+        but_excel = Button('excel.png', 'XLS')
+        self.action_area.pack_start(but_excel, False, False, 0)
+        but_excel.connect('clicked', self.excel_dialog)
         self.but_ok = Button('aceptar.png', "Aceptar")
         self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.but_salir = Button('cancelar.png', "_Salir")
@@ -2785,6 +2954,170 @@ class Configuracion(gtk.Dialog):
 
     def probar(self, *args):
         self.ticketera.probar()
+
+    def excel_dialog(self, *args):
+        dialog = Excel_Dialog(self.http)
+        dialog.cerrar()
+
+    def cerrar(self, *args):
+        self.destroy()
+
+
+class Excel_Dialog(gtk.Dialog):
+    UNIDADES = ( '', 'UN ', 'DOS ', 'TRES ', 'CUATRO ', 'CINCO ', 'SEIS ', 'SIETE ', 'OCHO ', 'NUEVE ', 'DIEZ ', 'ONCE ', 'DOCE ', 'TRECE ', 'CATORCE ', 'QUINCE ', 'DIECISEIS ', 'DIECISIETE ', 'DIECIOCHO ', 'DIECINUEVE ', 'VEINTE ')
+    DECENAS = ('VENTI', 'TREINTA ', 'CUARENTA ', 'CINCUENTA ', 'SESENTA ', 'SETENTA ', 'OCHENTA ', 'NOVENTA ', 'CIEN ')
+    CENTENAS = ('CIENTO ', 'DOSCIENTOS ', 'TRESCIENTOS ', 'CUATROCIENTOS ', 'QUINIENTOS ', 'SEISCIENTOS ', 'SETECIENTOS ', 'OCHOCIENTOS ', 'NOVECIENTOS '  )
+
+    def __init__(self, http):
+        super(Excel_Dialog, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        self.ticketera = http.ticketera
+        self.http = http
+        self.set_size_request(350, 250)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_default_size(200, 50)
+        self.set_title('Impresión de Excel')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect("delete_event", self.cerrar)
+        frame = Frame('CONFIGURACIÓN DE IMPRESION')
+        frame.set_property('shadow-type', gtk.SHADOW_OUT)
+        self.vbox.pack_start(frame, False, False, 10)
+        vbox = gtk.VBox(False, 10)
+        frame.add(vbox)
+        tabla = gtk.Table(2, 7)
+        vbox.pack_start(tabla, False, False, 5)
+        self.lista = [('LPT1', 1), ('LPT2', 2), ('LPT3', 3)]
+        self.lista_tarjeta = []
+        i = 3
+        for p in self.ticketera.seriales:
+            i += 1
+            self.lista.append((p, i))
+        if os.name == 'nt':
+            printers = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)
+            for p in printers:
+                i += 1
+                self.lista.append((p[2], i))
+                self.lista_tarjeta.append((p[2], i))
+        tabla.attach(gtk.Label('Escoja un archivo: '), 0, 1, 1, 2)
+        self.chooserdialog = gtk.FileChooserDialog(action=gtk.FILE_CHOOSER_ACTION_OPEN, buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+        self.filechooser = gtk.FileChooserButton(self.chooserdialog)
+        tabla.attach(self.filechooser, 1, 2, 1, 2)
+        tabla.attach(gtk.Label('Nº Hoja'), 0, 1, 2, 3)
+        self.hoja = Numero(3)
+        tabla.attach(self.hoja, 1, 2, 2, 3)
+        tabla.attach(gtk.Label('Formato'), 0, 1, 3, 4)
+        self.formato = ComboBox()
+        formatos = self.http.load('templates', {'nada': True})
+        self.formato.set_lista(formatos)
+        tabla.attach(self.formato, 1, 2, 3, 4)
+        tabla.attach(gtk.Label('Fila Inicial'), 0, 1, 4, 5)
+        self.inicial = Numero(6)
+        tabla.attach(self.inicial, 1, 2, 4, 5)
+        tabla.attach(gtk.Label('Fila Final'), 0, 1, 5, 6)
+        self.final = Numero(6)
+        tabla.attach(self.final, 1, 2, 5, 6)
+        self.but_ok = Button('aceptar.png', "Aceptar")
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
+        self.but_salir = Button('cancelar.png', "_Salir")
+        self.add_action_widget(self.but_salir, gtk.RESPONSE_CANCEL)
+        self.set_focus(self.but_salir)
+        self.iniciar()
+
+    def iniciar(self):
+        self.show_all()
+        if self.run() == gtk.RESPONSE_OK:
+            path = self.chooserdialog.get_filename()
+            try:
+                book = xlrd.open_workbook(path)
+            except:
+                Alerta('Error', 'error.png', 'Error al abrir el archivo')
+                return False
+            try:
+                sheet = book.sheet_by_index(self.hoja.get_int() - 1)
+            except:
+                Alerta('Error', 'error.png', 'Error número de página inválido')
+                return False
+            template = self.http.load('templates', {'id': self.formato.get_id()})
+            if template:
+                for i in range(sheet.nrows):
+                    if self.inicial.get_int() - 1 <= i <= self.final.get_int() - 1:
+                        self.imprimir(sheet.row(i), template)
+            else:
+                Alerta('Error', 'error.png', 'Error al descargar la plantilla')
+                return False
+            return True
+        else:
+            return False
+
+    def numero_a_letras(self, n):
+        number_in = int(n)
+        decim = int(n * 100 - number_in * 100)
+        convertido = ''
+        number_str = str(number_in) if (type(number_in) != 'str') else number_in
+        number_str =  number_str.zfill(9)
+        millones, miles, cientos = number_str[:3], number_str[3:6], number_str[6:]
+        if(millones):
+            if(millones == '001'):
+                convertido += 'UN MILLON '
+            elif(int(millones) > 0):
+                convertido += '%sMILLONES ' % self.convertNumber(millones)
+        if(miles):
+            if(miles == '001'):
+                convertido += 'MIL '
+            elif(int(miles) > 0):
+                convertido += '%sMIL ' % self.convertNumber(miles)
+        if(cientos):
+            if(cientos == '001'):
+                convertido += 'UN '
+            elif(int(cientos) > 0):
+                convertido += '%s' % self.convertNumber(cientos)
+        convertido += 'CON %s/100 ' % str(decim).zfill(2)
+        return convertido
+
+    def convertNumber(self, n):
+        output = ''
+        if(n == '100'):
+            output = "CIEN"
+        elif(n[0] != '0'):
+            output = self.CENTENAS[int(n[0])-1]
+        k = int(n[1:])
+        if(k <= 20):
+            output += self.UNIDADES[k]
+        else:
+            if((k > 30) & (n[2] != '0')):
+                output += '%sY %s' % (self.DECENAS[int(n[1])-2], self.UNIDADES[int(n[2])])
+            else:
+                output += '%s%s' % (self.DECENAS[int(n[1])-2], self.UNIDADES[int(n[2])])
+        return output
+
+    def imprimir(self, row, template):
+        i = 0
+        ticket = []
+        for line in template['template']:
+            comand = line[:]
+            datos = template['datos'][i]
+            if datos:
+                replace = []
+                for d in datos:
+                    if isinstance(d, int):
+                        if isinstance(row[d].value, (str, unicode)):
+                            replace.append(row[d].value[:25])
+                        else:
+                            replace.append(row[d].value)
+                    else:
+                        replace.append(self.numero_a_letras(row[int(d.split(' ')[1])].value))
+                comand[1] = comand[1].format(*replace)
+            ticket.append(comand)
+            i += 1
+        self.ticketera.imprimir(ticket)
+        time.sleep(2)
+
 
     def cerrar(self, *args):
         self.destroy()

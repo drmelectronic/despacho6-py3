@@ -136,6 +136,12 @@ if os.name == 'nt':
     import win32print
 else:
     import sh
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+
+pdfmetrics.registerFont(TTFont('Arial', 'Arial.ttf'))
+pdfmetrics.registerFont(TTFont('ArialBlack', 'Arial_Black.ttf'))
 
 class Impresion:
     normal = 'Courier'
@@ -163,6 +169,9 @@ class Impresion:
         else:
             f = self.pdf.drawRightString
         f(x + self.mx, self.A4y - y - self.my, unicode(d))
+
+    def rectangulo(self, x, y, ancho, alto, fill=False):
+        self.pdf.rect(x + self.mx, self.A4y - y - self.my, ancho, alto, fill=fill)
 
     def decode(self, tarjeta, datos, direccion=None):
         for k in tarjeta.keys():
@@ -238,6 +247,16 @@ class Impresion:
             f.write(texto)
             print texto
             f.close()
+        elif self.metodo == 'ticket':
+            self.path = 'outs/impresion.pdf'
+            x, y = self.tarjeta['hoja']#x = 22.9 #y = 16.2
+            self.A4x = x * cm
+            self.A4y = y * cm
+            self.pdf = canvas.Canvas(self.path, pagesize=(self.A4x, self.A4y))
+            self.mx, self.my = self.tarjeta['margen']
+            self.decode_ticket(self.datos)
+            self.pdf.showPage()
+            self.pdf.save()
         if os.name == 'nt':
             a = os.path.abspath(self.path)
             if self.metodo == 'pdf':
@@ -328,6 +347,62 @@ class Impresion:
             print 'sin negrita'
         print texto
         return texto
+
+    def decode_ticket(self, datos):
+        self.escribir(self.A4x / 2, 0, 0, self.tarjeta['titulo'])
+        y = 20
+        self.pdf.setFont('ArialBlack', self.tarjeta['size'])
+        self.escribir(10, y - 3, -1, 'UNIDAD')
+        self.escribir(70, y - 3, -1, 'PAD ' + datos['padron'])
+        self.escribir(120, y - 3, -1, '(%s)' % datos['placa'])
+
+        self.rectangulo(5, y + 2, 160, 15)
+
+        y += 15
+        self.pdf.setFont(self.tarjeta['font'], self.tarjeta['size'])
+        self.escribir(10, y - 3, -1, 'OPERADORES')
+        self.escribir(70, y - 3, -1, 'CND ' + datos['conductor'])
+        self.escribir(120, y - 3, -1, 'CBR ' + datos['cobrador'])
+
+        self.rectangulo(5, y + 2, 160, 15)
+
+        y += 15
+        self.escribir(10, y - 3, -1, 'H. SALIDA:')
+        self.escribir(70, y - 3, -1, datos['inicio'])
+        self.escribir(120, y - 3, -1, datos['dia'])
+
+        self.rectangulo(5, y + 2, 160, 15)
+
+        y += 20
+        self.escribir(10, y - 3, -1, 'CONTROLES')
+        self.escribir(90, y - 3, 0, 'H.PROG')
+        self.escribir(120, y - 3, -1, 'BOLETOS')
+
+        self.rectangulo(5, y + 2, 108, 15)
+        self.rectangulo(113, y + 2, 52, 15)
+
+        y += 10
+        yb = y * 1
+        for c in datos['controles']:
+            self.escribir(10, y, -1, c['nombre'])
+            self.escribir(90, y, 0, c['hora'])
+            self.rectangulo(5, y + 2, 108, 10)
+            y += 10
+        y = yb * 1
+        for c in datos['boletos']:
+            self.pdf.setFillColorCMYK(0, 0, 0, 0.2)
+            self.rectangulo(113, y + 2, 52, 10, fill=True)
+            self.pdf.setFillColorCMYK(0, 0, 0, 1)
+            self.escribir(140, y, 0, c['nombre'])
+            y += 10
+            self.escribir(140, y, 0, c['boleto'])
+            altura = 10
+            y += 10
+            for r in c['reserva']:
+                self.escribir(140, y, 0, r)
+                altura += 10
+                y += 10
+            self.rectangulo(113, y + 2 - 10, 52, altura)
 
 
 class Excel:
@@ -697,6 +772,31 @@ class Imp:
         else:
             self.espacio = ''
 
+            def numero_a_letras(self, n):
+                number_in = int(n)
+                decim = int(n * 100 - number_in * 100)
+                convertido = ''
+                number_str = str(number_in) if (type(number_in) != 'str') else number_in
+                number_str = number_str.zfill(9)
+                millones, miles, cientos = number_str[:3], number_str[3:6], number_str[6:]
+                if (millones):
+                    if (millones == '001'):
+                        convertido += 'UN MILLON '
+                    elif (int(millones) > 0):
+                        convertido += '%sMILLONES ' % self.convertNumber(millones)
+                if (miles):
+                    if (miles == '001'):
+                        convertido += 'MIL '
+                    elif (int(miles) > 0):
+                        convertido += '%sMIL ' % self.convertNumber(miles)
+                if (cientos):
+                    if (cientos == '001'):
+                        convertido += 'UN '
+                    elif (int(cientos) > 0):
+                        convertido += '%s' % self.convertNumber(cientos)
+                convertido += 'CON %s/100 ' % str(decim).zfill(2)
+                return convertido
+
     def metodo_escpos(self, plantilla, datos, margen):
         self.datos = datos
         lista = []
@@ -757,6 +857,59 @@ if __name__ == '__main__123':
 
 
 if __name__ == '__main__':
+    tarjeta = {
+        "titulo": "HOJA DE RUTA 2411",
+        "metodo": "ticket",
+        "hoja": [6, 15],
+        "margen": [0, 60],
+        "font": 'Arial',
+        "size": 8
+    }
+    datos = {
+        "boletos": [
+            {
+                "nombre": "DIRECTO",
+                "boleto": "500445",
+                "reserva": ""
+            }, {
+                "nombre": "ADULTO",
+                "boleto": "180182",
+                "reserva": "220001"
+            }, {
+                "nombre": "MEDIO",
+                "boleto": "187422",
+                "reserva": ""
+            }
+        ],
+        "conductor": "1410",
+        "cobrador": "2883",
+        "padron": "48",
+        "vuelta": "2.0",
+        "total": "387.00",
+        "controles": [
+            {
+                "nombre": 'INICIO',
+                "hora": "13:47",
+            },
+            {
+                "nombre": 'PARADERO',
+                "hora": "13:54",
+            },
+            {
+                "nombre": 'MEDIO',
+                "hora": "13:01",
+            },
+            {
+                "nombre": 'FINAL',
+                "hora": "14:16",
+            }
+        ],
+        "dia": "18-12-2017",
+        "placa": "B9N179",
+        "impresion": "13:46:18",
+        "inicio": "13:44"}
+    Impresion(tarjeta, datos)
+    1/0
     from escpos import *
     """ Bixolon SRP-270D """
     Epson = printer.Usb(0x0419, 0x3c01)

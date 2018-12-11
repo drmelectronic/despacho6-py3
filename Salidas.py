@@ -537,7 +537,7 @@ class Ventana(gtk.Window):
     def on_key_release(self, widget, event):
         k = event.keyval
         if k == 65307:  # Escape
-            self.datos_unidad.entry_padron.grab_focus()
+            self.datos_unidad.entry_codigo.grab_focus()
         elif k == 65470:  # F1
             if event.state & gtk.gdk.CONTROL_MASK:  # Control + F1
                 mensaje = """Escape = Seleccionar Padron
