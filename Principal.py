@@ -32,7 +32,7 @@ print 'local', local
 if os.name != 'nt':
     import sh
 infinito = True
-version = 5.82
+version = 5.83
 dia = 'Actualización viernes 2 de febrero de 2018'
 if local:
     localhost = 'localhost'

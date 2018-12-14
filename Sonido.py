@@ -45,16 +45,16 @@ class Hilo(threading.Thread):
     def convertir(self, numero, output, folder):
         n = str(numero).zfill(4)
         carpeta = folder + "1-99/"
-        if(n == '1000'):
+        if (n == '1000'):
             output.append(carpeta + "MIL")
             return output
-        elif(n == '100'):
+        elif (n == '0100'):
             output.append(carpeta + "100")
             return output
-        if(n[0] != '0'):  # hay millares
+        if (n[0] != '0'):  # hay millares
             output.append(carpeta + n[0])
             output.append(carpeta + "MIL")
-        if(n[1] != '0'):  # hay centenas
+        if (n[1] != '0'):  # hay centenas
             output.append(carpeta + self.CENTENAS[int(n[1]) - 1])
         output.append(carpeta + str(int(n[2:])))
         return output
