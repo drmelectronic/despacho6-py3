@@ -30,7 +30,6 @@ local = 0
 print 'local', local
 if os.name != 'nt':
     import sh
-    beta = 0
 infinito = True
 version = 5.87
 dia = 'Actualización viernes 21 de febrero de 2019'
