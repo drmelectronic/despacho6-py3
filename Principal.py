@@ -25,15 +25,15 @@ try:
     d = json.loads(content)
     beta = d['beta']
 except:
-    raise
     beta = 0
 local = 0
 print 'local', local
 if os.name != 'nt':
     import sh
+    beta = 0
 infinito = True
-version = 5.83
-dia = 'Actualización viernes 2 de febrero de 2018'
+version = 5.87
+dia = 'Actualización viernes 21 de febrero de 2019'
 if local:
     localhost = 'localhost'
     appengine_ip = appengine = localhost
@@ -71,22 +71,6 @@ else:
                     break
 
 import webbrowser
-try:
-    webbrowser.get('google-chrome')
-except:
-    try:
-        webbrowser.get('firefox')
-    except:
-        try:
-            webbrowser.get('opera')
-        except:
-            try:
-                webbrowser.get('safari')
-            except:
-                try:
-                    webbrowser.get('windows-default')
-                except:
-                    pass
 
 gobject.threads_init()
 
@@ -199,6 +183,8 @@ class Reloj(gtk.EventBox):
 
 
 class Http():
+    fondos = None
+    multas = None
 
     def __init__(self, ventanas):
         global web
@@ -337,6 +323,23 @@ class Http():
             self.guardar_config()
             return self.send_login(login)
 
+
+    def setConfig(self, key, value):
+        if key in self.config:
+            if self.config[key] != value:
+                self.config[key] = value
+        else:
+            self.config[key] = value
+        self.guardar_config()
+
+
+    def getConfig(self, key):
+        if key in self.config:
+            return self.config[key]
+        else:
+            return False
+
+
     def update(self):
         sh.git.stash()
         s = sh.git.pull()
@@ -452,9 +455,11 @@ class Http():
         post_data = ''
         if not get:
             datos['empresa_id'] = self.empresa
+            datos['empresa'] = self.empresa
             datos['version'] = self.version
             datos['despachador'] = self.despachador
             datos['despachador_id'] = self.despachador_id
+            datos['usuario'] = self.despachador_id
             datos['csrfmiddlewaretoken'] = self.csrf
             datos['sessionid'] = self.sessionid
             keys = datos.keys()
@@ -541,7 +546,11 @@ class Http():
             return self.ejecutar(js[2:])
         elif primero == 'ticket':
             print 'ticket principal'
-            self.ticket(segundo)
+            self.ticket(segundo, cortar=True)
+            return self.ejecutar(js[2:])
+        elif primero == 'ticket_uncut':
+            print 'ticket sin cortar'
+            self.ticket(segundo, cortar=False)
             return self.ejecutar(js[2:])
         elif primero == 'open':
             self.open(segundo)
@@ -583,12 +592,12 @@ class Http():
         f.close()
         return True
 
-    def ticket(self, comandos):
+    def ticket(self, comandos, cortar):
         for c in comandos:
             if 'AUTORIZACION:' in c[1]:
-                self.ticketeraSunat.imprimir(comandos)
+                self.ticketeraSunat.imprimir(comandos, cortar)
                 return
-        self.ticketera.imprimir(comandos)
+        self.ticketera.imprimir(comandos, cortar)
 
     def connect(self, string, funcion):
         self.signals[string].append(funcion)
@@ -627,7 +636,51 @@ class Http():
 
     def webbrowser(self, url, backup=False):
         uri = 'http://%s/despacho/ingresar?sessionid=%s&next=%s' % (self.web, self.sessionid, url)
-        webbrowser.open(uri)
+        webbrowser.get('chrome').open(uri)
+
+    def getFondos(self, actualizar=False):
+        if self.fondos is None or actualizar:
+            fondos = self.load('lista-fondos', {'vacio': None})
+            self.fondos = []
+            self.multas = []
+            for f in fondos:
+                if f[4] is None:
+                    self.multas.append(f)
+                else:
+                    self.fondos.append(f)
+        return self.fondos
+
+    def getMultas(self, actualizar=False):
+        if self.multas is None or actualizar:
+            fondos = self.load('lista-fondos', {'vacio': None})
+            self.fondos = []
+            self.multas = []
+            for f in fondos:
+                if f[4] is None:
+                    self.multas.append(f)
+                else:
+                    self.fondos.append(f)
+        return self.multas
+
+    def getDatos(self, key, id=None, actualizar=False):
+        if not (key in self.datos) or actualizar:
+            datos = self.load('datos-despacho', {'json': json.dumps({'funcion': key})})
+            if datos:
+                self.datos[key] = datos
+            else:
+                self.datos[key] = []
+        if id:
+            for d in self.datos[key]:
+                if d['id'] == id:
+                    return d
+            return None
+        return self.datos[key]
+
+    def getFondos(self, id=None, actualizar=False):
+        return self.getDatos('fondos', id, actualizar)
+
+    def getCobros(self, id=None, actualizar=False):
+        return self.getDatos('cobros', id, actualizar)
 
 
 class Twist(threading.Thread):
@@ -709,7 +762,8 @@ class Twist(threading.Thread):
 if __name__ == '__main__':
     s = Splash()
     gtk.main()
-    infinito = False
+    # infinito = False
+    s.a.http.twist.cerrar()
     if os.name == 'nt':
         os.system('taskkill /im TCONTUR5.exe /f')
     Chrome.close()

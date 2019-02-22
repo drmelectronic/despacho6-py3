@@ -129,7 +129,8 @@ import datetime
 from reportlab.pdfgen import canvas
 import os
 import json
-from reportlab.lib.pagesizes import legal, cm, A4, letter
+from reportlab.lib.pagesizes import legal, A4, letter
+from reportlab.lib.units import cm
 import time
 if os.name == 'nt':
     import win32api
@@ -580,7 +581,7 @@ class ESCPOS:
         self.config[self.tipo] = puerto
         self.epson = None
 
-    def imprimir(self, comandos):
+    def imprimir(self, comandos, cortar=True):
         print 'IMPRIMIR *****', self.tipo
         texto = json.dumps(comandos)
         ticket = open('outs/ticket.lst', 'wb')
@@ -618,21 +619,24 @@ class ESCPOS:
                     vista += c[1]
                     if 'u' in c[0][2]:
                         texto += chr(27) + chr(45) + chr(48)
-            texto += '\n' * self.config['lineas_final']
-            vista += '\n' * self.config['lineas_final']
-            if self.config['corte'] is True:
-                texto += cutpaper
-                vista += cutpaper
-                print 'CORTAR DEFAULT 105'
+            if cortar:
+                texto += '\n' * self.config['lineas_final']
+                vista += '\n' * self.config['lineas_final']
+                if self.config['corte'] is True:
+                    texto += cutpaper
+                    vista += cutpaper
+                    print 'CORTAR DEFAULT 105'
+                else:
+                    try:
+                        byts = self.config['corte'].split(',')
+                        for b in byts:
+                            texto += chr(int(b))
+                            vista += chr(int(b))
+                        print 'CORTAR %s' % self.config['corte']
+                    except:
+                        print 'NO CORTAR'
             else:
-                try:
-                    byts = self.config['corte'].split(',')
-                    for b in byts:
-                        texto += chr(int(b))
-                        vista += chr(int(b))
-                    print 'CORTAR %s' % self.config['corte']
-                except:
-                    print 'NO CORTAR'
+                print('-- esperando siguiente parte --')
             ticket.write(texto)
             ticket.close()
             previa.write(vista)

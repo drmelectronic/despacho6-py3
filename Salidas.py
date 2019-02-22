@@ -744,7 +744,7 @@ Ctrl + E = Cola de Espera"""
     def backups(self):
         data = self.http.load('backups', {'dato': 1})
         if data:
-            dialogo = Alerta_Combo('Lista de Backup', 'backup.png', 'Escoja el backup que desea descargar:', data, liststore=(str, str))
+            dialogo = Widgets.Alerta_Combo('Lista de Backup', 'backup.png', 'Escoja el backup que desea descargar:', data, liststore=(str, str))
             url = dialogo.iniciar()
             if url:
                 print 'Backup'
