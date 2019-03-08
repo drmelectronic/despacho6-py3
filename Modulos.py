@@ -1747,6 +1747,9 @@ class Boletos(gtk.VBox):
         self.but_ticket_reporte = Widgets.Button('imprimir.png', tooltip='Ticket de Suministros')
         hbox_botones.pack_start(self.but_ticket_reporte, False, False, 0)
         self.but_ticket_reporte.connect('clicked', self.ticket_reporte)
+        self.but_pedir_liquidar = Widgets.Button('cuenta.png', tooltip='Pedir Cuenta')
+        hbox_botones.pack_start(self.but_pedir_liquidar, False, False, 0)
+        self.but_pedir_liquidar.connect('clicked', self.pedir_liquidar)
         self.but_corte = Widgets.Button('corte.png')
         self.but_corte.connect('clicked', self.corte)
         self.but_guardar = Widgets.Button('guardar.png', 'Guardar')
@@ -1814,6 +1817,19 @@ class Boletos(gtk.VBox):
         self.liquidacion = self.http.load('liquidar', datos)
         if self.liquidacion:
             Liquidar(self.http, self.padron, '0', self)
+
+    def pedir_liquidar(self, *args):
+        datos = {
+            'padron': self.padron,
+            'ruta_id': self.ruta,
+            'lado': self.lado,
+            'json': json.dumps({
+                'salida': self.salida
+            })
+        }
+        self.http.load('pedir-liquidacion', datos)
+
+
 
     def deudas(self, *args):
         if self.padron:
@@ -7201,8 +7217,8 @@ class Fondo(gtk.Dialog):
         hb.pack_start(self.entry_nombre, False, False, 0)
         self.entry_nombre.set_sensitive(False)
 
-        self.fondos = self.http.getFondos()
         self.multas = self.http.getMultas()
+        self.fondos = self.http.fondos
 
         frame = Widgets.Frame('Tipo de Cuenta')
         if len(self.http.multas):  # solo STA CRUZ, por compatibilidad
@@ -7417,10 +7433,11 @@ class Fondo(gtk.Dialog):
         if respuesta:
             if self.radio_multas.get_active():
                 multa = self.combo_multa.get_id()
+                seriacion = None
             else:
                 multa = None
                 self.hbox_fondos.show_all()
-            seriacion = self.combo_fondos.get_id()
+                seriacion = self.combo_fondos.get_id()
             concepto = self.entry_concepto.get_text()
             datos = {
                 'llave': self.llave,
@@ -7434,6 +7451,7 @@ class Fondo(gtk.Dialog):
                 'padron': self.entry_padron.get_text(),
                 'concepto': concepto,
                 'dia': self.dia}
+            print('datos multa', datos)
             if float(monto) < 0:
                 if len(concepto) < 5:
                     return Widgets.Alerta('Error', 'error.png', 'El concepto debe tener al menos 5 caracteres')
@@ -9628,6 +9646,7 @@ class FondoMultiple(gtk.Dialog):
         tabla.attach(self.fecha, 1, 2, 1, 2)
         self.entry_padron.set_text(str(self.padron))
         self.fecha.set_date(self.dia)
+        print('DIA', self.dia)
         self.vbox.pack_start(tabla, False, False, 10)
         sw = gtk.ScrolledWindow()
         sw.set_size_request(300, 300)
@@ -9635,8 +9654,7 @@ class FondoMultiple(gtk.Dialog):
         self.vbox.pack_start(sw, False, False, 5)
         self.model = gtk.ListStore(str, str, bool, int)
         self.treeview = gtk.TreeView(self.model)
-        columnas = \
-            ('CONCEPTO', 'MONTO', 'COBRAR')
+        columnas = ('CONCEPTO', 'MONTO', 'COBRAR')
         sw.add(self.treeview)
         self.columns = []
         for i, columna in enumerate(columnas):
@@ -9667,14 +9685,14 @@ class FondoMultiple(gtk.Dialog):
         self.but_facturar.connect('clicked', self.facturar)
         self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
-        for p in self.fondos:
-            if p['moneda']:
+        for f in self.fondos:
+            if f['moneda']:
                 monto = 0
-                for c in self.http.getCobros():
-                    if c['nombre'] == p['nombre']:
-                        monto = c['monto']
-                print('fondos', p, monto)
-                self.model.append((p['nombre'], str(monto), False, p['id']))
+                if f['montoDefault']:
+                    monto = f['montoDefault'] / 100
+                else:
+                    monto = 0
+                self.model.append((f['nombre'], str(monto), False, f['id']))
 
         self.set_focus(self.treeview)
         self.treeview.set_cursor(0, self.columns[2], True)
@@ -9739,14 +9757,12 @@ class FondoMultiple(gtk.Dialog):
         self.dia = self.fecha.get_date()
         self.data = []
         if respuesta:
-            lista = []
             datos = self.http.getFondos()
             items = []
             i = 0
             total = 0
             for f in self.model:
                 monto = int(float(f[1]) * 100)
-                total += monto
                 if f[2] and monto != 0:
                     fondo = None
                     for d in datos:
@@ -9754,10 +9770,11 @@ class FondoMultiple(gtk.Dialog):
                             fondo = d
                             break
                     if fondo:
+                        total += monto
                         i += 1
                         items.append({
                             'padron': self.padron,
-                            'dia': self.dia.strftime('%Y-%m-%dT00:00:00'),
+                            'dia': self.dia.strftime('%Y-%m-%dT05:00:00'),
                             'seriacion': fondo['id'],
                             'fondo': fondo['nombre'],
                             'item': i,

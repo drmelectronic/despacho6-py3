@@ -26,13 +26,14 @@ try:
     beta = d['beta']
 except:
     beta = 0
-local = 0
+local = 1
 print 'local', local
 if os.name != 'nt':
+    beta = 1
     import sh
 infinito = True
-version = 5.87
-dia = 'Actualización viernes 21 de febrero de 2019'
+version = 5.90
+dia = 'Actualización viernes 27 de febrero de 2019'
 if local:
     localhost = 'localhost'
     appengine_ip = appengine = localhost
@@ -43,7 +44,7 @@ else:
     if beta:
         appengine_ip = appengine = 'beta.default.tcontur2.appspot.com'
     else:
-        appengine_ip = appengine = 'despacho.tcontur2.appspot.com'
+        appengine_ip = appengine = 'main.despacho.tcontur2.appspot.com'
     test = urllib3.HTTPConnectionPool('urbano.tcontur.com')
     try:
         test.urlopen('HEAD', '/', assert_same_host=False)
@@ -145,6 +146,7 @@ class Aplicacion():
 
     def ticketera(self, widgets, event):
         dialogo = Widgets.Configuracion(self.http)
+        self.http.limpiarData()
         dialogo.cerrar()
 
     def cerrar(self, ventana):
@@ -184,6 +186,7 @@ class Reloj(gtk.EventBox):
 class Http():
     fondos = None
     multas = None
+    dataServer = {}
 
     def __init__(self, ventanas):
         global web
@@ -635,19 +638,7 @@ class Http():
 
     def webbrowser(self, url, backup=False):
         uri = 'http://%s/despacho/ingresar?sessionid=%s&next=%s' % (self.web, self.sessionid, url)
-        webbrowser.get('chrome').open(uri)
-
-    def getFondos(self, actualizar=False):
-        if self.fondos is None or actualizar:
-            fondos = self.load('lista-fondos', {'vacio': None})
-            self.fondos = []
-            self.multas = []
-            for f in fondos:
-                if f[4] is None:
-                    self.multas.append(f)
-                else:
-                    self.fondos.append(f)
-        return self.fondos
+        webbrowser.get('google-chrome').open(uri)
 
     def getMultas(self, actualizar=False):
         if self.multas is None or actualizar:
@@ -661,25 +652,29 @@ class Http():
                     self.fondos.append(f)
         return self.multas
 
-    def getDatos(self, key, id=None, actualizar=False):
-        if not (key in self.datos) or actualizar:
+    def limpiarData(self):
+        self.dataServer = {}
+
+    def getDatos(self, key, _id=None, actualizar=False):
+        if not (key in self.dataServer) or actualizar:
             datos = self.load('datos-despacho', {'json': json.dumps({'funcion': key})})
             if datos:
-                self.datos[key] = datos
+                self.dataServer[key] = datos
             else:
-                self.datos[key] = []
-        if id:
-            for d in self.datos[key]:
-                if d['id'] == id:
+                self.dataServer[key] = []
+        if _id:
+            for d in self.dataServer[key]:
+                if d['id'] == _id:
                     return d
             return None
-        return self.datos[key]
+        print('DATOS', key, self.dataServer[key])
+        return self.dataServer[key]
 
-    def getFondos(self, id=None, actualizar=False):
-        return self.getDatos('fondos', id, actualizar)
+    def getFondos(self, _id=None, actualizar=False):
+        return self.getDatos('fondos', _id, actualizar)
 
-    def getCobros(self, id=None, actualizar=False):
-        return self.getDatos('cobros', id, actualizar)
+    def getCobros(self, _id=None, actualizar=False):
+        return self.getDatos('cobros', _id, actualizar)
 
 
 class Twist(threading.Thread):

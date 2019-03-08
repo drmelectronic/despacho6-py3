@@ -833,10 +833,11 @@ class Imp:
         return self.texto
 
 
-if __name__ == '__main__123':
+if __name__ == '__main__':
     from escpos import *
     """ Seiko Epson Corp. Receipt Printer M129 Definitions (EPSON TM-T88IV) """
-    Epson = printer.Usb(0x04b8, 0x0202)
+    # Epson = printer.Usb(0x04b8, 0x0202)
+    Epson = printer.Usb(0x067b, 0x2305)  # Prolific
     ESC = chr(27)
     GS = chr(29)
     LF = chr(10)
