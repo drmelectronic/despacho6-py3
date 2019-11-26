@@ -18,7 +18,6 @@ else:
         #import pygame
         #pygame.mixer.init()
         #pygame.mixer.pre_init(22050, -16, 2, 1024 * 3)
-import gobject
 import time
 import Widgets
 
@@ -156,10 +155,12 @@ class Hilo(threading.Thread):
         rate = w.getframerate()
         w.close()
         t = frames * 1. / rate
-        print path
         if os.name == 'nt':
+            path = path.replace('/', '\\')
+            print(path)
             winsound.PlaySound(path, winsound.SND_FILENAME|winsound.SND_ASYNC)
         else:
+            print(path)
             #if sys.maxint == 2147483647:
             #pygame.mixer.music.load(path)
             #pygame.mixer.music.play()
@@ -167,15 +168,15 @@ class Hilo(threading.Thread):
         time.sleep(t + 0.05)
 
 if __name__ == '__main__':
-    print 'inicio'
+    print('inicio')
     path = os.path.abspath('sounds/H1')
-    print path
+    print(path)
     sonido = Hilo()
     sonido.start()
     lista = []
     for i in range(5):
         lista = sonido.convertir(i + 22, lista, path + '/')
-    print lista
+    print(lista)
     sonido.play(lista, path + '/')
     time.sleep(2)
     sonido.stop()

@@ -234,7 +234,6 @@ class Http():
         self.http_funciones = {'aporte': Modulos.Aporte}
         self.reloj = Reloj()
         self.ticketera = Impresion.ESCPOS()
-        self.twist = Twist(self)
 
     def guardar_config(self):
         ticket = open('outs/config', 'wb')
@@ -269,14 +268,6 @@ class Http():
             self.conductores = []
             self.cobradores = []
             self.unidades = []
-            self.twist.despacho = self.datos['despacho']
-            rutas = ''
-            for c, r, v in self.datos['rutas']:
-                rutas += ',%d' % r
-            self.twist.rutas = rutas
-            print 'Twi'
-            self.twist.resume()
-            print 'sT'
         return self.sessionid
 
     def send_login(self, login):
@@ -591,81 +582,6 @@ class Http():
     def webbrowser(self, url):
         uri = 'http://%s/despacho/ingresar?sessionid=%s&next=%s' % (self.web, self.sessionid, url)
         webbrowser.open(uri)
-
-
-class Twist(threading.Thread):
-
-    def __init__(self, http):
-        super(Twist, self).__init__()
-        self.despacho = 0
-        self.rutas = []
-        self.ventanas = http.ventanas
-        self.compute = http.compute
-        self.state = threading.Event()
-        self.state.clear()
-        self.daemon = False
-        global local
-        self.local = local
-        self.start()
-
-    def run(self):
-        while infinito:
-            self.state.wait()
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.settimeout(None)
-            try:
-                print self.compute
-                self.socket.connect((self.compute, 22222))
-                self.socket.send('D,%s%s' % (self.despacho, self.rutas))
-            except:
-                self.state.clear()
-                gobject.idle_add(self.desconectado, 'No se pudo establecer la conexi\xc3\xb3n')
-            else:
-                while infinito:
-                    self.state.wait()
-                    try:
-                        recibido = self.socket.recv(64)
-                    except:
-                        continue
-                    if recibido == '':
-                        self.state.clear()
-                        gobject.idle_add(self.desconectado, 'Se perdi\xc3\xb3 la conexi\xc3\xb3n')
-                        break
-                    print 'TWIST', recibido
-                    params = recibido.split(',')
-                    if len(params) > 2:
-                        gobject.idle_add(self.actualizar, params)
-        print 'Fin Twist'
-
-    def actualizar(self, params):
-        for v in self.ventanas:
-            v.twist_recibido(params)
-
-    def desconectado(self, status = ''):
-        for v in self.ventanas:
-            v.twist.desactivar()
-            v.status_bar.push(status)
-        if os.name != 'nt' and not self.local:
-            print 'INICIO EMERGENCIA'
-            self.sonido.emergencia()
-            print 'SONIDO EMERGENCIA'
-        Widgets.AlertaTwist('Error de conexi\xc3\xb3n', 'error_envio.png', status + '\n' + 'Presione el bot\xc3\xb3n para reconectar\n' + 'si el problema persiste informe a TCONTUR.')
-
-    def resume(self, *args):
-        for v in self.ventanas:
-            v.twist.activar()
-            v.status_bar.push('Conexi\xc3\xb3n activa')
-        self.state.set()
-
-    def cerrar(self):
-        global infinito
-        infinito = False
-        self.state.set()
-        try:
-            self.socket.shutdown(socket.SHUT_RDWR)
-        except:
-            pass
-        self.join()
 
 
 if __name__ == '__main__':
