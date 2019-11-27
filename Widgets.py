@@ -2744,7 +2744,7 @@ class TreeViewColumn(Gtk.TreeViewColumn):
         #     header.set_markup('<span foreground="#000" weight="bold">%s</span>' % self.columna)
         # else:
         #     header.set_markup('<span foreground="#FFFFFF" weight="bold">%s</span>' % self.columna)
-        header.set_markup(f'<span weight="bold">{self.columna}</span>')
+        header.set_markup('<span weight="bold">{columna}</span>'.format(columna=self.columna))
         self.set_widget(header)
         align = header.get_parent()
         hbox = align.get_parent()
@@ -2946,7 +2946,7 @@ class Statusbar(Gtk.Label):
         self.set_alignment(0, 0.5)
 
     def push(self, texto):
-        self.set_markup(f'<span color="#FFF">{texto}</span>')
+        self.set_markup('<span color="#FFF">{texto}</span>'.format(texto=texto))
 
 
 class Window(Gtk.Window):
