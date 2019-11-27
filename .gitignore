@@ -1,6 +1,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[co]
+*.bak
 
 # C extensions
 *.so
@@ -60,3 +61,7 @@ target/
 *.iss
 mtc.py
 setup.py
+
+#Pycharm
+.idea/
+venv/
