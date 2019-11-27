@@ -1214,7 +1214,7 @@ MODELOS = {
     'propietarios': Usuario,
     'boletos': Boleto,
     'configuraciones': Config,
-    'stocks': Stock
+    'stocks': Stock,
     'documentos': Documento,
 }
 
