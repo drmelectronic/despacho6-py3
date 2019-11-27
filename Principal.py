@@ -32,7 +32,7 @@ if __name__ == '__main__':
     except:
         d = None
         beta = 0
-    local = 1
+    local = 0
     beta = 1
     print('local', local)
     if os.name != 'nt':
@@ -102,10 +102,10 @@ class Aplicacion:
         dialog = Widgets.Login(self.http, self.ventanas[0])
 
         #FOR TEST
-        # dialog.autologin()
-        # self.ventana.login(dialog.sessionid)
-        # self.sessionid = dialog.sessionid
-        # return
+        dialog.autologin()
+        self.ventana.login(dialog.sessionid)
+        self.sessionid = dialog.sessionid
+        return
         #FOR TEST
         respuesta = dialog.iniciar()
         if respuesta:

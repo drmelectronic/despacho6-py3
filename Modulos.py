@@ -2058,9 +2058,7 @@ class Boletos(Gtk.VBox):
             limite = suministro.boleto.get_limite_venta()
             if cantidad > limite:
                 self.http.sonido.error()
-                mensaje = f'Está intentando digitar un boletaje mayor a '\
-                          f'<span foreground="#F00" weight="bold">{limite}</span> boletos.\n'\
-                          f'¿Desea continuar de todas maneras?'
+                mensaje = 'Está intentando digitar un boletaje mayor a <span foreground="#F00" weight="bold">{limite}</span> boletos.\n¿Desea continuar de todas maneras?'
                 dialogo = Widgets.Alerta_SINO('Cuidado Boletaje Excesivo', 'error_numero.png', mensaje)
                 if not dialogo.iniciar():
                     dialogo.cerrar()

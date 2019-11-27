@@ -1130,6 +1130,17 @@ class Config(model_base):
         super(Config, self).__init__(http, js)
 
 
+class Documento(model_base):
+
+    def __init__(self, http, js):
+        self.tipos = {
+            'id': int,
+            'seria': str,
+            'valor': str
+        }
+        super(Config, self).__init__(http, js)
+
+
 class Configuracion:
     contado = True
     empresa = 1
@@ -1191,7 +1202,6 @@ class Configuracion:
 MODELOS = {
     'fondos': None,
     'cobros': None,
-    'documentos': None,
     'productos': None,
     'boletos': None,
 
@@ -1205,6 +1215,7 @@ MODELOS = {
     'boletos': Boleto,
     'configuraciones': Config,
     'stocks': Stock
+    'documentos': Documento,
 }
 
 FERIADOS = [

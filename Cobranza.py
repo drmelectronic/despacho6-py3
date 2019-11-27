@@ -1,7 +1,6 @@
 #! /usr/bin/python
 # -*- encoding: utf-8 -*-
 import datetime
-import gobject
 import json
 import os
 
@@ -9,7 +8,7 @@ import Impresion
 import Widgets
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
+from gi.repository import Gtk, Gdk
 from gi.repository import GObject
 
 
@@ -35,7 +34,7 @@ class Cobranza(Gtk.Window):
         mb.append(file)
 
         por_cobrar = Gtk.ImageMenuItem('Por Cobrar', acgroup)
-        por_cobrar.add_accelerator("activate", acgroup, ord('R'), Gdk.ModifierType.CONTROL_MASK, Gtk.ACCEL_VISIBLE)
+        por_cobrar.add_accelerator("activate", acgroup, ord('R'), Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
         por_cobrar.connect('activate', self.por_cobrar)
         menu1.append(por_cobrar)
 
@@ -47,7 +46,7 @@ class Cobranza(Gtk.Window):
         vbox_main = Gtk.VBox(False, 0)
         self.add(vbox_main)
 
-        vbox_main.pack_start(mb, False, False, )
+        vbox_main.pack_start(mb, False, False, 0)
 
         hbox_main = Gtk.HBox(False, 0)
         vbox_main.pack_start(hbox_main, False, False, 0)
@@ -58,7 +57,7 @@ class Cobranza(Gtk.Window):
         hbox_form = Gtk.HBox(False, 0)
         vbox_form.pack_start(hbox_form, False, False, 10)
 
-        frame1 = Gtk.Frame('Documento')
+        frame1 = Widgets.Frame('Documento')
         frame1.set_size_request(200, 130)
         hbox_form.pack_start(frame1, True, True, 10)
 
@@ -104,7 +103,7 @@ class Cobranza(Gtk.Window):
         # tabla.attach(self.entry_serie, 1, 2, 1, 2)
         # tabla.attach(Gtk.Label('Escoja una serie'), 2, 3, 1, 2)
 
-        frame2 = Gtk.Frame('Cliente')
+        frame2 = Widgets.Frame('Cliente')
         frame2.set_size_request(200, 90)
         hbox_form.pack_start(frame2, True, True, 10)
 
@@ -186,7 +185,7 @@ class Cobranza(Gtk.Window):
         hbox.pack_start(sw, True, True, 10)
         sw.set_size_request(560, 10)
         sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        model = Gtk.ListStore(str, str, str, str, str, str, str, gobject.TYPE_PYOBJECT)
+        model = Gtk.ListStore(str, str, str, str, str, str, str, GObject.TYPE_PYOBJECT)
         self.treeview = Widgets.TreeView(model)
         self.columnas = ['Nº', 'REF', 'DETALLE', 'CANT.', 'P.UNIT.', 'IGV', 'PAGAR']
         for i, columna in enumerate(self.columnas):
@@ -680,7 +679,7 @@ class Deudas(Widgets.Dialog):
         sw.set_size_request(400, 300)
         sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(str, str, str, str, gobject.TYPE_PYOBJECT)
+        self.model = Gtk.ListStore(str, str, str, str, GObject.TYPE_PYOBJECT)
         self.treeview = Gtk.TreeView(self.model)
         self.columnas = ('DIA', 'DETALLE', 'MONEDA', 'MONTO')
         sw.add(self.treeview)
@@ -887,7 +886,7 @@ class PorCobrar(Gtk.Window):
         vbox_main.pack_start(hbox_main, False, False, 0)
 
 
-        frame1 = Gtk.Frame('Búsqueda')
+        frame1 = Widgets.Frame('Búsqueda')
         frame1.set_size_request(200, 60)
         hbox_main.pack_start(frame1, True, True, 10)
 
@@ -937,7 +936,7 @@ class PorCobrar(Gtk.Window):
         vbox.pack_start(sw, True, True, 10)
         sw.set_size_request(560, 10)
         sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        model = Gtk.ListStore(str, str, str, str, str, gobject.TYPE_PYOBJECT)
+        model = Gtk.ListStore(str, str, str, str, str, GObject.TYPE_PYOBJECT)
         self.treeview_fondo = Widgets.TreeView(model)
         self.columnas = ['Nº', 'CODIGO', 'REF', 'CLIENTE', 'SALDO']
         for i, columna in enumerate(self.columnas):
@@ -964,7 +963,7 @@ class PorCobrar(Gtk.Window):
         vbox.pack_start(sw, True, True, 10)
         sw.set_size_request(560, 10)
         sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        model = Gtk.ListStore(str, str, str, str, gobject.TYPE_PYOBJECT)
+        model = Gtk.ListStore(str, str, str, str, GObject.TYPE_PYOBJECT)
         self.treeview_deposito = Widgets.TreeView(model)
         self.columnas = ['DIA', 'CONCEPTO', 'MONTO', 'ACUMULADO']
         for i, columna in enumerate(self.columnas):
@@ -1112,7 +1111,7 @@ class GenerarDeuda(Gtk.Window):
         hbox = Gtk.HBox(False, 10)
         vbox_main.pack_start(hbox, False, False, 5)
 
-        frame = Gtk.Frame('Información de Cŕedito')
+        frame = Widgets.Frame('Información de Cŕedito')
         hbox.pack_start(frame, True, True, 10)
 
         vbox = Gtk.VBox(True, 0)
@@ -1144,7 +1143,7 @@ class GenerarDeuda(Gtk.Window):
         vbox_main.pack_start(hbox_main, False, False, 0)
 
 
-        frame1 = Gtk.Frame('Plan de Pago')
+        frame1 = Widgets.Frame('Plan de Pago')
         frame1.set_size_request(200, 180)
         hbox_main.pack_start(frame1, True, True, 10)
 
@@ -1193,7 +1192,7 @@ class GenerarDeuda(Gtk.Window):
 
 
 
-        frame1 = Gtk.Frame('Días para cobrar')
+        frame1 = Widgets.Frame('Días para cobrar')
         frame1.set_size_request(110, 180)
         hbox_main.pack_start(frame1, False, False, 10)
 
@@ -1382,7 +1381,7 @@ class EditarDeuda(Widgets.Dialog):
 
         self.vbox.pack_start(main_hbox, False, False, 10)
 
-        frame2 = Gtk.Frame('Cliente')
+        frame2 = Widgets.Frame('Cliente')
         frame2.set_size_request(200, 135)
         main_hbox.pack_start(frame2, True, True, 10)
 

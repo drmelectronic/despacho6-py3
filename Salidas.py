@@ -260,7 +260,8 @@ class Ventana(Gtk.Window):
         Modulos.Liquidaciones(self.http, self.ruta, self.lado)
 
     def flota(self, *args):
-        Modulos.Reporte(self.http, self.dia, self.ruta, self.lado)
+        self.http.webbrowser('monitoreo')
+        # Modulos.Reporte(self.http, self.dia, self.ruta, self.lado)
 
     def grifo(self, *args):
         Modulos.Grifo(self.http, self.ruta, self.lado)
