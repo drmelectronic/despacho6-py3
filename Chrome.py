@@ -6,10 +6,11 @@ if os.name == 'nt':
 #else:
 #    import webkit
 #    import jswebkit
-import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
-from gi.repository import GObject
+import gobject
+import pygtk
+pygtk.require('2.0')
+import gtk
+import gobject
 import re
 import platform
 import Widgets
@@ -43,7 +44,7 @@ def ExceptHook(type, value, traceObject):
     a = os.path.abspath("outs/error.log")
     with open(a, "a") as file:
         file.write("\n[%s] %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), error))
-    print(("\n"+error+"\n"))
+    print("\n"+error+"\n")
     return
     cefpython.QuitMessageLoop()
     cefpython.Shutdown()
@@ -64,16 +65,16 @@ def init():
 def close():
     os._exit(1)
 
-class Window(Gtk.Window):
+class Window(gtk.Window):
 
     def __init__(self, url):
-        super(Window, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(Window, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.set_size_request(400, 590)
         if os.name == 'nt':
             self.www = Browser(url, 550, 100)
         else:
             self.www = IFrame(url, 550, 100)
-        hbox = Gtk.VBox()
+        hbox = gtk.VBox()
         self.add(hbox)
         hbox.pack_start(self.www)
         self.show_all()
@@ -86,29 +87,29 @@ class Window(Gtk.Window):
         self.show_all()
 
     def esconder(self, *args):
-        self.hide()
+        self.hide_all()
         return True
 
 
-class Browser(Gtk.DrawingArea): # Windows
+class Browser(gtk.DrawingArea): # Windows
 
-    __gsignals__ = {'mostrar': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE,
+    __gsignals__ = {'mostrar': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE,
         ())
         }
 
     def __init__(self, url, x, y):
-        GObject.threads_init() # timer for messageloop
+        gobject.threads_init() # timer for messageloop
         super(Browser, self).__init__()
         self.exiting = False
         self.url = url
         self.mapa = True
-        GObject.timeout_add(10, self.OnTimer)
+        gobject.timeout_add(10, self.OnTimer)
         self.set_property('can-focus', True)
         self.connect_after('realize', self.mostrar)
         self.set_size_request(x, y)
 
     def mostrar(self, *args):
-        print('BROWSER MOSTRAR')
+        print 'BROWSER MOSTRAR'
         windowID = self.get_window().handle
         windowInfo = cefpython.WindowInfo()
         windowInfo.SetAsChild(windowID)
@@ -139,13 +140,13 @@ class Browser(Gtk.DrawingArea): # Windows
         self.emit('mostrar')
 
     def open(self, url):
-        print(url)
+        print url
         self.frame.LoadUrl(url)
         self.emit('mostrar')
 
     def execute_script(self, url):
         if self.mapa:
-            print(url)
+            print url
             self.frame.ExecuteJavascript(url)
 
     def switch(self, server):
@@ -156,7 +157,7 @@ class Browser(Gtk.DrawingArea): # Windows
         respuesta = dialogo.iniciar()
         self.frame.LoadUrl(enlaces[respuesta][1])
 
-class IFrame(Gtk.ScrolledWindow): # Ubuntu
+class IFrame(gtk.ScrolledWindow): # Ubuntu
 
     def __init__(self, url, x, y):
         super(IFrame, self).__init__()
@@ -166,7 +167,7 @@ class IFrame(Gtk.ScrolledWindow): # Ubuntu
             self.mapa = False
             self.connect_after('realize', self.mostrar)
             self.set_size_request(x, y)
-            self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
+            self.set_policy(gtk.POLICY_NEVER, gtk.POLICY_NEVER)
             self.browser = webkit.WebView()
             self.browser_frame = self.browser.get_main_frame()
             self.add(self.browser)
@@ -191,11 +192,11 @@ class IFrame(Gtk.ScrolledWindow): # Ubuntu
         cefpython.WindowUtils.OnSetFocus(self.w.handle, 0, 0, 0)
 
     def open(self, url):
-        print('browser', url)
+        print 'browser', url
         #self.browser.open(url)
 
     def execute_script(self, url):
-        print(url)
+        print url
         # self.browser.execute_script(url)
         try:
             ctx = jswebkit.JSContext(self.browser_frame.get_global_context())
@@ -211,13 +212,13 @@ class IFrame(Gtk.ScrolledWindow): # Ubuntu
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
         self.open(enlaces[respuesta])
-        print(enlaces[respuesta])
+        print enlaces[respuesta]
 
 
-class Navegador(Gtk.Window):
+class Navegador(gtk.Window):
 
     def __init__(self, parent):
-        super(Navegador, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(Navegador, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.http = parent.http
         url = 'http://%s/despacho/ingresar?sessionid=%s&next=pantalla%s' % (self.http.dominio,
             self.http.sessionid)
@@ -225,9 +226,9 @@ class Navegador(Gtk.Window):
             self.www = Chrome.Browser(url, 550, 100)
         else:
             self.www = Chrome.IFrame(url, 550, 100)
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         self.add(vbox)
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         vbox.pack_start(hbox, False, False, 0)
         vbox.pack_start(self.www, True, True, 0)
         #but_exportar = Widgets.Button('excel.png', 'Exportar a Excel')
@@ -244,12 +245,12 @@ if __name__ == '__main__':
     # url = 'http://tracking.tcontur.com/despacho/login-mapa?usuario=None&password=None'
     # w = Window(url)
 
-    #w = Gtk.Window(Gtk.WindowType.TOPLEVEL)
+    #w = gtk.Window(gtk.WINDOW_TOPLEVEL)
     #if os.name == 'nt':
     #    www = Browser(url, 150, 150)
     #else:
     #    www = IFrame(url, 150, 150)
-    #hbox = Gtk.VBox()
+    #hbox = gtk.VBox()
     #w.add(hbox)
     #hbox.pack_start(www)
     #w.realize()
@@ -258,7 +259,7 @@ if __name__ == '__main__':
     #w.show_all()
     ##www.open('tracking.tcontur.com')
 
-    # Gtk.main()
+    # gtk.main()
 
     #close()
     import webbrowser

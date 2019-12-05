@@ -1,15 +1,12 @@
 #! /usr/bin/python
 # -*- encoding: utf-8 -*-
 
-import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import GObject
-
 import datetime
 import json
 import threading
 from decimal import Decimal
 import webbrowser
+from Http import Http
 
 
 class model_base(object):
@@ -29,8 +26,9 @@ class model_base(object):
                         continue
                 raise BaseException('%s: %s no es del tipo %s' % (k, self.__getattribute__(k), self.tipos[k]))
 
-    def __init__(self, http, js=None):
-        self.http = http
+    def __init__(self, js=None):
+        self.http = Http()
+        self.dataLocal = self.http.dataLocal
         self.estado = None
         self.lado = None
         for k in self.tipos:
@@ -45,14 +43,15 @@ class model_base(object):
         for k in self.tipos:
             if k in objeto:
                 if objeto[k] is not None:
-                    if self.tipos[k] == int:
-                        self.__setattr__(k, int(objeto[k]))
+                    if self.tipos[k] == long:
+                        self.__setattr__(k, long(objeto[k]))
                     else:
                         self.__setattr__(k, objeto[k])
             else:
                 print('tipos', self.tipos)
                 print('objeto', objeto)
                 print('no hay', k)
+                raise
         self.validate()
 
     def get_dict(self):
@@ -62,9 +61,7 @@ class model_base(object):
         return dictionary
 
     def __repr__(self):
-        return str(self.id)
-
-        #json.dumps(self.get_dict(), indent=4)
+        return json.dumps(self.get_dict(), indent=4)
 
     def get_date(self, texto):
         if texto:
@@ -107,15 +104,15 @@ class model_base(object):
 
 class Ruta(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'id': int,
-            'codigo': str
+            'id': long,
+            'codigo': unicode
         }
         self.plantilla = None
         self.frecuencias = None
-        self.manual = {'inicio': None, 'frecuencia': None}
-        super(Ruta, self).__init__(http, js)
+        self.manual = [{'inicio': None, 'frecuencia': None}, {'inicio': None, 'frecuencia': None}]
+        super(Ruta, self).__init__(js)
 
     def set_plantilla(self, plantillas):
         for p in plantillas:
@@ -161,6 +158,7 @@ class Ruta(model_base):
         return hora, frecuencia
 
     def getSiguienteHora(self, hora, lado):
+        print('get frecuencia', hora, lado)
         frecuencias = self.frecuencias[int(lado)]
         manual = self.manual[int(lado)]
         if hora is None:
@@ -170,8 +168,10 @@ class Ruta(model_base):
             for f in frecuencias:
                 if f.get_inicio() <= hora:
                     hora += datetime.timedelta(0, f.tiempo * 60)
+                    print('frec', f.tiempo, f.get_inicio())
                     return hora, f.tiempo
         else:
+            print('frec manual', manual['frecuencia'])
             hora += datetime.timedelta(0, manual['frecuencia'] * 60)
             return hora, manual['frecuencia']
 
@@ -184,14 +184,14 @@ class Ruta(model_base):
 
 class Plantilla(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-        'id': int,
-        'ruta': int,
-        'nombre': str,
-        'temporada': str,
-        'inicio': str,
-        'fin': str,
+        'id': long,
+        'ruta': long,
+        'nombre': unicode,
+        'temporada': unicode,
+        'inicio': unicode,
+        'fin': unicode,
         'lunes': bool,
         'martes': bool,
         'miercoles': bool,
@@ -201,7 +201,7 @@ class Plantilla(model_base):
         'domingo': bool,
         'feriado': bool
         }
-        super(Plantilla, self).__init__(http, js)
+        super(Plantilla, self).__init__(js)
 
     def is_enable(self, dia):
         if (dia.year, dia.month, dia.day) in FERIADOS:
@@ -225,29 +225,29 @@ class Plantilla(model_base):
 
 class Geocerca(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'id': int,
-            'orden': int,
-            'nombre': str,
-            'ruta': int,
+            'id': long,
+            'orden': long,
+            'nombre': unicode,
+            'ruta': long,
             'lado': bool,
-            'intitud': float,
+            'longitud': float,
             'latitud': float,
             'radio': float,
             'control': bool,
             'datear': bool,
             'terminal': bool,
-            'metros': int,
+            'metros': long,
             'refrecuenciar': bool,
             'activo': bool,
-            'desde': str,
-            'hasta': str,
+            'desde': unicode,
+            'hasta': unicode,
             'sagrado': bool,
             'retorno': bool,
-            'audio': str
+            'audio': unicode
         }
-        super(Geocerca, self).__init__(http, js)
+        super(Geocerca, self).__init__(js)
 
     def set_hora(self, hora, tiempos):
         tiempos = self.http.filtrar(tiempos, {'geocerca': self.id})
@@ -267,14 +267,14 @@ class Llegada(model_base):
 
     def __init__(self, *args):
         self.tipos = {
-            'g': int,
-            'o': int,
+            'g': long,
+            'o': long,
             'c': bool,
-            't': int,
-            'e': str,
-            'v': int,
-            'f': int,
-            'm': int
+            't': long,
+            'e': unicode,
+            'v': long,
+            'f': long,
+            'm': long
         }
         super(Llegada, self).__init__(*args)
         self.hora = None
@@ -336,16 +336,16 @@ class Llegada(model_base):
 
 class Ticket(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'boleto': int,
-            'orden': int,
-            'nombre': str,
-            'tarifa': int,
-            'inicio': int,
-            'fin': int,
+            'boleto': long,
+            'orden': long,
+            'nombre': unicode,
+            'tarifa': long,
+            'inicio': long,
+            'fin': long,
         }
-        super(Ticket, self).__init__(http, js)
+        super(Ticket, self).__init__(js)
 
     def get_fila_boletaje(self):
         return [self.orden, self.nombre, self.get_tarifa(), self.serie,  self.get_inicio(), self.get_cantidad(), self.get_fin(),
@@ -363,17 +363,17 @@ class Ticket(model_base):
 
 class Tiempo(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'plantilla': int,
-            'geocerca': int,
-            'inicio': str,
-            'fin': str,
-            'tiempo': int,
-            'multa': int,
-            'factor': int,
+            'plantilla': long,
+            'geocerca': long,
+            'inicio': unicode,
+            'fin': unicode,
+            'tiempo': long,
+            'multa': long,
+            'factor': long,
         }
-        super(Tiempo, self).__init__(http, js)
+        super(Tiempo, self).__init__(js)
 
     def get_inicio(self):
         return self.get_time(self.inicio)
@@ -392,24 +392,24 @@ class Tiempo(model_base):
 
 class Boleto(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'id': int,
-            'orden': int,
-            'ruta': int,
-            'nombre': str,
-            'minimo': int,
-            'opcional': int,
-            'tarifa': int,
-            'tacos': int,
+            'id': long,
+            'orden': long,
+            'ruta': long,
+            'nombre': unicode,
+            'minimo': long,
+            'opcional': long,
+            'tarifa': long,
+            'tacos': long,
             'segunda': bool,
             'activo': bool,
-            'timestamp': str,
-            'hasta': str,
-            'color': str,
-            'stock': int
+            'timestamp': unicode,
+            'hasta': unicode,
+            'color': unicode,
+            'stock': long
         }
-        super(Boleto, self).__init__(http, js)
+        super(Boleto, self).__init__(js)
 
     def requiere(self, cantidad):
         return cantidad < self.opcional
@@ -418,7 +418,7 @@ class Boleto(model_base):
         return cantidad < self.minimo
 
     def get_stock(self):
-        self.http.get_stock(self.stock)
+        self.dataLocal.get_stock(self.stock)
 
     def get_tarifa(self):
         return '%.2f' % (self.tarifa / 100.)
@@ -429,27 +429,27 @@ class Boleto(model_base):
 
 class Trabajador(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'id': int,
-            'nombre': str,
-            'dni': int,
-            'tipoDni': str,
+            'id': long,
+            'nombre': unicode,
+            'dni': long,
+            'tipoDni': unicode,
             'genero': bool,
-            'nacimiento': str,
-            'domicilio': str,
-            'email': str,
-            'celular': str,
-            'licencia': str,
-            'categoria': str,
-            'estadoLicencia': str,
-            'puntos': int,
-            'vencimiento': str,
-            'ingreso': str,
-            'codigo': str,
+            'nacimiento': unicode,
+            'domicilio': unicode,
+            'email': unicode,
+            'celular': unicode,
+            'licencia': unicode,
+            'categoria': unicode,
+            'estadoLicencia': unicode,
+            'puntos': long,
+            'vencimiento': unicode,
+            'ingreso': unicode,
+            'codigo': unicode,
             'conductor': bool
         }
-        super(Trabajador, self).__init__(http, js)
+        super(Trabajador, self).__init__(js)
         self.vencido = False
         if self.vencimiento:
             if self.getVencimiento() > datetime.date.today():
@@ -481,16 +481,16 @@ class Trabajador(model_base):
 
 class Frecuencia(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'plantilla': int,
-            'ruta': int,
+            'plantilla': long,
+            'ruta': long,
             'lado': bool,
-            'inicio': str,
-            'fin': str,
-            'tiempo': int
+            'inicio': unicode,
+            'fin': unicode,
+            'tiempo': long
         }
-        super(Frecuencia, self).__init__(http, js)
+        super(Frecuencia, self).__init__(js)
 
     def get_inicio(self):
         dia = datetime.date.today()
@@ -498,55 +498,90 @@ class Frecuencia(model_base):
         return datetime.datetime(dia.year, dia.month, dia.day, int(h), int(m))
 
 
-class Usuario(model_base):
+class Propietario(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'id': int,
-            'nombre': str,
-            'username': str,
-            'email': str,
-            'cargo': str,
+            'id': long,
+            'nombre': unicode,
+            'username': unicode,
+            'email': unicode,
+            'cargo': unicode,
             'genero': bool,
             'activo': bool,
             'lado': bool,
         }
-        super(Usuario, self).__init__(http, js)
+        super(Propietario, self).__init__(js)
+
+
+class Usuario(model_base):
+
+    def __init__(self, js):
+        self.tipos = {
+            'id': long,
+            'nombre': unicode,
+            'username': unicode,
+            'empresa': long,
+            'email': unicode,
+            'cargo': unicode,
+            'genero': bool,
+            'activo': bool,
+            'lado': bool,
+            'permisos': unicode
+        }
+        super(Usuario, self).__init__(js)
+
+    @property
+    def get_permisos(self):
+        try:
+            return self._permisos
+        except:
+            self._permisos = json.loads(self.permisos)
+            return self._permisos
+
+    def tiene_permiso(self, permiso):
+        if permiso in self.get_permisos:
+            return self.get_permisos[permiso]
+
+    def get_empresa(self):
+        if self.tiene_permiso('soporte'):
+            return None
+        return self.empresa
 
 
 class Unidad(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'id': int,
-            'ruta': int,
+            'id': long,
+            'ruta': long,
             'lado': bool,
-            'padron': int,
-            'placa': str,
-            'ingreso': str,
+            'padron': long,
+            'placa': unicode,
+            'ingreso': unicode,
             'baja': bool,
             'vencimiento': str,
-            'propietario': int,
-            'paquete': int,
-            'estado': str,
+            'propietario': long,
+            'paquete': long,
+            'estado': unicode,
             'activo': bool,
-            'actual': int,
-            'sin_boletaje': int,
-            'conductor': int,
-            'cobrador': int,
-            'odometro': int,
-            'bloqueo': str,
-            'modelo': str,
-            'record': int,
-            'arreglada': int,
-            'prioridad': str,
+            'actual': long,
+            'sin_boletaje': long,
+            'conductor': long,
+            'cobrador': long,
+            'odometro': long,
+            'bloqueo': unicode,
+            'modelo': unicode,
+            'record': long,
+            'arreglada': long,
+            'prioridad': unicode,
             'boletos_save': bool,
-            'ingreso_espera': str,
-            'observacion': str,
-            'fin_viaje': str,
+            'ingreso_espera': unicode,
+            'observacion': unicode,
+            'fin_viaje': unicode,
             'cola': bool
         }
-        super(Unidad, self).__init__(http, js)
+        super(Unidad, self).__init__(js)
         self.vencido = False
         if self.vencimiento:
             if self.getVencimiento() > datetime.date.today():
@@ -656,13 +691,13 @@ class Unidad(model_base):
         return self.get_datetime(self.ingreso_espera).strftime('%Y-%m-%d %H:%M:%S')
 
     def get_propietario(self):
-        return self.http.get_propietario(self.propietario)
+        return self.dataLocal.get_propietario(self.propietario)
 
     def get_conductor(self):
-        return self.http.get_trabajador(self.conductor)
+        return self.dataLocal.get_trabajador(self.conductor)
 
     def get_cobrador(self):
-        return self.http.get_trabajador(self.cobrador)
+        return self.dataLocal.get_trabajador(self.cobrador)
 
     def get_suministros(self):
         if self.suministros is None:
@@ -675,12 +710,12 @@ class Unidad(model_base):
     def set_suministros(self, suministros):
         self.suministros = []
         for s in suministros:
-            self.suministros.append(Suministro(self.http, s))
+            self.suministros.append(Suministro(s))
         self.ordenar_suministros()
 
     def add_suministros(self, suministros):
         for s in suministros:
-            self.suministros.append(Suministro(self.http, s))
+            self.suministros.append(Suministro(s))
         self.ordenar_suministros()
 
     def ordenar_suministros(self):
@@ -691,7 +726,7 @@ class Unidad(model_base):
     def get_falta_stock(self):
         self.get_suministros()
         boletos = {}
-        for b in self.http.get_boletos():
+        for b in self.dataLocal.get_boletos():
             if b.ruta == self.ruta:
                 boletos[b.id] = {
                     'cantidad': 0,
@@ -711,11 +746,11 @@ class Unidad(model_base):
         return faltan
 
     def calcular_controles(self):
-        query = self.http.get_geocercas()
+        query = self.dataLocal.get_geocercas()
         geocercas = self.http.filtrar(query, {'activo': True, 'ruta': self.ruta, 'lado': self.lado})
         self.http.ordenar(geocercas, [('orden', 1)])
 
-        query = self.http.get_plantillas()
+        query = self.dataLocal.get_plantillas()
         plantilla = None
         for q in query:
             if q.is_enable(self.inicio.date()):
@@ -724,7 +759,7 @@ class Unidad(model_base):
 
         if plantilla is None:
             raise TconturError('No hay plantilla para el día de hoy')
-        query = self.http.get_tiempos()
+        query = self.dataLocal.get_tiempos()
         tiempos = self.http.filtrar(query, {'plantilla': plantilla.id})
         self.http.ordenar(tiempos, [('inicio', 1)])
 
@@ -762,39 +797,25 @@ class Unidad(model_base):
     def get_fila_excluidos(self):
         return [self.orden, self.padron, self.get_ingreso_espera_text(), self]
 
-    def arriba_de(self, anterior):
-        if anterior:
-            if self.cola is False:
-                return
-            if self.arreglada < anterior.arreglada:
-                return
-            elif self.record < anterior.record:
-                self.arreglada = anterior.arreglada
-            else:
-                if self.get_ingreso_espera() < anterior.get_ingreso_espera():
-                    self.arreglada = anterior.arreglada
-                else:
-                    self.arreglada = anterior.arreglada - 1
-
 
 class Suministro(model_base):
 
     def __init__(self, *args):
         self.tipos = {
-            'id': int,
-            'ruta': int,
-            'unidad': int,
-            'boleto': int,
-            'serie': str,
-            'inicio': int,
-            'actual': int,
-            'fin': int,
-            'estado': str,
-            'data': str,
-            'stock': int
+            'id': long,
+            'ruta': long,
+            'unidad': long,
+            'boleto': long,
+            'serie': unicode,
+            'inicio': long,
+            'actual': long,
+            'fin': long,
+            'estado': unicode,
+            'data': unicode,
+            'stock': long
         }
         super(Suministro, self).__init__(*args)
-        self.set_boleto(self.http.get_boleto(self.boleto))
+        self.set_boleto(self.dataLocal.get_boleto(self.boleto))
         self.editado = False
         self.guardar = None
         self.terminado = False
@@ -846,14 +867,10 @@ class Suministro(model_base):
     def get_fila_boletaje(self):
         if self.editado:
             return [self.boleto.orden, self.boleto.nombre, self.boleto.get_tarifa(), self.serie,  self.get_actual(),
-                    str(self.get_cantidad_guardar()), self.get_guardar(), self.get_color(), self]
+                    self.get_cantidad_guardar(), self.get_guardar(), self.get_color(), self]
         else:
             return [self.boleto.orden, self.boleto.nombre, self.boleto.get_tarifa(), self.serie, self.get_actual(),
                     '', '', self.get_color(), self]
-
-    @staticmethod
-    def get_liststore_boletaje():
-        return int, str, str, str, str, str, str, str, GObject.TYPE_PYOBJECT
 
     def terminar(self):
         self.terminado = True
@@ -897,23 +914,23 @@ class Suministro(model_base):
 
 class Boletaje(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'b': int,
-            'su': int,
-            'o': int,
-            'n': str,
-            'ta': int,
-            's': str,
-            'i': int,
-            'f': int,
+            'b': long,
+            'su': long,
+            'o': long,
+            'n': unicode,
+            'ta': long,
+            's': unicode,
+            'i': long,
+            'f': long,
             't': bool,
-            'm': str
+            'm': unicode
         }
-        super(Boletaje, self).__init__(http, js)
+        super(Boletaje, self).__init__(js)
 
     def get_fila_boletaje(self):
-        return [self.o, self.n, self.get_tarifa(), self.s,  self.get_inicio(), str(self.get_cantidad()), self.get_fin(),
+        return [self.o, self.n, self.get_tarifa(), self.s,  self.get_inicio(), self.get_cantidad(), self.get_fin(),
                 self.get_color(), self]
 
     def get_tarifa(self):
@@ -945,18 +962,18 @@ class Boletaje(model_base):
 
 class Stock(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'id': int,
-            'boleto': int,
-            'serie': str,
-            'inicio': int,
-            'actual': int,
-            'fin': int,
-            'estado': str,
-            'data': str,
+            'id': long,
+            'boleto': long,
+            'serie': unicode,
+            'inicio': long,
+            'actual': long,
+            'fin': long,
+            'estado': unicode,
+            'data': unicode,
         }
-        super(Stock, self).__init__(http, js)
+        super(Stock, self).__init__(js)
 
     def get_cantidad(self):
         return self.fin - self.actual
@@ -1011,7 +1028,7 @@ class salida_base(model_base):
         return [self.orden / 2.,
                 self.get_padron(),
                 self.get_lado_display(),
-                self.http.get_ruta(self.ruta).codigo,
+                self.dataLocal.get_ruta(self.ruta).codigo,
                 self.get_inicio().strftime('%H:%M'),
                 self.get_fin_hm(),
                 self.frecuencia,
@@ -1026,79 +1043,79 @@ class salida_base(model_base):
 
 class Salida(salida_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'id': int,
-            'ruta': int,
+            'id': long,
+            'ruta': long,
             'lado': bool,
-            'unidad': int,
-            'padron': int,
-            'placa': str,
-            'inicio': str,
-            'fin': str,
-            'frecuencia': int,
-            'estado': str,
-            'record': int,
-            'conductor': int,
-            'ingreso': str,
-            'creado': str,
-            'dia': str,
+            'unidad': long,
+            'padron': long,
+            'placa': unicode,
+            'inicio': unicode,
+            'fin': unicode,
+            'frecuencia': long,
+            'estado': unicode,
+            'record': long,
+            'conductor': long,
+            'ingreso': unicode,
+            'creado': unicode,
+            'dia': unicode,
             'backup': bool,
             'boletos_save': bool,
             'tickets_save': bool,
             'liquidacion': bool,
-            'produccionBoletos': int,
-            'produccionTickets': int,
-            'produccionDiferencia': int,
-            'produccionTransbordo': int,
-            'pasajerosBoletos': int,
-            'pasajerosTickets': int,
+            'produccionBoletos': long,
+            'produccionTickets': long,
+            'produccionDiferencia': long,
+            'produccionTransbordo': long,
+            'pasajerosBoletos': long,
+            'pasajerosTickets': long,
         }
-        super(Salida, self).__init__(http, js)
+        super(Salida, self).__init__(js)
 
 
 class SalidaCompleta(salida_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'id': int,
-            'ruta': int,
+            'id': long,
+            'ruta': long,
             'lado': bool,
-            'unidad': int,
-            'padron': int,
-            'placa': str,
-            'inicio': str,
-            'fin': str,
-            'frecuencia': int,
-            'estado': str,
-            'record': int,
-            'conductor': int,
-            'ingreso': str,
-            'creado': str,
-            'dia': str,
+            'unidad': long,
+            'padron': long,
+            'placa': unicode,
+            'inicio': unicode,
+            'fin': unicode,
+            'frecuencia': long,
+            'estado': unicode,
+            'record': long,
+            'conductor': long,
+            'ingreso': unicode,
+            'creado': unicode,
+            'dia': unicode,
             'backup': bool,
             'boletos_save': bool,
             'tickets_save': bool,
             'liquidacion': bool,
-            'produccionBoletos': int,
-            'produccionTickets': int,
-            'produccionDiferencia': int,
-            'produccionTransbordo': int,
-            'pasajerosBoletos': int,
-            'pasajerosTickets': int,
-            'controles': str,
-            'boletos': str,
-            'tickets': str
+            'produccionBoletos': long,
+            'produccionTickets': long,
+            'produccionDiferencia': long,
+            'produccionTransbordo': long,
+            'pasajerosBoletos': long,
+            'pasajerosTickets': long,
+            'controles': unicode,
+            'boletos': unicode,
+            'tickets': unicode
         }
-        super(SalidaCompleta, self).__init__(http, js)
+        super(SalidaCompleta, self).__init__(js)
 
     def get_controles(self):
         js = json.loads(self.controles)
         controles = []
         inicio = self.get_inicio()
         for k in js:
-            llegada = Llegada(self.http, js[k])
-            llegada.nombre = self.http.get_geocerca(llegada.g).nombre
+            llegada = Llegada(js[k])
+            llegada.nombre = self.dataLocal.get_geocerca(llegada.g).nombre
             inicio = llegada.set_inicio(inicio)
             controles.append(llegada)
         controles.sort(key=lambda k: k.o)
@@ -1108,37 +1125,109 @@ class SalidaCompleta(salida_base):
         js = json.loads(self.boletos)
         boletos = []
         for b in js:
-            boletos.append(Boletaje(self.http, b))
+            boletos.append(Boletaje(b))
         return boletos
 
     def get_tickets(self):
         js = json.loads(self.tickets)
         tickets = []
         for t in js:
-            tickets.append(Ticket(self.http, t))
+            tickets.append(Ticket(t))
         return tickets
 
 
 class Config(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'id': int,
-            'nombre': str,
-            'valor': str
+            'id': long,
+            'nombre': unicode,
+            'valor': unicode
         }
-        super(Config, self).__init__(http, js)
+        super(Config, self).__init__(js)
 
 
-class Documento(model_base):
+class Producto(model_base):
 
-    def __init__(self, http, js):
+    def __init__(self, js):
         self.tipos = {
-            'id': int,
-            'seria': str,
-            'valor': str
+            'id': long,
+            'servicio': bool,
+            'codigo': unicode,
+            'nombre': unicode,
+            'precio': long,
+            'igv': bool
         }
-        super(Config, self).__init__(http, js)
+        super(Producto, self).__init__(js)
+
+
+class TipoDocumento(model_base):
+
+    def __init__(self, js):
+        self.tipos = {
+            'id': long,
+            'tipo': long,
+            'numero': long,
+            'serie': unicode
+        }
+        super(TipoDocumento, self).__init__(js)
+
+
+class Recibo(model_base):
+
+    def __init__(self, js):
+        self.tipos = {
+            'id': long,
+            'documento': long,
+            'serie': unicode,
+            'numero': long,
+            'hora': unicode,
+            'cliente': long,
+            'usuario': long,
+            'caja': long,
+            'anulado': long
+        }
+        super(Recibo, self).__init__(js)
+
+
+class Item(model_base):
+
+    def __init__(self, js):
+        self.tipos = {
+            'id': long,
+            'recibo': long,
+            'producto': long,
+            'cantidad': long,
+            'precio': long,
+            'igv': bool
+        }
+        super(Item, self).__init__(js)
+
+
+class Cliente(model_base):
+
+    def __init__(self, js):
+        self.tipos = {
+            'id': long,
+            'tipo': unicode,
+            'codigo': unicode,
+            'referencia': unicode,
+            'nombre': unicode,
+        }
+        super(Cliente, self).__init__(js)
+
+
+class Deuda(model_base):
+
+    def __init__(self, js):
+        self.tipos = {
+            'id': long,
+            'tipo': long,
+            'codigo': long,
+            'referencia': long,
+            'nombre': long,
+        }
+        super(Cliente, self).__init__(js)
 
 
 class Configuracion:
@@ -1200,10 +1289,8 @@ class Configuracion:
 
 
 MODELOS = {
-    'fondos': None,
-    'cobros': None,
-    'productos': None,
-    'boletos': None,
+    'recibo': Recibo,
+    'item': Item,
 
     'rutas': Ruta,
     'tiempos': Tiempo,
@@ -1211,11 +1298,14 @@ MODELOS = {
     'frecuencias': Frecuencia,
     'geocercas': Geocerca,
     'trabajadores': Trabajador,
-    'propietarios': Usuario,
+    'propietarios': Propietario,
     'boletos': Boleto,
     'configuraciones': Config,
     'stocks': Stock,
-    'documentos': Documento,
+    'productos': Producto,
+    'tiposDocumento': TipoDocumento,
+    'clientes': Cliente,
+    'deudas': Deuda,
 }
 
 FERIADOS = [

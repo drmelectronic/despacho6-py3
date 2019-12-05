@@ -5,43 +5,53 @@ import Widgets
 import Impresion
 import Cobranza
 import CajaCentralizada
-import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk
-from gi.repository import GObject
-import glob
+import gtk
+import gobject
 import os
-import threading
 import time
 import datetime
-import random
-import socket
 from operator import itemgetter
-# import Chrome
+import Chrome
 from decimal import Decimal, ROUND_UP, ROUND_DOWN
 import json
 
 import models
+from DataLocal import DataLocal
+from Http import Http
 
 
-class Selector(Gtk.HBox):
+class Selector(gtk.HBox):
     __gsignals__ = {
-        'desactivar': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
-        'activar': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
-        'cambio-selector': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ())
+        'desactivar': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'activar': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'cambio-selector': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'forzar-actualizar': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'nueva-ventana': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'modulo-cobranza': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'buscar-boleto': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'chrome-web': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
     }
 
-    def __init__(self, parent):
+    def __init__(self,):
         super(Selector, self).__init__(False, 2)
-        self.http = parent.http
+        self.http = Http()
+        self.dataLocal = self.http.dataLocal
         self.dia_ = self.ruta_ = self.lado_ = None
 
+        herramientas = [
+            ('Nueva Ventana (Ctrl + N)', 'salidas.png', self.nueva_ventana),
+            ('Módulo Cobranza (Ctrl + C)', 'dinero.png', self.modulo_cobranza),
+            ('Buscar Boleto (Ctrl + B)', 'buscar24.png', self.buscar_boleto),
+            ('Sistema Web (Ctrl + T)', 'chrome.png', self.chrome_web)
+        ]
+        self.toolbar = Widgets.Toolbar(herramientas)
         self.fecha = Widgets.Fecha()
         self.fecha.set_size_request(90, 30)
-        hbox = Gtk.HBox(False, 2)
+        hbox = gtk.HBox(False, 2)
+        self.pack_start(self.toolbar, False, False, 0)
         self.pack_start(hbox, True, True, 0)
         hbox.pack_start(self.fecha, True, True, 0)
-        hbox = Gtk.HBox(False, 2)
+        hbox = gtk.HBox(False, 2)
         self.pack_start(hbox, True, True, 0)
         self.ruta = Widgets.ComboBox((str, int, int))
         hbox.pack_start(self.ruta, True, True, 0)
@@ -49,78 +59,86 @@ class Selector(Gtk.HBox):
         hbox.pack_start(self.lado, True, True, 0)
         but_actualizar = Widgets.Button('actualizar.png', size=16, tooltip='Actualizar')
         hbox.pack_start(but_actualizar, False, False, 0)
-        but_actualizar.connect('clicked', parent.forzar_actualizar)
+        but_actualizar.connect('clicked', self.forzar_actualizar)
         self.lado.connect('changed', self.comparar)
         self.ruta.connect('changed', self.comparar)
         self.fecha.connect('changed', self.comparar)
         self.dia = self.fecha.get_date()
         self.lado.set_lista((('A', 0), ('B', 1)))
-        self.update_data()
 
     def comparar(self, *args):
         lado = self.lado.get_id()
         dia = self.fecha.get_date()
         ruta = self.ruta.get_id()
-        # if self.http.usuario.lado is None:
-        #     self.emit('activar')
-        # elif self.http.usuario.lado == lado or self.dia != dia:
-        #     self.emit('desactivar')
-        # else:
-        #     self.emit('activar')
         if self.ruta_ is None or self.lado_ != lado or self.dia_ != dia or self.ruta_.id != ruta:
             self.lado_ = lado
             self.dia_ = dia
             if ruta:
-                self.ruta_ = self.http.get_ruta(ruta)
+                self.ruta_ = self.dataLocal.get_ruta(ruta)
             self.emit('cambio-selector')
 
     def update_data(self):
         lista = []
-        for r in self.http.get_rutas():
+        for r in self.dataLocal.get_rutas():
             lista.append([r.codigo, r.id])
         self.ruta.set_lista(lista)
-        if self.http.usuario.lado is True:
-            lado = 1
-        else:
-            lado = 0
-        self.lado.set_id(lado)
+        if self.http.usuario:
+            if self.http.usuario is True:
+                lado = 1
+            else:
+                lado = 0
+            self.lado.set_id(lado)
 
     def get_datos(self):
         return self.dia_, self.ruta_, bool(self.lado_)
 
     def vertical(self):
-        self.set_orientation(Gtk.Orientation.VERTICAL)
+        self.set_orientation(gtk.ORIENTATION_VERTICAL)
+
+    def forzar_actualizar(self, *args):
+        self.emit('forzar-actualizar')
+
+    def nueva_ventana(self, *args):
+        self.emit('nueva-ventana')
+
+    def modulo_cobranza(self, *args):
+        self.emit('modulo-cobranza')
+
+    def buscar_boleto(self, *args):
+        self.emit('buscar-boleto')
+
+    def chrome_web(self, *args):
+        self.emit('chrome-web')
 
 
-class Disponibles(Gtk.ScrolledWindow):
+class Disponibles(gtk.ScrolledWindow):
     __gsignals__ = {
-        'unidad-seleccionada': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT, )),
-        'unidad-excluida': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT, )),
-        'cola-reordenada': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT, )),
+        'unidad-seleccionada': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
+        'unidad-excluida': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
     }
 
     def __init__(self, http):
         super(Disponibles, self).__init__()
-        self.label = Gtk.Label()
+        self.label = gtk.Label()
         self.inicio = None
         self.unidades = None
         self.w = self.get_parent_window()
         self.selector = self.dia = self.ruta = self.lado = None
         self.label.set_markup('<b>DISPONIBLES (0)</b>')
-        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             self.set_size_request(200, 500)
         else:
             self.set_size_request(320, 500)
-        self.model = Gtk.ListStore(int, int, str, int, int, int, str, str, str, GObject.TYPE_PYOBJECT)
+        self.model = gtk.ListStore(int, int, str, int, int, int, str, str, str, gobject.TYPE_PYOBJECT)
         columnas = ['#', 'P', 'H.SAL', 'F', 'VR', 'VA', 'H.ING', 'TI']
         self.http = http
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_enable_search(False)
         self.treeview.connect('cursor-changed', self.fila_seleccionada)
-        amarillo = Gdk.color_parse('#FFFFAA')
+        amarillo = gtk.gdk.color_parse('#FFFFAA')
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, text=i, foreground=8)
@@ -136,18 +154,24 @@ class Disponibles(Gtk.ScrolledWindow):
     def get_selected(self):
         path, column = self.treeview.get_cursor()
         path = int(path[0])
-        return self.treeview.get_modelo(path)
+        return self.get_modelo(path)
 
     def update_selector(self):
         self.dia, self.ruta, self.lado = self.selector.get_datos()
 
     def get_primera_unidad(self):
-        if len(self.model):
-            return self.treeview.get_modelo(0)
+        try:
+            salida = self.model[0][len(self.model[0]) - 1]
+            return salida
+        except:
+            return None
+
+    def get_modelo(self, i):
+        return self.model[i][len(self.model[i]) - 1]
 
     def fila_seleccionada(self, *args):
         unidad = self.get_selected()
-        print(('DISPONIBLE', unidad))
+        print('DISPONIBLE', unidad)
         self.emit('unidad-seleccionada', unidad)
 
     def actualizar(self, unidades, inicio):
@@ -156,7 +180,7 @@ class Disponibles(Gtk.ScrolledWindow):
         return self.escribir()
 
     def escribir(self):
-        print(('actualizar disponibles', self.inicio))
+        print('actualizar disponibles', self.inicio)
         inicio = self.inicio
         self.unidades.sort(key=lambda s: s.ingreso_espera)
         self.unidades.sort(key=lambda s: s.record)
@@ -200,38 +224,46 @@ class Disponibles(Gtk.ScrolledWindow):
                     self.emit('unidad-excluida', unidad)
             dialogo.cerrar()
 
-    def cola_reordenada(self, unidades):
-        self.emit('cola-reordenada', unidades)
 
-
-class Reordenar(Widgets.Dialog):
-
-
+class Reordenar(gtk.Dialog):
 
     def __init__(self, disponibles):
-        super(Reordenar, self).__init__('Reordenar Cola')
-        hbox = Gtk.HBox(False, 0)
+        super(Reordenar, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_default_size(200, 50)
+        self.set_title('Reordenar Cola')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        hbox = gtk.HBox(False, 0)
         self.vbox.pack_start(hbox, False, False, 10)
         self.ruta = disponibles.ruta
         self.lado = disponibles.lado
         self.treeview = Disponibles(disponibles.http)
         hbox.pack_start(self.treeview, False, False, 0)
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         hbox.pack_start(vbox, False, False, 0)
         self.but_arriba = Widgets.Button('arriba.png', tooltip='Subir')
         vbox.pack_start(self.but_arriba, False, False, 0)
         self.but_abajo = Widgets.Button('abajo.png', tooltip='Bajar')
         vbox.pack_start(self.but_abajo, False, False, 0)
         self.but_salir = Widgets.Button('cancelar.png', '_Cancelar')
-        self.add_action_widget(self.but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(self.but_salir, gtk.RESPONSE_CANCEL)
         self.but_ok = Widgets.Button('aceptar.png', '_Aceptar')
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.but_arriba.connect('clicked', self.arriba)
         self.but_abajo.connect('clicked', self.abajo)
         self.set_focus(self.but_salir)
         self.disponibles = disponibles
         for d in disponibles.model:
-            self.treeview.model.append(list(d))
+            self.treeview.model.append(d)
 
         self.iniciar()
 
@@ -251,8 +283,6 @@ class Reordenar(Widgets.Dialog):
         otro = self.treeview.model.get_iter(path - 1)
         self.treeview.model.swap(uno, otro)
 
-        self.rearreglar()
-
     def abajo(self, *args):
         try:
             path, column = self.treeview.treeview.get_cursor()
@@ -269,37 +299,26 @@ class Reordenar(Widgets.Dialog):
         otro = self.treeview.model.get_iter(path + 1)
         self.treeview.model.swap(uno, otro)
 
-        self.rearreglar()
-
     def iniciar(self):
         self.show_all()
-        if self.run() == Gtk.ResponseType.OK:
-            unidades = []
-            for i, l in enumerate(self.treeview.model):
-                u = self.treeview.treeview.get_modelo(i)
-                unidades.append({
-                    'id': u.id,
-                    'arreglada': u.arreglada
-                })
+        if self.run() == gtk.RESPONSE_OK:
+            ids = []
+            ordenes = []
+            padrones = []
+            for l in self.treeview.model:
+                ids.append(l[10])
+                ordenes.append(l[0])
+                padrones.append(l[1])
 
-            datos = {
-                'unidades': json.dumps(unidades),
-                'ruta': self.ruta.id
-            }
+            datos = {'salida_ids': json.dumps(ids),
+             'padrones': json.dumps(padrones),
+             'ordenes': json.dumps(ordenes),
+             'ruta_id': self.ruta,
+             'lado': self.lado}
             data = self.disponibles.http.load('reordenar-cola', datos)
             if data:
-                self.disponibles.cola_reordenada(data['unidades'])
+                self.disponibles.actualizar(data)
         self.cerrar()
-
-    def rearreglar(self):
-        anterior = None
-        filas = len(self.treeview.model)
-        for i in range(filas):
-            path = filas - i - 1
-            u = self.treeview.treeview.get_modelo(path)
-            u.arriba_de(anterior)
-            self.treeview.model[path] = u.get_fila_disponible()
-            anterior = u
 
     def cerrar(self, *args):
         self.destroy()
@@ -307,38 +326,38 @@ class Reordenar(Widgets.Dialog):
 
 class EnRuta(Widgets.Frame):
     __gsignals__ = {
-        'falla-mecanica': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT, )),
-        'eliminar-salida': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT, )),
+        'falla-mecanica': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
+        'eliminar-salida': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
 
-        'salida-seleccionada': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT, )),
-        'editar-llegadas': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
-        'excluir-vuelta': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_INT,)),
-        'ver-boletos': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
-        'llamar': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (int, bool)),
-        'alerta-siguiente': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_INT,))
+        'salida-seleccionada': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
+        'editar-llegadas': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'excluir-vuelta': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_INT,)),
+        'ver-boletos': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'llamar': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, bool)),
+        'alerta-siguiente': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_INT,))
     }
 
     def __init__(self, padre):
         super(EnRuta, self).__init__()
-        self.label = Gtk.Label()
+        self.label = gtk.Label()
         self.w = self.get_parent_window()
         self.selector = self.dia = self.ruta = self.lado = None
         self.label.set_markup('<b>EN RUTA (0)</b>')
         self.set_label_widget(self.label)
-        vbox = Gtk.VBox(False, 2)
+        vbox = gtk.VBox(False, 2)
         self.add(vbox)
-        self.sw = Gtk.ScrolledWindow()
+        self.sw = gtk.ScrolledWindow()
         self.indice = 0
         self.horas = []
         self.salidas = []
         self.set_property('label-xalign', 0.2)
         vbox.pack_start(self.sw, True, True, 2)
-        self.sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             self.sw.set_size_request(150, 300)
         else:
             self.sw.set_size_request(180, 300)
-        self.model = Gtk.ListStore(int, int, str, int, str, GObject.TYPE_PYOBJECT)
+        self.model = gtk.ListStore(int, int, str, int, str, gobject.TYPE_PYOBJECT)
         columnas = ['#', 'P', 'H.SAL', 'F']
         self.padre = padre
         self.http = padre.http
@@ -349,7 +368,7 @@ class EnRuta(Widgets.Frame):
         self.treeview.connect('size-allocate', self.treeview_changed)
         self.treeview.set_enable_search(False)
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             if i == 0:
@@ -363,9 +382,9 @@ class EnRuta(Widgets.Frame):
 
         self.treeview.set_reorderable(False)
         self.treeview.set_enable_tree_lines(True)
-        self.treeview.set_grid_lines(Gtk.TreeViewGridLines(2))  # TREE_VIEW_GRID_LINES_VERTICAL
+        self.treeview.set_grid_lines(gtk.TREE_VIEW_GRID_LINES_VERTICAL)
         self.sw.add(self.treeview)
-        hbox = Gtk.HBox()
+        hbox = gtk.HBox()
         vbox.pack_start(hbox, False, False, 2)
         self.imprimir = Widgets.Button('imprimir.png', 'Imprimir')
         hbox.pack_start(self.imprimir, True, True, 0)
@@ -374,9 +393,9 @@ class EnRuta(Widgets.Frame):
         self.imprimir.connect('clicked', self.imprimir_clicked)
         self.llamar.connect('clicked', self.llamar_clicked)
         self.http.reloj.connect('tic-tac', self.buscar)
-        self.menu = Gtk.Menu()
-        item2 = Gtk.MenuItem('Falla Mecánica')
-        item3 = Gtk.MenuItem('Eliminar Salida')
+        self.menu = gtk.Menu()
+        item2 = gtk.MenuItem('Falla Mecánica')
+        item3 = gtk.MenuItem('Eliminar Salida')
         item2.connect('activate', self.regreso)
         item3.connect('activate', self.eliminar)
         self.menu.append(item2)
@@ -393,7 +412,7 @@ class EnRuta(Widgets.Frame):
                 path, col, cellx, celly = pthinfo
                 treeview.grab_focus()
                 treeview.set_cursor(path, col, 0)
-                self.menu.popup(None, None, None, None, event.button, t)
+                self.menu.popup(None, None, None, event.button, t)
                 self.menu.show_all()
             return True
 
@@ -437,10 +456,19 @@ class EnRuta(Widgets.Frame):
     def editar_llegada(self, *args):
         self.emit('editar-llegadas')
 
+    def get_modelo(self, i):
+        return self.model[i][len(self.model[i]) - 1]
+
+    def set_modelo(self, i, modelo):
+        self.model[i][len(self.model[i]) - 1] = modelo
+
     def get_selected(self):
-        path = self.treeview.get_path()
-        if path:
-            return self.treeview.get_modelo(path)
+        try:
+            path, column = self.treeview.get_cursor()
+            path = int(path[0])
+        except:
+            return None
+        return self.get_modelo(path)
 
     def fila_seleccionada(self, *args):
         salida = self.get_selected()
@@ -450,7 +478,7 @@ class EnRuta(Widgets.Frame):
             }
             data = self.http.load('salida-completa', datos)
             if data:
-                salida = models.SalidaCompleta(self.http, data['salida'])
+                salida = models.SalidaCompleta(data['salida'])
                 path, column = self.treeview.get_cursor()
                 path = int(path[0])
                 self.set_modelo(path, salida)
@@ -480,7 +508,7 @@ class EnRuta(Widgets.Frame):
         ultimo = None
         for s in salidas:
             if not isinstance(s, (models.Salida, models.SalidaCompleta)):
-                s = models.Salida(self.http, s)
+                s = models.Salida(s)
             if self.lado != s.lado:
                 continue
             s.orden = i + 1
@@ -534,7 +562,7 @@ class EnRuta(Widgets.Frame):
 
     def treeview_changed(self, widget, event, data = None):
         adj = self.sw.get_vadjustment()
-        adj.set_value(adj.get_upper() - adj.get_page_size())
+        adj.set_value(adj.upper - adj.page_size)
 
     def get_ultima_fila(self):
         l = len(self.model)
@@ -550,24 +578,24 @@ class EnRuta(Widgets.Frame):
         return None
 
 
-class Excluidos(Gtk.ScrolledWindow):
+class Excluidos(gtk.ScrolledWindow):
     __gsignals__ = {
-        'excluido-seleccionado': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT, )),
-        'desexcluir': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT, ))
+        'excluido-seleccionado': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
+        'desexcluir': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, ))
     }
 
     def __init__(self, http):
         super(Excluidos, self).__init__()
-        self.label = Gtk.Label()
+        self.label = gtk.Label()
         self.label.set_markup('<b>EXCLUIDOS (0)</b>')
         self.selector = self.dia = self.ruta = self.lado = None
-        self.display = Gdk.Display.get_default()
-        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.display = gtk.gdk.display_get_default()
+        self.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             self.set_size_request(200, 200)
         else:
             self.set_size_request(320, 200)
-        self.model = Gtk.ListStore(int, str, str, GObject.TYPE_PYOBJECT)
+        self.model = gtk.ListStore(int, str, str, gobject.TYPE_PYOBJECT)
         columnas = ['#', 'P', 'H.EXCLUSION']
         self.http = http
         self.treeview = Widgets.TreeView(self.model)
@@ -577,7 +605,7 @@ class Excluidos(Gtk.ScrolledWindow):
         self.treeview.connect('leave-notify-event', self.popup)
         self.treeview.set_enable_search(False)
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, text=i)
@@ -588,11 +616,11 @@ class Excluidos(Gtk.ScrolledWindow):
             tvcolumn.encabezado()
 
         self.add(self.treeview)
-        self.pop = Gtk.Window(Gtk.WindowType.POPUP)
-        self.eb = Gtk.EventBox()
-        self.label_pop = Gtk.Label()
+        self.pop = gtk.Window(gtk.WINDOW_POPUP)
+        self.eb = gtk.EventBox()
+        self.label_pop = gtk.Label()
         self.pop.add(self.eb)
-        self.eb.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('#F5F6CE'))
+        self.eb.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#F5F6CE'))
         self.eb.add(self.label_pop)
 
     def update_selector(self):
@@ -609,7 +637,7 @@ class Excluidos(Gtk.ScrolledWindow):
             self.pop.move(x + 10, y + 10)
             self.label_pop.set_markup(str(value))
         except:
-            self.pop.hide()
+            self.pop.hide_all()
 
     def desexcluir(self, *args):
         try:
@@ -644,28 +672,28 @@ class Excluidos(Gtk.ScrolledWindow):
 
 class Vueltas(Widgets.Frame):
     __gsignals__ = {
-        'salida-seleccionada': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT, )),
-        'editar-llegadas': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
-        'excluir-vuelta': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (str,)),
-        'ver-boletos': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ())
+        'salida-seleccionada': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
+        'editar-llegadas': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'excluir-vuelta': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (str,)),
+        'ver-boletos': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())
     }
 
-    def __init__(self, http):
+    def __init__(self):
         super(Vueltas, self).__init__()
-        self.sw = Gtk.ScrolledWindow()
+        self.sw = gtk.ScrolledWindow()
         self.w = self.get_parent_window()
         self.salidas = []
         self.selector = self.dia = self.ruta = self.lado = None
         self.add(self.sw)
-        self.sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             self.sw.set_size_request(300, 140)
         else:
             self.sw.set_size_request(460, 170)
-        self.set_property('shadow-type', Gtk.ShadowType.NONE)
-        self.model = Gtk.ListStore(str, str, str, str, str, str, str, str, str, str, str, str, GObject.TYPE_PYOBJECT)
+        self.set_property('shadow-type', gtk.SHADOW_NONE)
+        self.model = gtk.ListStore(str, str, str, str, str, str, str, str, str, str, str, str, gobject.TYPE_PYOBJECT)
         columnas = ['#', 'PAD', 'L', 'RUTA', 'H.SAL', 'H.FIN', 'F', 'VOL', 'ESTADO', 'PROD', 'DIA']
-        self.http = http
+        self.http = Http()
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.connect('row-activated', self.editar_llegadas)
         self.treeview.connect('cursor-changed', self.fila_seleccionada)
@@ -673,7 +701,7 @@ class Vueltas(Widgets.Frame):
         self.treeview.connect('size-allocate', self.treeview_changed)
         self.treeview.set_enable_search(False)
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, text=i, foreground=11)
@@ -692,8 +720,8 @@ class Vueltas(Widgets.Frame):
 
     def update_salida(self, salida):
         for i, fila in enumerate(self.model):
-            if self.treeview.get_modelo(i).id == salida.id:
-                salida.orden = self.treeview.get_modelo(i).orden
+            if self.get_modelo(i).id == salida.id:
+                salida.orden = self.get_modelo(i).orden
                 self.model[i] = salida.get_fila_vueltas()
 
     def actualizar(self, salidas):
@@ -718,10 +746,14 @@ class Vueltas(Widgets.Frame):
         self.emit('editar-llegadas')
 
     def fila_seleccionada(self, *args):
-        path = self.treeview.get_path()
-        if path:
-            salida = self.treeview.get_modelo(path)
-            self.emit('salida-seleccionada', salida)
+        try:
+            path, column = self.treeview.get_cursor()
+            path = int(path[0])
+            salida = self.get_modelo(path)
+        except:
+            return
+
+        self.emit('salida-seleccionada', salida)
 
     def button_press_event(self, treeview, event):
         if event.button == 3:
@@ -729,18 +761,21 @@ class Vueltas(Widgets.Frame):
 
     def treeview_changed(self, widget, event, data = None):
         adj = self.sw.get_vadjustment()
-        adj.set_value(adj.get_upper() - adj.get_page_size())
+        adj.set_value(adj.upper - adj.page_size)
+
+    def get_modelo(self, i):
+        return self.model[i][len(self.model[i]) - 1]
 
 
-class Datos(Gtk.VBox):
+class Datos(gtk.VBox):
     __gsignals__ = {
-        'agregar-espera': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT,)),
-        'unidad-modificada': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT,)),
+        'agregar-espera': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
+        'unidad-modificada': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
 
-        'vueltas': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
-        'hora-revisada': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
-        'cambiar-a-llegadas': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
-        'actualizar': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT,)),
+        'vueltas': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'hora-revisada': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'cambiar-a-llegadas': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'actualizar': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
     }
 
     def __init__(self, salidas):
@@ -752,58 +787,61 @@ class Datos(Gtk.VBox):
         self.w = self.get_parent_window()
         self.hora_minimo = datetime.datetime.now()
         self.selector = self.dia = self.ruta = self.lado = None
-        vbox_main = Gtk.VBox(False, 5)
+        vbox_main = gtk.VBox(False, 5)
         self.pack_start(vbox_main, True, True, 0)
         self.frame_padron = Widgets.Frame()
-        hbox_padron = Gtk.HBox(False, 5)
+        hbox_padron = gtk.HBox(False, 5)
         self.frame_padron.add(hbox_padron)
-        label_padron = Gtk.Label('Padrón:')
+        label_padron = gtk.Label('Padr\xc3\xb3n:')
         hbox_padron.pack_start(label_padron, False, False, 5)
         self.button_padron = Widgets.ButtonDoble('no_castigado.png', 'castigado.png', '+H.Sal')
         hbox_padron.pack_start(self.button_padron, False, False, 0)
+        self.entry_codigo = Widgets.Texto(7)
+        hbox_padron.pack_start(self.entry_codigo, False, False, 0)
+        self.entry_codigo.connect('activate', self.codigo_activate)
+        self.entry_completion = gtk.EntryCompletion()
+        self.entry_codigo.set_completion(self.entry_completion)
+        self.completion_liststore = gtk.ListStore(str)
+        self.entry_completion.set_model(self.completion_liststore)
         self.entry_padron = Widgets.Numero(4)
         hbox_padron.pack_start(self.entry_padron, False, False, 0)
+        self.entry_padron.set_sensitive(False)
         self.entry_padron.connect('activate', self.padron_activate)
+
         self.entry_padron.connect('key-release-event', self.padron_release)
-
-        self.entry_completion = Gtk.EntryCompletion()
-        self.entry_padron.set_completion(self.entry_completion)
-        self.completion_liststore = Gtk.ListStore(str)
-        self.entry_completion.set_model(self.completion_liststore)
-
         self.but_celular = Widgets.Button('sms.png', size=16, tooltip='Llamar')
         hbox_padron.pack_start(self.but_celular, False, False, 0)
         self.but_celular.connect('clicked', self.llamar_celular)
-        label_hora = Gtk.Label('H. Salida:')
+        label_hora = gtk.Label('H. Salida:')
         hbox_padron.pack_start(label_hora, False, False, 0)
         self.hora = Widgets.Hora()
         hbox_padron.pack_start(self.hora, False, False, 0)
         self.but_relojes = Widgets.Button('relojes.png', size=16, tooltip='Registrar vuelta completa')
         hbox_padron.pack_start(self.but_relojes, False, False, 0)
-        label_frecuencia = Gtk.Label('Frec. Auto')
+        label_frecuencia = gtk.Label('Frec. Auto')
         hbox_padron.pack_start(label_frecuencia, False, False, 0)
         self.frecuencia = Frecuencia(label_frecuencia)
         hbox_padron.pack_start(self.frecuencia, False, False, 0)
-        tabla = Gtk.Table(5, 4, False)
+        tabla = gtk.Table(5, 4, False)
         vbox_main.pack_start(tabla, False, False, 0)
         etiquetas = ('Unidad', 'Propietario', 'Conductor', 'Cobrador')
         for i, etiqueta in enumerate(etiquetas):
-            label = Gtk.Label(etiqueta)
+            label = gtk.Label(etiqueta)
             label.set_alignment(0, 0.5)
             if os.name == 'nt':
                 label.set_size_request(55, 25)
             else:
                 label.set_size_request(80, 25)
-            tabla.attach(label, 0, 2, i, i + 1, Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL, 2, 2)
+            tabla.attach(label, 0, 2, i, i + 1, gtk.FILL, gtk.FILL, 2, 2)
 
-        self.button_placa = Widgets.ButtonDobleUnidad(self.http, self, tooltip='Estado de Unidad')
+        self.button_placa = Widgets.ButtonDobleUnidad(tooltip='Estado de Unidad')
         self.button_placa.set_size_request(25, 25)
         self.button_propietario = Widgets.ButtonDoble('no_castigado.png', 'castigado.png', 'Sin Poliza', tooltip='Estado de Propietario')
         self.button_propietario.set_size_request(25, 25)
-        self.button_conductor = Widgets.ButtonDoblePersonal(self.http, self, tooltip='Datos de Conductor')
+        self.button_conductor = Widgets.ButtonDoblePersonal(tooltip='Datos de Conductor')
         self.button_conductor.motivo = 'Conductor'
         self.button_conductor.set_size_request(25, 25)
-        self.button_cobrador = Widgets.ButtonDoblePersonal(self.http, self, tooltip='Datos de Cobrador')
+        self.button_cobrador = Widgets.ButtonDoblePersonal(tooltip='Datos de Cobrador')
         self.button_cobrador.motivo = 'Cobrador'
         self.button_cobrador.set_size_request(25, 25)
         self.button_stock = Widgets.ButtonDoble('no_castigado.png', 'castigado.png', '')
@@ -817,14 +855,14 @@ class Datos(Gtk.VBox):
             self.button_propietario,
             self.button_conductor,
             self.button_cobrador)
-        tabla.attach(self.button_placa, 2, 3, 0, 1, Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL)
-        tabla.attach(self.button_propietario, 2, 3, 1, 2, Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL)
-        tabla.attach(self.button_conductor, 2, 3, 2, 3, Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL)
-        tabla.attach(self.button_cobrador, 2, 3, 3, 4, Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL)
-        self.label_placa = Gtk.Label('-')
-        self.label_propietario = Gtk.Label('-')
-        self.label_conductor = Gtk.Label('-')
-        self.label_cobrador = Gtk.Label('-')
+        tabla.attach(self.button_placa, 2, 3, 0, 1, gtk.FILL, gtk.FILL)
+        tabla.attach(self.button_propietario, 2, 3, 1, 2, gtk.FILL, gtk.FILL)
+        tabla.attach(self.button_conductor, 2, 3, 2, 3, gtk.FILL, gtk.FILL)
+        tabla.attach(self.button_cobrador, 2, 3, 3, 4, gtk.FILL, gtk.FILL)
+        self.label_placa = gtk.Label('-')
+        self.label_propietario = gtk.Label('-')
+        self.label_conductor = gtk.Label('-')
+        self.label_cobrador = gtk.Label('-')
         if os.name == 'nt':
             self.label_placa.set_size_request(180, 25)
             self.label_conductor.set_size_request(180, 25)
@@ -833,26 +871,26 @@ class Datos(Gtk.VBox):
             self.label_placa.set_size_request(250, 25)
             self.label_conductor.set_size_request(250, 25)
             self.label_cobrador.set_size_request(250, 25)
-        tabla.attach(self.label_placa, 3, 4, 0, 1, Gtk.AttachOptions.EXPAND | Gtk.AttachOptions.FILL, Gtk.AttachOptions.EXPAND | Gtk.AttachOptions.FILL)
-        tabla.attach(self.label_propietario, 3, 4, 1, 2, Gtk.AttachOptions.EXPAND | Gtk.AttachOptions.FILL, Gtk.AttachOptions.EXPAND | Gtk.AttachOptions.FILL)
-        hbox = Gtk.HBox(False, 0)
+        tabla.attach(self.label_placa, 3, 4, 0, 1, gtk.EXPAND | gtk.FILL, gtk.EXPAND | gtk.FILL)
+        tabla.attach(self.label_propietario, 3, 4, 1, 2, gtk.EXPAND | gtk.FILL, gtk.EXPAND | gtk.FILL)
+        hbox = gtk.HBox(False, 0)
         hbox.pack_start(self.label_conductor, True, True, 0)
         self.but_conductor_cobrador = Widgets.Button('abajo.png', size=16, tooltip='Ubicar como cobrador')
         self.but_conductor_cobrador.connect('clicked', self.downgrade_conductor)
         hbox.pack_start(self.but_conductor_cobrador, False, False, 0)
-        tabla.attach(hbox, 3, 4, 2, 3, Gtk.AttachOptions.EXPAND | Gtk.AttachOptions.FILL, Gtk.AttachOptions.EXPAND | Gtk.AttachOptions.FILL)
-        tabla.attach(self.label_cobrador, 3, 4, 3, 4, Gtk.AttachOptions.EXPAND | Gtk.AttachOptions.FILL, Gtk.AttachOptions.EXPAND | Gtk.AttachOptions.FILL)
+        tabla.attach(hbox, 3, 4, 2, 3, gtk.EXPAND | gtk.FILL, gtk.EXPAND | gtk.FILL)
+        tabla.attach(self.label_cobrador, 3, 4, 3, 4, gtk.EXPAND | gtk.FILL, gtk.EXPAND | gtk.FILL)
         imagen = 'buscar_personal.png'
         self.button_bloquear = Widgets.ButtonDobleBloquear('no_bloqueado.png', 'bloqueado.png', tooltip='Bloquear/Desbloquear')
         self.guardar_personal_but = Widgets.Button('guardar.png', size=16, tooltip='Guardar cambios de personal')
         self.buscar_conductor = Widgets.Button(imagen, size=16, tooltip='Escoger Conductor')
         self.buscar_cobrador = Widgets.Button(imagen, size=16, tooltip='Escoger Cobrador')
-        tabla.attach(self.button_bloquear, 4, 5, 0, 1, Gtk.AttachOptions.SHRINK, Gtk.AttachOptions.SHRINK)
-        tabla.attach(self.guardar_personal_but, 4, 5, 1, 2, Gtk.AttachOptions.SHRINK, Gtk.AttachOptions.SHRINK)
-        tabla.attach(self.buscar_conductor, 4, 5, 2, 3, Gtk.AttachOptions.SHRINK, Gtk.AttachOptions.SHRINK)
-        tabla.attach(self.buscar_cobrador, 4, 5, 3, 4, Gtk.AttachOptions.SHRINK, Gtk.AttachOptions.SHRINK)
+        tabla.attach(self.button_bloquear, 4, 5, 0, 1, gtk.SHRINK, gtk.SHRINK)
+        tabla.attach(self.guardar_personal_but, 4, 5, 1, 2, gtk.SHRINK, gtk.SHRINK)
+        tabla.attach(self.buscar_conductor, 4, 5, 2, 3, gtk.SHRINK, gtk.SHRINK)
+        tabla.attach(self.buscar_cobrador, 4, 5, 3, 4, gtk.SHRINK, gtk.SHRINK)
 
-        hbox_accion = Gtk.HBox(False, 0)
+        hbox_accion = gtk.HBox(False, 0)
         vbox_main.pack_start(hbox_accion, False, False, 0)
 
         herramientas = [
@@ -863,44 +901,18 @@ class Datos(Gtk.VBox):
         self.but_stock_rojo = toolbar.add_button('Suministrar Boletos (Obligatorio)', 'stock_rojo.png', self.stock_clicked)
         self.but_stock_verde = toolbar.add_button('Suministrar Boletos (Opcional)', 'stock_verde.png', self.stock_clicked)
         hbox_accion.pack_start(toolbar, False, False, 0)
-        self.info = Gtk.Label()
+        self.info = gtk.Label()
         hbox_accion.pack_start(self.info, False, False, 0)
         self.but_confirmar = Widgets.Button('confirmar.png', '_Confirmar')
         hbox_accion.pack_end(self.but_confirmar, False, False, 0)
-        url = 'http://%s/despacho/ingresar/?sessionid=%s' % (self.http.dominio, salidas.principal.sessionid)
-        # hpaned = Gtk.HPaned()
-        # vbox_main.pack_start(hpaned, True, True, 0)
-        # if os.name == 'nt':
-        #     self.www = Chrome.Browser(url, 150, 100)
-        # else:
-        #     self.www = Chrome.IFrame(url, 150, 100)
-        # hpaned.pack1(self.www, True, True)
-        # self.sw_chat = Gtk.ScrolledWindow()
-        # hpaned.pack2(self.sw_chat, False, False)
-        # self.sw_chat.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        # self.sw_chat.set_size_request(100, 100)
-        # self.model_chat = Gtk.ListStore(int, str, str)
-        # self.chat = Widgets.TreeView(self.model_chat)
-        # self.sw_chat.add(self.chat)
-        # columnas = ['PAD', 'EVENTO']
-        # self.chat.set_enable_search(False)
-        # for i, columna in enumerate(columnas):
-        #     column = Widgets.TreeViewColumn(columna)
-        #     column.set_flags(Gtk.CAN_FOCUS)
-            # cell = Gtk.CellRendererText()
-            # cell.set_property('editable', False)
-            # column.pack_start(cell, True)
-            # column.set_attributes(cell, text=i, foreground=2)
-            # self.chat.append_column(column)
-            # column.encabezado()
 
         self.activado = True
         self.padron_dia = None
-        self.llegadas = Llegadas(self.http, self)
-        self.boletaje = Boletos(self.http, self)
-        self.vueltas = Vueltas(self.http)
-        self.inspectoria = Inspectoria(self.http)
-        self.cortes = Cortes(self.http)
+        self.llegadas = Llegadas(self)
+        self.boletaje = Boletos(self)
+        self.vueltas = Vueltas()
+        self.inspectoria = Inspectoria()
+        self.cortes = Cortes()
         self.conectar()
 
     def conectar(self):
@@ -924,7 +936,37 @@ class Datos(Gtk.VBox):
         # self.but_deudas.connect('clicked', self.deudas)
         # self.but_reporte.connect('clicked', self.reporte)
         self.js_count = 0
-        self.logueado = False
+
+    def codigo_activate(self, *args):
+        codigo = self.entry_codigo.get_text()
+        if codigo == '':
+            self.padron_activate()
+            return
+        elif codigo.isdigit():
+            self.entry_padron.set_text(codigo)
+            self.padron_activate()
+        else:
+            data = {
+                'tipo': 'unidad',
+                'codigo': self.entry_codigo.get_text()
+            }
+            respuesta = self.http.load('buscar-codigo', data)
+            if respuesta:
+                opciones = respuesta['opciones']
+                if len(opciones) == 1:
+                    self.entry_padron.set_text(str(opciones[0]['padron']))
+                    self.entry_codigo.set_text(str(opciones[0]['placa']))
+                    self.padron_activate()
+                elif len(opciones) == 0:
+                    self.entry_padron.set_text('')
+                else:
+                    self.menu_codigo = gtk.Menu()
+                    for o in opciones:
+                        item = gtk.MenuItem('%s (%s)' % (o['padron'], o['placa']))
+                        self.menu_codigo.append(item)
+                        item.connect('activate', self.set_padron, str(o['padron']))
+                        self.menu_codigo.popup(None, None, None, event.button, event.time)
+                        self.menu.show_all()
 
     def downgrade_conductor(self, *args):
         js = self.combo_conductor.get_item()
@@ -951,12 +993,8 @@ class Datos(Gtk.VBox):
 
     def update_selector(self):
         self.dia, self.ruta, self.lado = self.selector.get_datos()
-        print('actualizar dia', self.dia)
+        print 'actualizar dia', self.dia
         self.hora.set_date(self.dia)
-
-    def login(self, sessionid):
-        if self.ruta:
-            self.logueado = True
 
     def desactivar(self):
         self.activado = False
@@ -977,7 +1015,7 @@ class Datos(Gtk.VBox):
         try:
             frecuencia = self.frecuencia.get_int()
         except ValueError:
-            Widgets.Alerta('Error', 'error_numero.png', 'El campo FRECUENCIA está vacío.')
+            Widgets.Alerta('Error', 'error_numero.png', 'El campo FRECUENCIA est\xc3\xa1 vac\xc3\xado.')
             return
         automatica = self.frecuencia.frec
         datos = {
@@ -987,9 +1025,9 @@ class Datos(Gtk.VBox):
             'lado': int(self.lado)
         }
         hora = datetime.datetime.strptime(str(self.dia) + ' ' + str(self.hora.get_time()), '%Y-%m-%d %H:%M:%S')
-        print('atrasada?', hora, self.ultima_hora - datetime.timedelta(0, self.frec * 60))
+        print 'atrasada?', hora, self.ultima_hora - datetime.timedelta(0, self.frec * 60)
         if hora < self.ultima_hora - datetime.timedelta(0, self.frec * 60):
-            dialogo = Widgets.Alerta_SINO('Cuidado Hora Menor', 'cuidado_hora.png', 'Está digitando una hora menor a la de la cola.\n' + '\xc2\xbfDesea continuar de todas maneras?')
+            dialogo = Widgets.Alerta_SINO('Cuidado Hora Menor', 'cuidado_hora.png', 'Est\xc3\xa1 digitando una hora menor a la de la cola.\n' + '\xc2\xbfDesea continuar de todas maneras?')
             if not dialogo.iniciar():
                 dialogo.cerrar()
                 return
@@ -1045,9 +1083,10 @@ class Datos(Gtk.VBox):
             else:
                 color = '#FFCCCC'
 
-        self.entry_padron.modify_base(Gtk.StateType.NORMAL, Gdk.color_parse(color))
+        self.entry_padron.modify_base(gtk.STATE_NORMAL, gtk.gdk.color_parse(color))
 
     def cargar_unidad(self):
+        self.js_count = 0
         datos = {
             'padron': self.padron,
             'dia': str(self.dia),
@@ -1056,12 +1095,12 @@ class Datos(Gtk.VBox):
         }
         respuesta = self.http.load('unidad-vueltas', datos)
         if respuesta:
-            self.unidad = models.Unidad(self.http, respuesta['unidad'])
+            self.unidad = models.Unidad(respuesta['unidad'])
             self.unidad.set_suministros(respuesta['suministros'])
             self.salidas = []
             self.salida = None
             for s in respuesta['salidas']:
-                salida = models.SalidaCompleta(self.http, s)
+                salida = models.SalidaCompleta(s)
                 self.salidas.append(salida)
                 if self.unidad.actual == salida.id:
                     self.salida = salida
@@ -1079,35 +1118,15 @@ class Datos(Gtk.VBox):
         try:
             self.padron = int(txt)
         except:
-            self.codigo_activate()
+            print txt
+            Widgets.Alerta('Error', 'error_numero.png', 'Escriba un número de padron. Sólo números.')
+            self.entry_padron.set_text('')
+            self.padron = None
+            self.activado = False
             return
-        self.entry_padron.modify_base(Gtk.StateType.NORMAL, Gdk.color_parse('#FFFFFF'))
+        self.entry_padron.modify_base(gtk.STATE_NORMAL, gtk.gdk.color_parse('#FFFFFF'))
         self.cargar_unidad()
-        if self.unidad:
-            self.set_salida_id(self.unidad.actual)
-
-    def codigo_activate(self, *args):
-        codigo = self.entry_padron.get_text()
-        data = {
-            'tipo': 'unidad',
-            'codigo': padron
-        }
-        respuesta = self.http.load('buscar-codigo', data)
-        if respuesta:
-            opciones = respuesta['opciones']
-            if len(opciones) == 1:
-                self.entry_padron.set_text(str(opciones[0]['padron']))
-                self.padron_activate()
-            elif len(opciones) == 0:
-                self.entry_padron.set_text('')
-            else:
-                self.menu_codigo = Gtk.Menu()
-                for o in opciones:
-                    item = Gtk.MenuItem('%s (%s)' % (o['padron'], o['placa']))
-                    self.menu_codigo.append(item)
-                    item.connect('activate', self.set_padron, str(o['padron']))
-                    self.menu_codigo.popup(None, None, None, None, event.button, event.time)
-                    self.menu.show_all()
+        self.set_salida_id(self.unidad.actual)
 
     def set_padron(self, widget, padron):
         self.entry_padron.set_text(str(padron))
@@ -1130,26 +1149,26 @@ class Datos(Gtk.VBox):
         self.unidad.cola = unidad['cola']
 
         self.escribir_datos_unidad()
-        self.salida = models.SalidaCompleta(self.http, data['salida'])
+        self.salida = models.SalidaCompleta(data['salida'])
         self.escribir_datos_salida()
         self.emit('agregar-espera', self.unidad)
 
     def boletaje_guardado(self, widget, data):
-        self.unidad = models.Unidad(self.http, data['unidad'])
+        self.unidad = models.Unidad(data['unidad'])
         self.unidad.set_suministros(data['suministros'])
 
         self.escribir_datos_unidad()
-        self.salida = models.SalidaCompleta(self.http, data['salida'])
+        self.salida = models.SalidaCompleta(data['salida'])
         self.escribir_datos_salida()
         self.emit('unidad-modificada', self.unidad)
         self.vueltas.update_salida(self.salida)
 
     def boletaje_borrado(self, widget, data):
-        self.unidad = models.Unidad(self.http, data['unidad'])
+        self.unidad = models.Unidad(data['unidad'])
         self.unidad.set_suministros(data['suministros'])
 
         self.escribir_datos_unidad()
-        self.salida = models.SalidaCompleta(self.http, data['salida'])
+        self.salida = models.SalidaCompleta(data['salida'])
         self.escribir_datos_salida()
         self.emit('unidad-modificada', self.unidad)
         self.vueltas.update_salida(self.salida)
@@ -1157,10 +1176,10 @@ class Datos(Gtk.VBox):
     def escribir(self, widget, data):
         if data:
             if 'unidad' in data:
-                self.unidad = models.Unidad(self.http, data['unidad'])
+                self.unidad = models.Unidad(data['unidad'])
                 self.escribir_datos_unidad()
             if 'salida' in data:
-                salida = models.SalidaCompleta(self.http, data['salida'])
+                salida = models.SalidaCompleta(data['salida'])
                 if self.salida.id == self.unidad.actual:
                     self.salida = salida
                 self.escribir_datos_salida()
@@ -1194,7 +1213,8 @@ class Datos(Gtk.VBox):
         self.button_cobrador.set(None)
         self.button_propietario.set(False, '')
 
-        print(('datos unidad', self.unidad))
+        print('datos unidad', self.unidad)
+        self.entry_codigo.set_text(self.unidad.placa)
         self.button_placa.set(self.unidad)
         self.label_placa.set_markup(self.unidad.get_modelo())
 
@@ -1250,16 +1270,16 @@ class Datos(Gtk.VBox):
                     obligatorio = True
             if obligatorio:
                 self.but_stock_rojo.show_all()
-                self.but_stock_verde.hide()
+                self.but_stock_verde.hide_all()
                 self.button_stock.set(True)
             else:
-                self.but_stock_rojo.hide()
+                self.but_stock_rojo.hide_all()
                 self.but_stock_verde.show_all()
                 self.button_stock.set(False)
         else:
-            self.but_stock_rojo.hide()
-            self.but_stock_rojo.hide()
-            self.but_stock_verde.hide()
+            self.but_stock_rojo.hide_all()
+            self.but_stock_rojo.hide_all()
+            self.but_stock_verde.hide_all()
             self.button_stock.set(False)
 
     def set_salida(self, salida):
@@ -1279,7 +1299,7 @@ class Datos(Gtk.VBox):
                 }
                 data = self.http.load('salida-completa', datos)
                 if data:
-                    self.salida = models.SalidaCompleta(self.http, data['salida'])
+                    self.salida = models.SalidaCompleta(data['salida'])
         self.escribir_datos_salida()
 
     def escribir_datos_salida(self):
@@ -1404,32 +1424,32 @@ class Datos(Gtk.VBox):
             dialog.cerrar()
 
     def focus_entry(self):
-        self.entry_padron.grab_focus()
+        self.entry_codigo.grab_focus()
 
 
-class Llegadas(Gtk.VBox):
-    __gsignals__ = {'finalizar-salida': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT,)),
-     'cambiar-a-boletos': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ())}
+class Llegadas(gtk.VBox):
+    __gsignals__ = {'finalizar-salida': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
+     'cambiar-a-boletos': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())}
 
-    def __init__(self, http, padre):
+    def __init__(self, padre):
         super(Llegadas, self).__init__()
         self.salida = None
-        self.http = http
+        self.http = Http()
         self.padre = padre
         self.w = self.get_parent_window()
-        hbox_label = Gtk.HBox(True, 0)
+        hbox_label = gtk.HBox(True, 0)
         self.pack_start(hbox_label, False, False, 0)
-        self.label_padron = Gtk.Label('No hay salida')
-        self.label_hora = Gtk.Label('--:--')
-        self.label_dia = Gtk.Label('--/--/--')
+        self.label_padron = gtk.Label('No hay salida')
+        self.label_hora = gtk.Label('--:--')
+        self.label_dia = gtk.Label('--/--/--')
         hbox_label.pack_start(self.label_padron, False, False, 0)
         hbox_label.pack_start(self.label_hora, False, False, 0)
         hbox_label.pack_start(self.label_dia, False, False, 0)
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         self.pack_start(sw, True, True, 0)
         sw.set_size_request(200, 100)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.model = Gtk.ListStore(int, str, str, str, str, GObject.TYPE_PYOBJECT)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+        self.model = gtk.ListStore(int, str, str, str, str, gobject.TYPE_PYOBJECT)
         columnas = ('#', 'CONTROL', 'H.PROG', 'H.REAL', 'VOL.')
         self.treeview = Widgets.TreeView(self.model)
         sw.add(self.treeview)
@@ -1440,18 +1460,18 @@ class Llegadas(Gtk.VBox):
                 cell = Widgets.Cell()
                 cell.connect('editado', self.editado)
                 cell.set_property('editable', True)
-                # column.set_flags(Gtk.CAN_FOCUS)
+                column.set_flags(gtk.CAN_FOCUS)
                 self.column = column
                 self.cell = cell
             else:
-                cell = Gtk.CellRendererText()
+                cell = gtk.CellRendererText()
                 cell.set_property('editable', False)
             column.pack_start(cell, True)
             column.set_attributes(cell, text=i)
             self.treeview.append_column(column)
             column.encabezado()
 
-        hbox_botones = Gtk.HBox(False, 0)
+        hbox_botones = gtk.HBox(False, 0)
         self.pack_start(hbox_botones, False, False, 0)
 
         toolbar = Widgets.Toolbar([
@@ -1474,6 +1494,9 @@ class Llegadas(Gtk.VBox):
         self.but_guardar.connect('clicked', self.guardar)
         self.treeview.connect('button-release-event', self.editar)
         self._media_vuelta = False
+
+    def get_modelo(self, i):
+        return self.model[i][len(self.model[i]) - 1]
 
     def update_selector(self):
         self.dia, self.ruta, self.lado = self.selector.get_datos()
@@ -1510,7 +1533,7 @@ class Llegadas(Gtk.VBox):
         }
         data = self.http.load('salida-completa', datos)
         if data:
-            self.salida = models.SalidaCompleta(self.http, data['salida'])
+            self.salida = models.SalidaCompleta(data['salida'])
 
     def actualizar(self):
         self.model.clear()
@@ -1533,7 +1556,7 @@ class Llegadas(Gtk.VBox):
     def editado(self, widget, path, new_text):
         if new_text == '':
             new_text = '0'
-        control = self.treeview.get_modelo(path)
+        control = self.get_modelo(path)
         try:
             int(new_text)
         except:
@@ -1546,7 +1569,7 @@ class Llegadas(Gtk.VBox):
                 control.falla_mecanica()
                 for i, r in enumerate(self.model):
                     if i  > path:
-                        control = self.treeview.get_modelo(i)
+                        control = self.get_modelo(i)
                         control.no_marcar()
                 self.but_guardar.grab_focus()
                 return
@@ -1574,7 +1597,7 @@ class Llegadas(Gtk.VBox):
         multa = 0
         fin = self.salida.inicio
         for i, fila in enumerate(self.model):
-            control = self.treeview.get_modelo(i)
+            control = self.get_modelo(i)
             voladas[control.g] = control.get_dict()
             record += control.get_record()
             multa += control.get_multa()
@@ -1598,35 +1621,35 @@ class Llegadas(Gtk.VBox):
                 self.emit('finalizar-salida', data)
 
 
-class Cortes(Gtk.VBox):
-    __gsignals__ = {'terminado': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_INT,))}
+class Cortes(gtk.VBox):
+    __gsignals__ = {'terminado': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_INT,))}
 
-    def __init__(self, http):
+    def __init__(self):
         super(Cortes, self).__init__()
-        self.http = http
+        self.http = Http()
         self.w = self.get_parent_window()
-        hbox_label = Gtk.HBox(True, 0)
+        hbox_label = gtk.HBox(True, 0)
         self.rojo = '#EB9EA3'
         self.verde = '#B0EB9E'
         self.amarillo = '#F5F6CE'
         self.selector = None
         self.pack_start(hbox_label, False, False, 0)
-        self.label_salida = Gtk.Label('No hay corte')
-        self.label_inicio = Gtk.Label('-')
-        self.label_fin = Gtk.Label('-')
+        self.label_salida = gtk.Label('No hay corte')
+        self.label_inicio = gtk.Label('-')
+        self.label_fin = gtk.Label('-')
         hbox_label.pack_start(self.label_salida, False, False, 0)
         hbox_label.pack_start(self.label_inicio, False, False, 0)
         hbox_label.pack_start(self.label_fin, False, False, 0)
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         self.pack_start(sw, True, True, 0)
         sw.set_size_request(200, 100)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.model = Gtk.ListStore(int)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+        self.model = gtk.ListStore(int)
         self.treeview = Widgets.TreeView(self.model)
         sw.add(self.treeview)
         self.treeview.set_enable_search(False)
         self.treeview.set_reorderable(False)
-        hbox_botones = Gtk.HBox(False, 0)
+        hbox_botones = gtk.HBox(False, 0)
         but_actualizar = Widgets.Button('guardar.png', '', 16)
         hbox_botones.pack_start(but_actualizar, False, False, 0)
         self.but_reporte = Widgets.Button('reporte.png')
@@ -1640,12 +1663,12 @@ class Cortes(Gtk.VBox):
             liststore.append(str)
 
         cols = self.treeview.get_columns()
-        self.model = Gtk.ListStore(*liststore)
+        self.model = gtk.ListStore(*liststore)
         for c in cols:
             self.treeview.remove_column(c)
 
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             self.treeview.append_column(tvcolumn)
@@ -1692,13 +1715,13 @@ class Cortes(Gtk.VBox):
             liststore.append(eval(l))
 
         self.tabla = data['tabla']
-        self.model = Gtk.ListStore(*liststore)
+        self.model = gtk.ListStore(*liststore)
         cols = self.treeview.get_columns()
         for c in cols:
             self.treeview.remove_column(c)
 
         for i, columna in enumerate(self.columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             if isinstance(columna, list):
                 tvcolumn = Widgets.TreeViewColumn(columna[0])
             else:
@@ -1724,36 +1747,36 @@ class Cortes(Gtk.VBox):
         self.destroy()
 
 
-class Boletos(Gtk.VBox):
+class Boletos(gtk.VBox):
     __gsignals__ = {
-        'boletaje-guardado': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT,)),
-        'boletaje-borrado': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT,)),
-        'grifo': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ())
+        'boletaje-guardado': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
+        'boletaje-borrado': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
+        'grifo': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())
     }
 
-    def __init__(self, http, padre):
+    def __init__(self, padre):
         super(Boletos, self).__init__()
         self.salida = None
-        self.http = http
+        self.http = Http
         self.padre = padre
         self.w = self.get_parent_window()
-        hbox_label = Gtk.HBox(True, 0)
+        hbox_label = gtk.HBox(True, 0)
         self.rojo = '#EB9EA3'
         self.verde = '#B0EB9E'
         self.amarillo = '#F5F6CE'
         self.selector = None
         self.pack_start(hbox_label, False, False, 0)
-        self.label_padron = Gtk.Label('No hay salida')
-        self.label_hora = Gtk.Label('--:--')
-        self.label_dia = Gtk.Label('--/--/--')
+        self.label_padron = gtk.Label('No hay salida')
+        self.label_hora = gtk.Label('--:--')
+        self.label_dia = gtk.Label('--/--/--')
         hbox_label.pack_start(self.label_padron, False, False, 0)
         hbox_label.pack_start(self.label_hora, False, False, 0)
         hbox_label.pack_start(self.label_dia, False, False, 0)
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         self.pack_start(sw, True, True, 0)
         sw.set_size_request(200, 100)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.model = Gtk.ListStore(*models.Suministro.get_liststore_boletaje())
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+        self.model = gtk.ListStore(str, str, str, str, str, str, str, str, gobject.TYPE_PYOBJECT)
         columnas = ('#', 'BOLETO', 'TAR', 'SERIE', 'N.I', 'CANT', 'N.F')
         self.treeview = Widgets.TreeView(self.model)
         sw.add(self.treeview)
@@ -1768,18 +1791,18 @@ class Boletos(Gtk.VBox):
                 cell.connect('inicio', self.rellenar)
                 cell.connect('usar-reserva', self.escoger_reserva)
                 cell.set_property('editable', True)
-                # column.set_flags(Gtk.CAN_FOCUS)
+                column.set_flags(gtk.CAN_FOCUS)
                 column.set_min_width(60)
                 self.column = column
                 self.cell = cell
             else:
-                cell = Gtk.CellRendererText()
+                cell = gtk.CellRendererText()
                 column.pack_start(cell, True)
                 cell.set_property('editable', False)
                 column.set_attributes(cell, text=i)
             self.treeview.append_column(column)
             column.encabezado()
-        hbox_botones = Gtk.HBox(False, 0)
+        hbox_botones = gtk.HBox(False, 0)
 
         herramientas = [
             ('Reservas y Suministros', 'reserva.png', self.anular_reserva),
@@ -1813,10 +1836,10 @@ class Boletos(Gtk.VBox):
         self.padron = 0
         self.backup = False
         self.pack_start(hbox_botones, False, False, 0)
-        self.menu = Gtk.Menu()
-        # item1 = Gtk.MenuItem('Corregir')
-        item2 = Gtk.MenuItem('Anular')
-        item3 = Gtk.MenuItem('Eliminar Anulado')
+        self.menu = gtk.Menu()
+        # item1 = gtk.MenuItem('Corregir')
+        item2 = gtk.MenuItem('Anular')
+        item3 = gtk.MenuItem('Eliminar Anulado')
         # item1.connect('activate', self.corregir)
         item2.connect('activate', self.anular)
         item3.connect('activate', self.eliminar)
@@ -1824,6 +1847,9 @@ class Boletos(Gtk.VBox):
         self.menu.append(item2)
         self.menu.append(item3)
         self.treeview.connect('button-release-event', self.on_release_button)
+
+    def get_modelo(self, path):
+        return self.model[path][8]
 
     def set_salida(self, salida=None, unidad=None):
         self.salida = salida
@@ -1856,15 +1882,15 @@ class Boletos(Gtk.VBox):
                                 path, col, cellx, celly = pthinfo
                                 treeview.grab_focus()
                                 treeview.set_cursor(path, col, 0)
-                                self.menu.popup(None, None, None, None, event.button, t)
+                                self.menu.popup(None, None, None, event.button, t)
                                 self.menu.show_all()
                             return True
-                # try:
-                #     path, column = self.treeview.get_cursor()
-                #     path = int(path[0])
-                #     self.treeview.set_cursor(path, self.column, True)
-                # except:
-                #     return
+                try:
+                    path, column = self.treeview.get_cursor()
+                    path = int(path[0])
+                    self.treeview.set_cursor(path, self.column, True)
+                except:
+                    return
 
     def set_cursor(self):
         self.treeview.set_cursor(0, self.column, True)
@@ -1989,26 +2015,26 @@ class Boletos(Gtk.VBox):
                     self.but_borrar.set_sensitive(False)
                     self.but_guardar.set_sensitive(False)
 
-    def rellenar(self, cell, path):
-        suministro = self.treeview.get_modelo(path)
+    def rellenar(self, cell, editable, path):
+        suministro = self.get_modelo(path)
         if isinstance(suministro, models.Suministro):
             cell.boleto = suministro.boleto.id
             cell.inicio = suministro.inicio
             if self.model[path][6] == '':
-                cell.set_text(suministro.get_actual())
+                editable.set_text(suministro.get_actual())
 
     def escoger_reserva(self, cell, path):
         coincidencias = []
         for s in self.unidad.get_suministros():
             if s.boleto.id == cell.boleto and not s.mostrar:
                 coincidencias.append(s)
-                print(('coincidencias', s, s.boleto.id, s.boleto.nombre))
+                print('coincidencias', s, s.boleto.id, s.boleto.nombre)
 
         if len(coincidencias) == 0:
             Widgets.Alerta('Error', 'warning.png', 'El boleto no tiene reservas')
         elif len(coincidencias) == 1:
             self.set_visible(coincidencias[0].id)
-            self.treeview.get_modelo(path).terminar()
+            self.get_modelo(path).terminar()
         else:
             lista = []
             for c in coincidencias:
@@ -2019,7 +2045,7 @@ class Boletos(Gtk.VBox):
             dialog.cerrar()
             if suministro_id:
                 self.set_visible(suministro_id)
-                self.treeview.get_modelo(path).terminar()
+                self.get_modelo(path).terminar()
 
     def set_visible(self, suministro_id):
         for s in self.unidad.get_suministros():
@@ -2027,7 +2053,7 @@ class Boletos(Gtk.VBox):
                 s.mostrar = True
         self.actualizar()
         for i, r in enumerate(self.model):
-            if suministro_id == self.treeview.get_modelo(i).id:
+            if suministro_id == self.get_modelo(i).id:
                 self.treeview.set_cursor(i, self.column, True)
 
     def editado(self, widget, path, new_text):
@@ -2041,7 +2067,7 @@ class Boletos(Gtk.VBox):
             self.http.sonido.error()
             return
 
-        suministro = self.treeview.get_modelo(path)
+        suministro = self.get_modelo(path)
         if suministro.terminado:
             if path + 1 == len(self.model):
                 print('seleccionando botón')
@@ -2058,9 +2084,7 @@ class Boletos(Gtk.VBox):
             limite = suministro.boleto.get_limite_venta()
             if cantidad > limite:
                 self.http.sonido.error()
-                mensaje = 'Está intentando digitar un boletaje mayor a <span foreground="#F00" weight="bold">{limite}' \
-                          '</span> boletos.\n¿Desea continuar de todas maneras?'.format(limite=limite)
-                dialogo = Widgets.Alerta_SINO('Cuidado Boletaje Excesivo', 'error_numero.png', mensaje)
+                dialogo = Widgets.Alerta_SINO('Cuidado Boletaje Excesivo', 'error_numero.png', 'Est\xc3\xa1 intentando digitar un boletaje mayor a <span foreground="#F00" weight="bold">%d</span> boletos.\n' % limite + '\xc2\xbfDesea continuar de todas maneras?')
                 if not dialogo.iniciar():
                     dialogo.cerrar()
                     return
@@ -2080,7 +2104,7 @@ class Boletos(Gtk.VBox):
     def guardar(self, widget):
         boletaje = []
         for i, fila in enumerate(self.model):
-            s = self.treeview.get_modelo(i)
+            s = self.get_modelo(i)
             boletaje.append(s.get_json_boletaje())
 
         datos = {
@@ -2111,7 +2135,7 @@ class Boletos(Gtk.VBox):
                 #     self.padre._vuelta_completa = False
 
     def borrar(self, widget):
-        dialogo = Widgets.Alerta_SINO('Cuidado Borrar Boletaje', 'warning.png', '\xc2\xbfEstá seguro de borrar el boletaje?')
+        dialogo = Widgets.Alerta_SINO('Cuidado Borrar Boletaje', 'warning.png', '\xc2\xbfEst\xc3\xa1 seguro de borrar el boletaje?')
         if dialogo.iniciar():
             dialogo.cerrar()
             datos = {'salida': self.salida.id}
@@ -2119,14 +2143,14 @@ class Boletos(Gtk.VBox):
             if data:
                 backup = {}
                 for i, fila in enumerate(self.model):
-                    modelo = self.treeview.get_modelo(i)
+                    modelo = self.get_modelo(i)
                     if modelo.m is not None:
                         backup[modelo.su] = modelo
 
                 self.emit('boletaje-borrado', data)
 
                 for i, fila in enumerate(self.model):
-                    modelo = self.treeview.get_modelo(i)
+                    modelo = self.get_modelo(i)
                     if modelo.id in backup:
                         modelo.guardar = backup[modelo.id].f
                         modelo.editado = True
@@ -2137,7 +2161,7 @@ class Boletos(Gtk.VBox):
     def get_selected(self):
         path, column = self.treeview.get_cursor()
         path = int(path[0])
-        return self.treeview.get_modelo(path)
+        return self.get_modelo(path)
 
     def get_iter(self):
         path, column = self.treeview.get_cursor()
@@ -2166,7 +2190,7 @@ class Boletos(Gtk.VBox):
             motivo = pregunta.iniciar()
             pregunta.cerrar()
             if motivo:
-                anulacion = suministro.anular(numeros[0], numeros[1], str(motivo))
+                anulacion = suministro.anular(numeros[0], numeros[1], unicode(motivo))
                 self.model.insert_after(self.get_iter(), anulacion.get_fila_boletaje())
 
     def eliminar(self, *args):
@@ -2178,28 +2202,28 @@ class Boletos(Gtk.VBox):
             self.model.remove(self.get_iter())
 
 
-class Inspectoria(Gtk.VBox):
-    __gsignals__ = {'actualizar': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_PYOBJECT,))}
+class Inspectoria(gtk.VBox):
+    __gsignals__ = {'actualizar': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,))}
 
-    def __init__(self, http):
+    def __init__(self):
         super(Inspectoria, self).__init__()
         self.salida = None
-        self.http = http
+        self.http = Http()
         self.w = self.get_parent_window()
-        hbox_label = Gtk.HBox(True, 0)
+        hbox_label = gtk.HBox(True, 0)
         self.pack_start(hbox_label, False, False, 0)
-        self.label_padron = Gtk.Label('No hay salida')
-        self.label_hora = Gtk.Label('--:--')
-        self.label_dia = Gtk.Label('--/--/--')
+        self.label_padron = gtk.Label('No hay salida')
+        self.label_hora = gtk.Label('--:--')
+        self.label_dia = gtk.Label('--/--/--')
         hbox_label.pack_start(self.label_padron, False, False, 0)
         hbox_label.pack_start(self.label_hora, False, False, 0)
         hbox_label.pack_start(self.label_dia, False, False, 0)
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         self.selector = None
         self.pack_start(sw, True, True, 0)
         sw.set_size_request(200, 100)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.model = Gtk.ListStore(str, str, str, str)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+        self.model = gtk.ListStore(str, str, str, str)
         columnas = ('COD.INS.', 'HORA', 'LUGAR')
         self.treeview = Widgets.TreeView(self.model)
         sw.add(self.treeview)
@@ -2218,7 +2242,7 @@ class Inspectoria(Gtk.VBox):
                 cell = Widgets.Cell()
                 cell.connect('editado', self.editado_lugar)
             cell.set_property('editable', True)
-            # column.set_flags(Gtk.CAN_FOCUS)
+            column.set_flags(gtk.CAN_FOCUS)
             self.columns.append(column)
             self.cells.append(cell)
             column.pack_start(cell, True)
@@ -2226,7 +2250,7 @@ class Inspectoria(Gtk.VBox):
             self.treeview.append_column(column)
             column.encabezado()
 
-        hbox_botones = Gtk.HBox(False, 0)
+        hbox_botones = gtk.HBox(False, 0)
         self.pack_start(hbox_botones, False, False, 0)
 
         toolbar = Widgets.Toolbar([
@@ -2240,8 +2264,8 @@ class Inspectoria(Gtk.VBox):
         self.but_guardar = Widgets.Button('guardar.png', 'Guardar')
         hbox_botones.pack_end(self.but_guardar, False, False, 0)
         self.but_guardar.connect('clicked', self.guardar)
-        self.menu = Gtk.Menu()
-        item2 = Gtk.MenuItem('Borrar Registro')
+        self.menu = gtk.Menu()
+        item2 = gtk.MenuItem('Borrar Registro')
         item2.connect('activate', self.borrar)
         self.menu.append(item2)
         self.treeview.connect('button-release-event', self.on_release_button)
@@ -2265,7 +2289,7 @@ class Inspectoria(Gtk.VBox):
                 path, col, cellx, celly = pthinfo
                 treeview.grab_focus()
                 treeview.set_cursor(path, col, 0)
-                self.menu.popup(None, None, None, None, event.button, t)
+                self.menu.popup(None, None, None, event.button, t)
                 self.menu.show_all()
             return True
         try:
@@ -2283,7 +2307,7 @@ class Inspectoria(Gtk.VBox):
             self.label_padron.set_markup('No hay salida')
             self.padron = None
         else:
-            self.label_padron.set_markup('Padrón %s' % padron)
+            self.label_padron.set_markup('Padr\xc3\xb3n %s' % padron)
             self.padron = int(padron)
         self.salida = salida
         if hora is None:
@@ -2427,9 +2451,9 @@ class Inspectoria(Gtk.VBox):
             self.model.remove(treeiter)
 
 
-class Llamada(Gtk.HBox):
-    __gsignals__ = {'llamar': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (str, str)),
-     'stop': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ())}
+class Llamada(gtk.HBox):
+    __gsignals__ = {'llamar': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (str, str)),
+     'stop': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())}
 
     def __init__(self):
         super(Llamada, self).__init__()
@@ -2439,9 +2463,12 @@ class Llamada(Gtk.HBox):
         self.entry_padron = Widgets.Numero(4)
         self.entry_padron.connect('activate', self.llamar)
         self.pack_start(self.entry_padron, False, False, 0)
-        self.combo = Widgets.ComboBox((str, int, str, str))
+        self.combo = Widgets.ComboBox((str,
+         int,
+         str,
+         str))
         self.combo.set_size_request(200, 25)
-        self.pack_start(self.combo, False, False, 0)
+        self.pack_start(self.combo)
         self.button_stop = Widgets.Button('stop.png', None, tooltip='Detener el sonido')
         self.pack_start(self.button_stop, False, False, 0)
         self.button_stop.connect('clicked', self.stop)
@@ -2484,8 +2511,8 @@ class Llamada(Gtk.HBox):
 
 class Frecuencia(Widgets.Numero):
     __gsignals__ = {
-        'cambiar-frecuencia': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (GObject.TYPE_INT,)),
-        'auto-frecuencia': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ())
+        'cambiar-frecuencia': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_INT,)),
+        'auto-frecuencia': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())
     }
 
     def __init__(self, label):
@@ -2518,26 +2545,27 @@ class Frecuencia(Widgets.Numero):
         return int(self.get_text())
 
 
-class Reloj(Gtk.HBox):
+class Reloj(gtk.HBox):
 
-    def __init__(self, http):
+    def __init__(self):
         super(Reloj, self).__init__(0, False)
-        self.http = http
+        self.http = Http()
         self.horas = []
+        self.color = '#0188d1'
         self.frecuencia = 0
         self.espacio = datetime.timedelta(seconds=60)
         self.limite = self.get_time() + self.espacio + self.espacio
         self.estado = 'NORMAL'
-        # url = 'http://%s/despacho/reloj' % self.http.dominio
-        # if os.name == 'nt':
-        #     self.www = Chrome.Browser(url, 230, 35)
-        # else:
-        #     self.www = Chrome.IFrame(url, 230, 35)
-        # self.pack_start(self.www, True, True, 0)
-        # http.reloj.connect('tic-tac', self.run)
+        self.http.reloj.connect('tic-tac', self.run)
+        self.eventBox = gtk.EventBox()
+        self.pack_start(self.eventBox, True, True, 0)
+        self.label = gtk.Label('--:--:--')
+        self.eventBox.add(self.label)
+        self.eventBox.set_size_request(300, 50)
 
     def run(self, *args):
         t = self.get_time()
+        self.label.set_markup('<span foreground="%s" font_desc="Sans 32" weight="ultrabold">%s</span>' % (self.color, self.get_text()))
         if not self.horas == []:
             h, p = self.horas[0]
             if t == h:
@@ -2547,14 +2575,17 @@ class Reloj(Gtk.HBox):
                 self.horas.remove((h, p))
         if self.limite < t:
             if self.estado != 'ERROR':
-                self.www.execute_script('error();')
+                self.eventBox.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#FF0044'))
+                self.color = '#FFFFFF'
                 self.estado = 'ERROR'
         elif self.limite - self.espacio < t:
             if self.estado != 'CERCA':
-                self.www.execute_script('cerca();')
+                self.eventBox.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#FFFF44'))
+                self.color = '#000000'
                 self.estado = 'CERCA'
         elif self.estado != 'NORMAL':
-            self.www.execute_script('normal();')
+            self.eventBox.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#BBBBBB'))
+            self.color = '#0188d1'
             self.estado = 'NORMAL'
 
     def get_text(self):
@@ -2582,20 +2613,20 @@ class Reloj(Gtk.HBox):
         self.limite = antes + datetime.timedelta(seconds=self.frecuencia)
 
 
-class RelojInterno(Gtk.EventBox):
-    __gsignals__ = {'llamar': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (int,))}
+class RelojInterno(gtk.EventBox):
+    __gsignals__ = {'llamar': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int,))}
 
     def __init__(self, http):
         super(Reloj, self).__init__()
         self.set_size_request(280, 35)
-        self.blanco = Gdk.color_parse('#e5e8e8')
-        self.modify_bg(Gtk.StateType.NORMAL, self.blanco)
-        self.label = Gtk.Label('00:00:00')
+        self.blanco = gtk.gdk.color_parse('#e5e8e8')
+        self.modify_bg(gtk.STATE_NORMAL, self.blanco)
+        self.label = gtk.Label('00:00:00')
         self.add(self.label)
-        self.rojo = Gdk.color_parse('#FF0000')
-        self.amarillo = Gdk.color_parse('#FFFF00')
-        self.verde = Gdk.color_parse('#328aa4')
-        self.negro = Gdk.color_parse('#000000')
+        self.rojo = gtk.gdk.color_parse('#FF0000')
+        self.amarillo = gtk.gdk.color_parse('#FFFF00')
+        self.verde = gtk.gdk.color_parse('#328aa4')
+        self.negro = gtk.gdk.color_parse('#000000')
         self.html = "<span foreground='%s' background='%s' weight='ultrabold'            font-desc='Ubuntu 16' stretch='ultraexpanded'>%s</span>"
         self.fondo = self.negro
         self.letra = self.verde
@@ -2621,7 +2652,7 @@ class RelojInterno(Gtk.EventBox):
             self.cerca()
         else:
             self.normal()
-        self.modify_bg(Gtk.StateType.NORMAL, self.fondo)
+        self.modify_bg(gtk.STATE_NORMAL, self.fondo)
         reloj = self.html % (self.letra, self.fondo, string)
         self.label.set_markup(reloj)
 
@@ -2672,23 +2703,34 @@ class RelojInterno(Gtk.EventBox):
         self.limite = antes + datetime.timedelta(seconds=self.frecuencia)
 
 
-class Personal(Widgets.Dialog):
+class Personal(gtk.Dialog):
 
     def __init__(self, tipo, lista, http, cambiar=False):
-        super(Personal, self).__init__('Búsqueda de Personal: %s' % tipo)
+        super(Personal, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
         self.ok_enable = cambiar
         self.trabajador = None
         self.lista = lista
         self.http = http
         self.tipo = tipo
+        self.set_modal(True)
+        self.set_transient_for(parent)
         self.set_default_size(400, 400)
-        hbox = Gtk.HBox()
+        self.set_title('Búsqueda de Personal: %s' % tipo)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        hbox = gtk.HBox()
         self.vbox.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Por Nombre:'))
+        hbox.pack_start(gtk.Label('Por Nombre:'))
         self.entry_nombre = Widgets.Texto(45)
         self.entry_nombre.set_width_chars(10)
         hbox.pack_start(self.entry_nombre)
-        hbox.pack_start(Gtk.Label('Por DNI:'))
+        hbox.pack_start(gtk.Label('Por DNI:'))
         self.entry_dni = Widgets.Numero(8)
         self.entry_dni.set_width_chars(10)
         hbox.pack_start(self.entry_dni)
@@ -2701,25 +2743,25 @@ class Personal(Widgets.Dialog):
         button_deudas = Widgets.Button('caja.png', 'Deudas')
         hbox.pack_start(button_deudas)
         button_deudas.connect('clicked', self.deudas)
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(400, 300)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(str, str, GObject.TYPE_PYOBJECT)
-        self.treeview = Gtk.TreeView(self.model)
+        self.model = gtk.ListStore(str, str, gobject.TYPE_PYOBJECT)
+        self.treeview = gtk.TreeView(self.model)
         columnas = ('NOMBRE', 'DNI')
         self.treeview.connect('cursor-changed', self.cursor_changed)
         self.treeview.connect('row-activated', self.row_activated)
         sw.add(self.treeview)
         for i, name in enumerate(columnas):
-            cell = Gtk.CellRendererText()
-            column = Gtk.TreeViewColumn(name, cell, text=i)
+            cell = gtk.CellRendererText()
+            column = gtk.TreeViewColumn(name, cell, text=i)
             self.treeview.append_column(column)
 
         self.but_ok = Widgets.Button('aceptar.png', '_Cambiar Personal')
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.set_focus(self.entry_nombre)
         self.entry_nombre.connect('key-release-event', self.filtrar)
         self.entry_dni.connect('key-release-event', self.filtrar)
@@ -2823,7 +2865,7 @@ class Personal(Widgets.Dialog):
         self.show_all()
         self.filtrar()
         self.but_ok.set_sensitive(False)
-        if self.run() == Gtk.ResponseType.OK:
+        if self.run() == gtk.RESPONSE_OK:
             return self.trabajador
         else:
             return False
@@ -2836,17 +2878,30 @@ class Personal(Widgets.Dialog):
         self.destroy()
 
 
-class Aporte(Widgets.Dialog):
+class Aporte(gtk.Dialog):
 
     def __init__(self, http):
-        super(Aporte, self).__init__('Registrar Aporte')
-        tabla = Gtk.Table(3, 3)
+        super(Aporte, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_default_size(200, 50)
+        self.set_title('Registrar Aporte')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        tabla = gtk.Table(3, 3)
         self.vbox.pack_start(tabla, False, False, 5)
         labels = ('Boleta', 'Padron', 'Monto')
         self.ruta = Widgets.Numero(3)
         self.lado = Widgets.Numero(3)
         for i, name in enumerate(labels):
-            label = Gtk.Label(name)
+            label = gtk.Label(name)
             tabla.attach(label, 0, 1, i, i + 1)
 
         self.serie = Widgets.Numero(3)
@@ -2859,8 +2914,8 @@ class Aporte(Widgets.Dialog):
         tabla.attach(self.monto, 1, 2, 2, 3)
         but_salir = Widgets.Button('cancelar.png', '_Cancelar')
         self.but_ok = Widgets.Button('aceptar.png', '_OK')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.set_focus(self.serie)
         self.params = {'monto': self.monto,
          'padron': self.padron,
@@ -2872,7 +2927,7 @@ class Aporte(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        if self.run() == Gtk.ResponseType.OK:
+        if self.run() == gtk.RESPONSE_OK:
             serie = self.serie.get_text()
             numero = self.numero.get_text()
             padron = self.padron.get_text()
@@ -2897,25 +2952,25 @@ class Aporte(Widgets.Dialog):
         self.destroy()
 
 
-class Liquidaciones(Gtk.Window):
+class Liquidaciones(gtk.Window):
 
     def __init__(self, http, ruta, lado):
-        super(Liquidaciones, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(Liquidaciones, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.http = http
         self.ruta = ruta
         self.lado = lado
         self.fecha = Widgets.Fecha()
         self.por_unidad = False
         self.fecha.set_size_request(150, 30)
-        vbox_main = Gtk.VBox(False, 0)
+        vbox_main = gtk.VBox(False, 0)
         self.add(vbox_main)
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox_main.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Día:'), False, False, 10)
+        hbox.pack_start(gtk.Label('D\xc3\xada:'), False, False, 10)
         hbox.pack_start(self.fecha, False, False, 0)
         self.padron = Widgets.Numero(5)
         self.padron.connect('activate', self.nueva)
-        hbox.pack_start(Gtk.Label('Padrón:'), False, False, 2)
+        hbox.pack_start(gtk.Label('Padr\xc3\xb3n:'), False, False, 2)
         hbox.pack_start(self.padron, False, False, 2)
 
         toolbar = Widgets.Toolbar((
@@ -2940,7 +2995,7 @@ class Liquidaciones(Gtk.Window):
         # hbox.pack_start(self.but_reporte, False, False, 0)
         # self.but_reporte.connect('clicked', self.reporte)
 
-        # hbox = Gtk.HBox(False, 2)
+        # hbox = gtk.HBox(False, 2)
         # vbox_main.pack_start(hbox, False, False, 0)
         # self.but_anular = Widgets.Button('error.png', 'Anular')
         # hbox.pack_start(self.but_anular, False, False, 0)
@@ -2956,18 +3011,18 @@ class Liquidaciones(Gtk.Window):
         # self.but_bloquear.connect('clicked', self.bloquear)
         self.dia = self.fecha.get_date()
         self.set_title('Reporte de Liquidaciones')
-        sw = Gtk.ScrolledWindow()
-        sw.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw = gtk.ScrolledWindow()
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             self.set_size_request(720, 540)
         else:
             self.set_size_request(800, 600)
-        self.model = Gtk.ListStore(int)
+        self.model = gtk.ListStore(int)
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_rubber_banding(True)
         self.treeview.connect('row-activated', self.editar)
         selection = self.treeview.get_selection()
-        selection.set_mode(Gtk.SELECTION_MULTIPLE)
+        selection.set_mode(gtk.SELECTION_MULTIPLE)
         self.treeview.set_enable_search(False)
         self.treeview.set_reorderable(False)
         vbox_main.pack_start(sw, True, True, 0)
@@ -3067,13 +3122,13 @@ class Liquidaciones(Gtk.Window):
                 liststore.append(eval(l))
 
             tabla = data['tabla']
-            self.model = Gtk.ListStore(*liststore)
+            self.model = gtk.ListStore(*liststore)
             cols = self.treeview.get_columns()
             for c in cols:
                 self.treeview.remove_column(c)
 
             for i, columna in enumerate(columnas):
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i)
@@ -3180,9 +3235,9 @@ class Liquidar(Widgets.Window):
         self.pasivos = liquidacion['pasivos2']
         self.dia = liquidacion['dia']
         self.padron = int(padron)
-        tabla = Gtk.Table(3, 2)
+        tabla = gtk.Table(3, 2)
         self.vbox.pack_start(tabla, False, False, 5)
-        labels = ('Pago Conductor:', 'Pago Cobrador:', 'Viáticos:')
+        labels = ('Pago Conductor:', 'Pago Cobrador:', 'Vi\xc3\xa1ticos:')
         self.conductor = Widgets.Texto(32)
         self.cobrador = Widgets.Texto(32)
         self.alimentos = Widgets.Texto(6)
@@ -3194,7 +3249,7 @@ class Liquidar(Widgets.Window):
         self.alimentos.set_property('editable', True)
         self.alimentos.connect('key-release-event', self.calcular)
         for i, name in enumerate(labels):
-            label = Gtk.Label(name)
+            label = gtk.Label(name)
             tabla.attach(label, 0, 1, i, i + 1)
 
         tabla.attach(self.conductor, 1, 2, 0, 1)
@@ -3216,20 +3271,20 @@ class Liquidar(Widgets.Window):
         button.vertical()
         button.connect('clicked', self.calcular_pago)
         tabla.attach(button, 3, 4, 0, 3)
-        hbox_main = Gtk.HBox(True, 5)
+        hbox_main = gtk.HBox(True, 5)
         self.vbox.pack_start(hbox_main, True, True, 0)
-        sw_vueltas = Gtk.ScrolledWindow()
-        sw_vueltas.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw_vueltas = gtk.ScrolledWindow()
+        sw_vueltas.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             sw_vueltas.set_size_request(200, 170)
         else:
             sw_vueltas.set_size_request(250, 170)
-        self.model_vueltas = Gtk.ListStore(bool, str, str, str, str, str)
+        self.model_vueltas = gtk.ListStore(bool, str, str, str, str, str)
         self.treeview_vueltas = Widgets.TreeView(self.model_vueltas)
         self.treeview_vueltas.set_rubber_banding(True)
         self.treeview_vueltas.set_enable_search(False)
         self.treeview_vueltas.set_reorderable(False)
-        vbox_ingresos = Gtk.VBox(False, 0)
+        vbox_ingresos = gtk.VBox(False, 0)
         hbox_main.pack_start(vbox_ingresos, True, True, 5)
         frame = Widgets.Frame('INGRESOS')
         vbox_ingresos.pack_start(frame, True, True, 0)
@@ -3238,12 +3293,12 @@ class Liquidar(Widgets.Window):
         columnas = ('USAR', 'PRODUC.', 'SALIDA', 'RUTA')
         for i, columna in enumerate(columnas):
             if i == 0:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
             else:
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i, foreground=5)
@@ -3252,7 +3307,7 @@ class Liquidar(Widgets.Window):
 
         self.salidas_json = liquidacion['salidas_json']
         for v in vueltas:
-            print(v[4])
+            print v[4]
             if self.salidas_json[str(v[4])]['recaudo']:
                 color = '#800'
             else:
@@ -3261,13 +3316,13 @@ class Liquidar(Widgets.Window):
         self.treeview_vueltas.connect('row-activated', self.liquidar_salida)
         self.treeview_vueltas.connect('cursor-changed', self.marcar_cobranzas_wrap)
 
-        sw_transbordo = Gtk.ScrolledWindow()
-        sw_transbordo.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw_transbordo = gtk.ScrolledWindow()
+        sw_transbordo.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             sw_transbordo.set_size_request(200, 100)
         else:
             sw_transbordo.set_size_request(250, 100)
-        self.model_transbordo = Gtk.ListStore(bool, str, str, str, str)
+        self.model_transbordo = gtk.ListStore(bool, str, str, str, str)
         self.treeview_transbordo = Widgets.TreeView(self.model_transbordo)
         self.treeview_transbordo.set_rubber_banding(True)
         self.treeview_transbordo.set_enable_search(False)
@@ -3279,12 +3334,12 @@ class Liquidar(Widgets.Window):
         columnas = ('USAR', 'MONTO.', 'PADRON', 'SALIDA')
         for i, columna in enumerate(columnas):
             if i == 0:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
             else:
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i)
@@ -3295,60 +3350,60 @@ class Liquidar(Widgets.Window):
             self.model_transbordo.append(t)
 
         frame = Widgets.Frame('RECAUDO COBRADOR')
-        tabla = Gtk.Table(2, 4)
+        tabla = gtk.Table(2, 4)
         frame.add(tabla)
         vbox_ingresos.pack_start(frame, False, 0)
-        label = Gtk.Label('El Cobrador Tiene:')
+        label = gtk.Label('El Cobrador Tiene:')
         self.cobrador_tiene = Widgets.Texto(9)
         tabla.attach(label, 0, 1, 0, 1)
         tabla.attach(self.cobrador_tiene, 1, 2, 0, 1)
         self.cobrador_tiene.set_property('editable', False)
-        label = Gtk.Label('Debe quedarse con:')
+        label = gtk.Label('Debe quedarse con:')
         self.quedarse = Widgets.Texto(9)
         tabla.attach(label, 0, 1, 1, 2)
         tabla.attach(self.quedarse, 1, 2, 1, 2)
         self.quedarse.set_property('editable', False)
-        label = Gtk.Label('Va Recaudando:')
+        label = gtk.Label('Va Recaudando:')
         self.recaudado = Widgets.Texto(9)
         tabla.attach(label, 0, 1, 2, 3)
         tabla.attach(self.recaudado, 1, 2, 2, 3)
         self.recaudado.set_property('editable', False)
-        label = Gtk.Label('Falta Recaudar:')
+        label = gtk.Label('Falta Recaudar:')
         self.por_recaudar = Widgets.Texto(9)
         tabla.attach(label, 0, 1, 3, 4)
         tabla.attach(self.por_recaudar, 1, 2, 3, 4)
         self.por_recaudar.set_property('editable', False)
         frame = Widgets.Frame('PRODUCCION PROPIETARIO')
-        tabla = Gtk.Table(2, 4)
+        tabla = gtk.Table(2, 4)
         frame.add(tabla)
         vbox_ingresos.pack_start(frame, False, 0)
-        label = Gtk.Label('Total Ingresos:')
+        label = gtk.Label('Total Ingresos:')
         self.bruto = Widgets.Texto(9)
         self.bruto.set_text(str(liquidacion['bruto']))
         tabla.attach(label, 0, 1, 1, 2)
         tabla.attach(self.bruto, 1, 2, 1, 2)
         self.bruto.set_property('editable', False)
-        label = Gtk.Label('Total Egresos:')
+        label = gtk.Label('Total Egresos:')
         self.gastos = Widgets.Texto(9)
         self.gastos.set_text(str(liquidacion['gastototal']))
         tabla.attach(label, 0, 1, 2, 3)
         tabla.attach(self.gastos, 1, 2, 2, 3)
         self.gastos.set_property('editable', False)
-        label = Gtk.Label('Total Neto:')
+        label = gtk.Label('Total Neto:')
         self.neto = Widgets.Texto(9)
         self.neto.set_text(str(liquidacion['neto']))
         tabla.attach(label, 0, 1, 3, 4)
         tabla.attach(self.neto, 1, 2, 3, 4)
         self.neto.set_property('editable', False)
-        sw_gastos = Gtk.ScrolledWindow()
-        sw_gastos.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw_gastos = gtk.ScrolledWindow()
+        sw_gastos.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             sw_gastos.set_size_request(300, 300)
         else:
             sw_gastos.set_size_request(340, 320)
-        self.model_gastos = Gtk.ListStore(bool, str, str, str, str, str, str)
-        tms = Gtk.TreeModelSort(self.model_gastos)
-        tms.set_sort_column_id(3, Gtk.SORT_ASCENDING)
+        self.model_gastos = gtk.ListStore(bool, str, str, str, str, str, str)
+        tms = gtk.TreeModelSort(self.model_gastos)
+        tms.set_sort_column_id(3, gtk.SORT_ASCENDING)
         self.treeview_gastos = Widgets.TreeView(tms)
         self.treeview_gastos.set_rubber_banding(True)
         self.treeview_gastos.set_enable_search(False)
@@ -3357,14 +3412,14 @@ class Liquidar(Widgets.Window):
         columnas = ('USAR', 'CONCEPTO', 'MONTO', 'HORA', 'USUARIO')
         for i, columna in enumerate(columnas):
             if i == 0:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
                 cell.connect('toggled', self.toggled, self.treeview_gastos)
                 cell.set_property('activatable', True)
             else:
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i, foreground=6)
@@ -3374,18 +3429,18 @@ class Liquidar(Widgets.Window):
         for g in gastos:
             self.model_gastos.append([True] + list(g) + ['#000'])
 
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         frame = Widgets.Frame('GASTOS Y COBROS')
         hbox_main.pack_start(vbox, True, True, 5)
         vbox.pack_start(frame, True, True, 0)
         frame.add(sw_gastos)
-        sw_retiros = Gtk.ScrolledWindow()
-        sw_retiros.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw_retiros = gtk.ScrolledWindow()
+        sw_retiros.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             sw_retiros.set_size_request(200, 250)
         else:
             sw_retiros.set_size_request(250, 280)
-        self.model_retiros = Gtk.ListStore(bool, str, str, str, str, str, str)
+        self.model_retiros = gtk.ListStore(bool, str, str, str, str, str, str)
         self.treeview_retiros = Widgets.TreeView(self.model_retiros)
         self.treeview_retiros.set_rubber_banding(True)
         self.treeview_retiros.set_enable_search(False)
@@ -3397,14 +3452,14 @@ class Liquidar(Widgets.Window):
         columnas = ('USAR', 'CONCEPTO', 'MONTO', 'HORA', 'USUARIO')
         for i, columna in enumerate(columnas):
             if i == 0:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
                 cell.connect('toggled', self.toggled, self.treeview_retiros)
                 cell.set_property('activatable', True)
             else:
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i, foreground=6)
@@ -3414,13 +3469,13 @@ class Liquidar(Widgets.Window):
         for r in retiros:
             self.model_retiros.append([True] + r + ['#000'])
 
-        sw_pasivos = Gtk.ScrolledWindow()
-        sw_pasivos.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw_pasivos = gtk.ScrolledWindow()
+        sw_pasivos.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             sw_pasivos.set_size_request(300, 200)
         else:
             sw_pasivos.set_size_request(340, 220)
-        self.model_pasivos = Gtk.ListStore(bool, str, str, str, str, str, str)
+        self.model_pasivos = gtk.ListStore(bool, str, str, str, str, str, str)
         self.treeview_pasivos = Widgets.TreeView(self.model_pasivos)
         self.treeview_pasivos.set_rubber_banding(True)
         self.treeview_pasivos.set_enable_search(False)
@@ -3429,14 +3484,14 @@ class Liquidar(Widgets.Window):
         columnas = ('USAR', 'CONCEPTO', 'MONTO', 'HORA', 'USUARIO')
         for i, columna in enumerate(columnas):
             if i == 0:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
                 cell.connect('toggled', self.toggled, self.treeview_pasivos)
                 cell.set_property('activatable', True)
             else:
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i, foreground=6)
@@ -3449,7 +3504,7 @@ class Liquidar(Widgets.Window):
         frame = Widgets.Frame('PAGOS A CUENTA')
         vbox.pack_start(frame, True, True, 0)
         frame.add(sw_pasivos)
-        hbox_gastos = Gtk.HBox(False, 0)
+        hbox_gastos = gtk.HBox(False, 0)
         but_recaudo = Widgets.Button('dinero.png', '_Recaudo')
         but_cobro = Widgets.Button('caja.png', '_Cobros')
         but_gasto = Widgets.Button('caja.png', '_Gasto')
@@ -3468,34 +3523,34 @@ class Liquidar(Widgets.Window):
         but_fondo.connect('clicked', self.fondo)
         #but_anular.connect('clicked', self.anular)
         vbox.pack_start(hbox_gastos, False, False, 0)
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         self.vbox.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Observación:'), False, False, 0)
+        hbox.pack_start(gtk.Label('Observaci\xc3\xb3n:'), False, False, 0)
         self.observacion = Widgets.Texto(256)
         hbox.pack_start(self.observacion, True, True, 0)
         self.observacion.set_text(liquidacion['observacion'])
         self.but_salir = self.crear_boton('cancelar.png', 'Cancelar', self.cerrar)
         self.but_imprimir = self.crear_boton('imprimir.png', '_Liquidar', self.imprimir)
         self.but_salir = self.crear_boton('reporte.png', 'Boletaje', self.preview)
-        #self.but_ticket = self.crear_boton('imprimir.png', '_Ticket Día', self.ticket)
+        #self.but_ticket = self.crear_boton('imprimir.png', '_Ticket D\xc3\xada', self.ticket)
         self.calcular()
         self.show_all()
-        self.menu = Gtk.Menu()
-        item1 = Gtk.MenuItem('Editar Producción')
+        self.menu = gtk.Menu()
+        item1 = gtk.MenuItem('Editar Producción')
         item1.connect('activate', self.editar_recaudo)
         self.menu.append(item1)
-        item2 = Gtk.MenuItem('Recaudar por Salida')
+        item2 = gtk.MenuItem('Recaudar por Salida')
         item2.connect('activate', self.liquidar_salida)
         self.menu.append(item2)
-        item3 = Gtk.MenuItem('Reimprimir Recaudo')
+        item3 = gtk.MenuItem('Reimprimir Recaudo')
         item3.connect('activate', self.reimprimir_recaudo)
         self.menu.append(item3)
         self.treeview_vueltas.connect('button-release-event', self.on_release_button)
         self.treeview_gastos.connect('button-release-event', self.on_release_button_gastos)
         self.treeview_retiros.connect('button-release-event', self.on_release_button_gastos)
         self.treeview_pasivos.connect('button-release-event', self.on_release_button_gastos)
-        self.menu_retiros = Gtk.Menu()
-        item1 = Gtk.MenuItem('Anular Item')
+        self.menu_retiros = gtk.Menu()
+        item1 = gtk.MenuItem('Anular Item')
         item1.connect('activate', self.anular)
         self.menu_retiros.append(item1)
         if int(self.liquidacion_id) == 0:
@@ -3627,7 +3682,7 @@ class Liquidar(Widgets.Window):
 
     def calcular_wrapped(self, widgets, event):
         if event.keyval == 65421 or event.keyval == 65293:
-            self.do_move_focus(self, Gtk.DirectionType.TAB_FORWARD)
+            self.do_move_focus(self, gtk.DIR_TAB_FORWARD)
         self.calcular()
 
 
@@ -3663,7 +3718,7 @@ class Liquidar(Widgets.Window):
                 path, col, cellx, celly = pthinfo
                 treeview.grab_focus()
                 treeview.set_cursor(path, col, 0)
-                self.menu.popup(None, None, None, None, event.button, t)
+                self.menu.popup(None, None, None, event.button, t)
                 self.menu.show_all()
             return True
 
@@ -3678,7 +3733,7 @@ class Liquidar(Widgets.Window):
                 treeview.grab_focus()
                 treeview.set_cursor(path, col, 0)
                 self.treeview = treeview
-                self.menu_retiros.popup(None, None, None, None, event.button, t)
+                self.menu_retiros.popup(None, None, None, event.button, t)
                 self.menu_retiros.show_all()
             return True
 
@@ -3689,14 +3744,14 @@ class Liquidar(Widgets.Window):
         except:
             return
 
-        dialogo = Widgets.Alerta_Numero('Editar Producción', 'editar.png', 'Escriba el recaudo para corregir la salida.\nLuego cierre y vuelva a abrir la ventana de liquidación.', 10, True)
+        dialogo = Widgets.Alerta_Numero('Editar Producci\xc3\xb3n', 'editar.png', 'Escriba el recaudo para corregir la salida.\nLuego cierre y vuelva a abrir la ventana de liquidaci\xc3\xb3n.', 10, True)
         monto = dialogo.iniciar()
         dialogo.cerrar()
         if monto:
             try:
                 float(monto)
             except:
-                Widgets.Alerta('Monto inválido', 'error.png', 'El monto es un número inválido')
+                Widgets.Alerta('Monto inv\xc3\xa1lido', 'error.png', 'El monto es un n\xc3\xbamero inv\xc3\xa1lido')
                 return
 
             datos = {'salida_id': self.model_vueltas[path][4],
@@ -3736,13 +3791,13 @@ class Liquidar(Widgets.Window):
             path = int(path[0])
         except:
             return
-        dialogo = Widgets.Alerta_SINO_Clave('Anular Item', 'warning.png', '\xc2\xbfEstá seguro de Anular este Item?')
+        dialogo = Widgets.Alerta_SINO_Clave('Anular Item', 'warning.png', '\xc2\xbfEst\xc3\xa1 seguro de Anular este Item?')
         respuesta = dialogo.iniciar()
         clave = dialogo.clave
         dialogo.cerrar()
         model = self.treeview.get_model()
         for s in model:
-            print(list(s))
+            print list(s)
         if respuesta:
             i = model[path][5]
             datos = {'voucher_id': i,
@@ -3756,19 +3811,19 @@ class Liquidar(Widgets.Window):
              'hora': model[path][2],
              'clave': clave
                      }
-            print(datos)
+            print datos
             data = self.http.load('anular-pago', datos)
             if data:
                 treeiter = model.get_iter(path)
                 child_iter = model.convert_iter_to_child_iter(None, treeiter)
                 model.get_model().remove(child_iter)
-                for k in list(self.salidas_json.keys()):
-                    print(k)
+                for k in self.salidas_json.keys():
+                    print k
                     v = self.salidas_json[k]
                     if v['recaudo'] == int(i):
                         v['recaudo'] = None
                         for row in self.model_vueltas:
-                            print(row[4], row[4] == str(k), row[4] == int(k), row[4] == k)
+                            print row[4], row[4] == str(k), row[4] == int(k), row[4] == k
                             if row[4] == str(k):
                                 row[2] = row[2][:row[2].find(' BLOQ')]
                 self.calcular()
@@ -3976,22 +4031,32 @@ class Liquidar(Widgets.Window):
          'transbordos': json.dumps(transbordos),
          'liquidacion_id': self.liquidacion_id,
          'imprimir': imprimir}
-        print(self.datos)
+        print self.datos
         response = self.http.load('guardar-liquidacion', self.datos)
         if response:
             self.cerrar()
 
 
-class CuadroPagos(Widgets.Dialog):
+class CuadroPagos(gtk.Dialog):
 
     def __init__(self, padre, data):
-        title = 'Calculo de Pagos al Personal Padron:%d Día: %s' % (self.padron, self.dia)
-        super(CuadroPagos, self).__init__(title)
+        super(CuadroPagos, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.http = padre.http
         self.padron = padre.padron
         self.ruta = padre.ruta
         self.lado = padre.lado
         self.dia = padre.dia
+        self.set_transient_for(parent)
+        self.set_title('Calculo de Pagos al Personal Padron:%d D\xc3\xada: %s' % (self.padron, self.dia))
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
         self.treeview = Widgets.TreeViewId('PERSONAL', ('PERSONAL', 'VUELTAS', 'PAGO', 'FONDO', 'TOTAL'))
         self.treeview.escribir(data['personal_completo'])
         self.treeview.scroll.set_size_request(600, 300)
@@ -4015,8 +4080,8 @@ class CuadroPagos(Widgets.Dialog):
         self.but_imprimir = Widgets.Button('imprimir.png', '_Imprimir')
         self.action_area.pack_start(self.but_imprimir, False, False, 0)
         self.but_imprimir.connect('clicked', self.imprimir)
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.iniciar()
 
     def reporte(self, *args):
@@ -4064,9 +4129,9 @@ class CuadroPagos(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
+        self.but_ok.hide_all()
         respuesta = self.run()
-        if respuesta == Gtk.ResponseType.OK:
+        if respuesta == gtk.RESPONSE_OK:
             return True
         else:
             return False
@@ -4075,11 +4140,16 @@ class CuadroPagos(Widgets.Dialog):
         self.destroy()
 
 
-class Factura(Widgets.Dialog):
+class Factura(gtk.Dialog):
 
     def __init__(self, padre, tipo, salida=None):
-        title = 'Nueva Factura'
-        super(Factura, self).__init__(title)
+        super(Factura, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
         self.salida = salida
         self.http = padre.http
         self.padron = padre.padron
@@ -4090,15 +4160,20 @@ class Factura(Widgets.Dialog):
         self.pagos = self.http.get_pagos(self.ruta)
         self.data = False
         self.seriacion = None
-        tabla = Gtk.Table(2, 2)
-        tabla.attach(Gtk.Label('Padrón:'), 0, 1, 0, 1)
-        tabla.attach(Gtk.Label('Día:'), 0, 1, 1, 2)
-        tabla.attach(Gtk.Label('Numero:'), 0, 1, 2, 3)
-        tabla.attach(Gtk.Label('Venta al Crédito:'), 0, 1, 3, 4)
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Nueva Factura')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        tabla = gtk.Table(2, 2)
+        tabla.attach(gtk.Label('Padr\xc3\xb3n:'), 0, 1, 0, 1)
+        tabla.attach(gtk.Label('D\xc3\xada:'), 0, 1, 1, 2)
+        tabla.attach(gtk.Label('Numero:'), 0, 1, 2, 3)
+        tabla.attach(gtk.Label('Venta al Crédito:'), 0, 1, 3, 4)
         self.entry_padron = Widgets.Numero(11)
         self.fecha = Widgets.Fecha()
         self.entry_numero = Widgets.Numero(10)
-        self.check_credito = Gtk.CheckButton()
+        self.check_credito = gtk.CheckButton()
         tabla.attach(self.entry_padron, 1, 2, 0, 1)
         tabla.attach(self.fecha, 1, 2, 1, 2)
         tabla.attach(self.entry_numero, 1, 2, 2, 3)
@@ -4106,19 +4181,19 @@ class Factura(Widgets.Dialog):
         self.entry_padron.set_text(str(self.padron))
         self.fecha.set_date(self.dia)
         self.vbox.pack_start(tabla, False, False, 0)
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(400, 300)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(str, str, bool, int, int, GObject.TYPE_PYOBJECT, bool, bool)
-        self.treeview = Gtk.TreeView(self.model)
+        self.model = gtk.ListStore(str, str, bool, int, int, gobject.TYPE_PYOBJECT, bool, bool)
+        self.treeview = gtk.TreeView(self.model)
         columnas = ('CONCEPTO', 'MONTO', 'A CAJA')
         sw.add(self.treeview)
         self.columns = []
         for i, columna in enumerate(columnas):
             tvcolumn = Widgets.TreeViewColumn(columna)
             if i == 2:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
                 cell.connect('toggled', self.toggled)
@@ -4140,8 +4215,8 @@ class Factura(Widgets.Dialog):
         self.but_facturar = Widgets.Button('dinero.png', '_Facturar')
         self.action_area.pack_start(self.but_facturar, False, False, 0)
         self.but_facturar.connect('clicked', self.facturar)
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         if self.tipo:
             conceptos = self.pagos['cobros']
         elif tipo is None:
@@ -4161,9 +4236,9 @@ class Factura(Widgets.Dialog):
 
         self.set_focus(self.treeview)
         self.treeview.set_cursor(0, self.columns[2], True)
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         self.vbox.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('TOTAL:'), False, False, 0)
+        hbox.pack_start(gtk.Label('TOTAL:'), False, False, 0)
         self.entry_total = Widgets.Entry()
         self.entry_total.set_property('editable', False)
         hbox.pack_end(self.entry_total, False, False, 0)
@@ -4232,9 +4307,9 @@ class Factura(Widgets.Dialog):
     def facturar(self, *args):
         credito = self.check_credito.get_active()
         if credito:
-            mensaje = 'Confirme que desea grabar la facturación.\n<span foreground="#FF0000">PAGO AL CREDITO</span>'
+            mensaje = 'Confirme que desea grabar la facturaci\xc3\xb3n.\n<span foreground="#FF0000">PAGO AL CREDITO</span>'
         else:
-            mensaje = 'Confirme que desea grabar la facturación.\nPAGO AL CONTADO'
+            mensaje = 'Confirme que desea grabar la facturaci\xc3\xb3n.\nPAGO AL CONTADO'
         dialogo = Widgets.Alerta_SINO('Facturar', 'caja.png', mensaje)
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
@@ -4269,9 +4344,9 @@ class Factura(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
+        self.but_ok.hide_all()
         respuesta = self.run()
-        if respuesta == Gtk.ResponseType.OK:
+        if respuesta == gtk.RESPONSE_OK:
             return self.data
         else:
             return False
@@ -4280,16 +4355,29 @@ class Factura(Widgets.Dialog):
         self.destroy()
 
 
-class Pago(Widgets.Dialog):
+class Pago(gtk.Dialog):
 
     def __init__(self, padre, tipo):
-        super(Pago, self).__init__('Nuevo Pago')
+        super(Pago, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.http = padre.http
-        tabla = Gtk.Table(3, 3)
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_default_size(300, 200)
+        self.set_title('Nuevo Pago')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        tabla = gtk.Table(3, 3)
         self.vbox.pack_start(tabla, False, False, 5)
         labels = ('Concepto:', 'Nombre:', 'Monto:')
         for i, name in enumerate(labels):
-            label = Gtk.Label(name)
+            label = gtk.Label(name)
             tabla.attach(label, 0, 1, i, i + 1)
 
         pagos = [('Escoja un Concepto', 0)]
@@ -4312,12 +4400,12 @@ class Pago(Widgets.Dialog):
         tabla.attach(self.nombre, 1, 2, 1, 2)
         self.monto = Widgets.Texto(16)
         tabla.attach(self.monto, 1, 2, 2, 3)
-        self.caja = Gtk.Label('')
+        self.caja = gtk.Label('')
         tabla.attach(self.caja, 0, 2, 3, 4)
         self.but_ok = Widgets.Button('confirmar.png', 'Aceptar')
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.but_cancel = Widgets.Button('cancelar.png', 'Cancelar')
-        self.add_action_widget(self.but_cancel, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(self.but_cancel, gtk.RESPONSE_CANCEL)
         self.seriacion = False
         self.efectivo = False
         self.concepto_changed()
@@ -4354,7 +4442,7 @@ class Pago(Widgets.Dialog):
     def iniciar(self):
         self.show_all()
         respuesta = self.run()
-        if respuesta == Gtk.ResponseType.OK:
+        if respuesta == gtk.RESPONSE_OK:
             if self.nombre.get_sensitive():
                 concepto = '%s - %s' % (self.concepto.get_text(), self.nombre.get_text())
             else:
@@ -4373,16 +4461,29 @@ class Pago(Widgets.Dialog):
         self.destroy()
 
 
-class BuscarBoleto(Widgets.Dialog):
+class BuscarBoleto(gtk.Dialog):
 
     def __init__(self, http, ruta):
-        super(BuscarBoleto, self).__init__('Buscar Boleto por Número')
+        super(BuscarBoleto, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.http = http
-        tabla = Gtk.Table(3, 3)
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_default_size(300, 500)
+        self.set_title('Buscar Boleto por N\xc3\xbamero')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        tabla = gtk.Table(3, 3)
         self.vbox.pack_start(tabla, False, False, 5)
-        labels = ('Boleto:', 'N\xfamero:')
+        labels = ('Boleto:', u'N\xfamero:')
         for i, name in enumerate(labels):
-            label = Gtk.Label(name)
+            label = gtk.Label(name)
             tabla.attach(label, 0, 1, i, i + 1)
 
         self.boleto = Widgets.ComboBox()
@@ -4404,10 +4505,10 @@ class BuscarBoleto(Widgets.Dialog):
         tabla.attach(self.numero, 1, 2, 1, 2)
         but_salir = Widgets.Button('cancelar.png', '_Cancelar')
         self.but_ok = Widgets.Button('buscar.png', '_Buscar')
-        self.model = Gtk.ListStore(int, str, str, str, str, str)
+        self.model = gtk.ListStore(int, str, str, str, str, str)
         self.treeview = Widgets.TreeView(self.model)
         for i, c in enumerate(('UNIDAD', 'SERIE', 'ACTUAL', 'ESTADO', 'HORA')):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(c)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i)
@@ -4415,23 +4516,23 @@ class BuscarBoleto(Widgets.Dialog):
             tvcolumn.encabezado()
 
         self.treeview.connect('row-activated', self.row_activated)
-        self.sw = Gtk.ScrolledWindow()
-        self.sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.sw = gtk.ScrolledWindow()
+        self.sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(self.sw)
         self.sw.add(self.treeview)
         self.frame_mensaje = Widgets.Frame('Resultados')
         self.vbox.pack_start(self.frame_mensaje, False, False, 0)
-        self.label = Gtk.Label('')
+        self.label = gtk.Label('')
         self.frame_mensaje.add(self.label)
         self.action_area.pack_start(self.but_ok)
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.but_ok.connect('clicked', self.buscar)
         self.set_focus(self.boleto)
         self.iniciar()
 
     def iniciar(self):
         self.show_all()
-        self.frame_mensaje.hide()
+        self.frame_mensaje.hide_all()
         self.run()
         self.cerrar()
 
@@ -4471,10 +4572,18 @@ class BuscarBoleto(Widgets.Dialog):
         self.destroy()
 
 
-class ReservaStock(Widgets.Dialog):
+class ReservaStock(gtk.Dialog):
 
     def __init__(self, http, unidad):
-        super(ReservaStock, self).__init__('Anular Stock: PADRON %d' % self.unidad.padron)
+        super(ReservaStock, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+        self.set_modal(True)
+        self.set_transient_for(parent)
         self.unidad = unidad
         self.http = http
         self.but_guardar = Widgets.Button('aceptar.png', '_Aceptar')
@@ -4482,22 +4591,25 @@ class ReservaStock(Widgets.Dialog):
         self.but_guardar.connect('clicked', self.comprobar)
         self.but_ok = Widgets.Button('aceptar.png', '_Aceptar')
         but_salir = Widgets.Button('cancelar.png', '_Cancelar')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.but_guardar.set_sensitive(False)
         self.set_default_size(200, 200)
         self.set_border_width(10)
-        self.model = Gtk.ListStore(str, str, int, str, str, str, str, str, str, bool, GObject.TYPE_PYOBJECT)
-        self.treeview = Gtk.TreeView(self.model)
+        self.set_title('Anular Stock: PADRON %d' % self.unidad.padron)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        self.model = gtk.ListStore(str, str, int, str, str, str, str, str, str, bool, gobject.TYPE_PYOBJECT)
+        self.treeview = gtk.TreeView(self.model)
         columnas = ('BOLETO', 'TARIFA', 'QUEDAN', 'SERIE', 'INICIO', 'ACTUAL', 'FIN', 'HORA', 'DESPACHADOR', 'ANULAR')
         for i, columna in enumerate(columnas):
             if i == 9:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
             else:
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i, background=11)
@@ -4506,40 +4618,45 @@ class ReservaStock(Widgets.Dialog):
 
         self.treeview.connect('row-activated', self.anular)
         self.vbox.pack_start(self.treeview, True, True, 0)
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         self.vbox.pack_start(hbox, False, False, 0)
-        label = Gtk.Label('Motivo de anulación: (obligatorio)')
+        label = gtk.Label('Motivo de anulación: (obligatorio)')
         hbox.pack_start(label, False, False, 0)
-        self.motivo = Gtk.Entry(128)
+        self.motivo = gtk.Entry(128)
         hbox.pack_start(self.motivo, True, True, 0)
         self.motivo.connect('key-release-event', self.revisar_texto)
         self.motivo.connect('activate', self.activate_motivo)
         for s in self.unidad.suministros:
             self.model.append(s.get_fila_stock())
 
-        self.menu = Gtk.Menu()
-        # item1 = Gtk.MenuItem('Anular Taco')
+        self.menu = gtk.Menu()
+        # item1 = gtk.MenuItem('Anular Taco')
         # item1.connect('activate', self.anular_taco)
         # self.menu.append(item1)
-        item1 = Gtk.MenuItem('Recuperar Taco')
+        item1 = gtk.MenuItem('Recuperar Taco')
         item1.connect('activate', self.recuperar_taco)
         self.menu.append(item1)
-        item1 = Gtk.MenuItem('Anular Rango')
+        item1 = gtk.MenuItem('Anular Rango')
         item1.connect('activate', self.anular_pedazo)
         self.menu.append(item1)
-        item2 = Gtk.MenuItem('Definir como Actual')
+        item2 = gtk.MenuItem('Definir como Actual')
         item2.connect('activate', self.definir_actual)
         self.menu.append(item2)
-        item3 = Gtk.MenuItem('Definir como Reserva')
+        item3 = gtk.MenuItem('Definir como Reserva')
         item3.connect('activate', self.definir_reserva)
         self.menu.append(item3)
         self.treeview.connect('button-release-event', self.on_release_button)
 
+    def get_modelo(self, path):
+        return self.model[path][len(self.model[path]) - 1]
+
     def anular_taco(self, *args):
-        path = self.treeview.get_path()
-        if path is None:
+        try:
+            path, column = self.treeview.get_cursor()
+            path = int(path[0])
+            stock = self.get_modelo(path)
+        except:
             return
-        stock = self.treeview.get_modelo(path)
         dialogo = Widgets.Alerta_Numero('Anular Taco', 'error_numero.png', 'Indique el PRIMER boleto del taco a anular')
         numero = dialogo.iniciar()
         tipo = self.model[path][0]
@@ -4549,7 +4666,7 @@ class ReservaStock(Widgets.Dialog):
             if not inicio <= numero <= fin:
                 dialogo.cerrar()
                 return Widgets.Alerta('Error Número', 'error_numero.png', 'El número no pertenece al suministro seleccionado.')
-            pregunta = Widgets.Alerta_Texto('Anulación de Boletos', ('Perdida', 'Salteo', 'Inspectoria'))
+            pregunta = Widgets.Alerta_Texto('Anulaci\xc3\xb3n de Boletos', ('Perdida', 'Salteo', 'Inspectoria'))
             motivo = pregunta.iniciar()
             if motivo:
                 datos = {'stock_id': stock_id,
@@ -4577,7 +4694,7 @@ class ReservaStock(Widgets.Dialog):
             inicio = int(self.model[path][5])
             fin = int(self.model[path][6])
             if not inicio <= int(numero) <= fin:
-                print(inicio, numero, fin)
+                print inicio, numero, fin
                 dialogo.cerrar()
                 return Widgets.Alerta('Error Número', 'error_numero.png', 'El número no pertenece al suministro seleccionado.')
             pregunta = Widgets.Alerta_Texto('Recuperación de Boletos', ('Salteo', 'Inspectoria'))
@@ -4604,7 +4721,7 @@ class ReservaStock(Widgets.Dialog):
                 path, col, cellx, celly = pthinfo
                 treeview.grab_focus()
                 treeview.set_cursor(path, col, 0)
-                self.menu.popup(None, None, None, None, event.button, t)
+                self.menu.popup(None, None, None, event.button, t)
                 self.menu.show_all()
             return True
         try:
@@ -4635,8 +4752,8 @@ class ReservaStock(Widgets.Dialog):
             fin = int(self.model[path][6])
             if numeros[0] > fin or numeros[0] < inicio or numeros[1] > fin or numeros[1] < inicio:
                 dialogo.cerrar()
-                return Widgets.Alerta('Error Números', 'error_numero.png', 'Los números no pertenecen al suministro seleccionado.')
-            pregunta = Widgets.Alerta_Texto('Anulación de Boletos', ('Perdida', 'Salteo', 'Inspectoria'))
+                return Widgets.Alerta('Error N\xc3\xbameros', 'error_numero.png', 'Los n\xc3\xbameros no pertenecen al suministro seleccionado.')
+            pregunta = Widgets.Alerta_Texto('Anulaci\xc3\xb3n de Boletos', ('Perdida', 'Salteo', 'Inspectoria'))
             motivo = pregunta.iniciar()
             if motivo:
                 datos = {'stock_id': stock_id,
@@ -4740,8 +4857,8 @@ class ReservaStock(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
-        if self.run() == Gtk.ResponseType.OK:
+        self.but_ok.hide_all()
+        if self.run() == gtk.RESPONSE_OK:
             return True
         else:
             return False
@@ -4772,32 +4889,32 @@ class ReservaStock(Widgets.Dialog):
         self.destroy()
 
 
-class Reporte(Gtk.Window):
+class Reporte(gtk.Window):
 
     def __init__(self, http, dia, ruta, lado):
-        super(Reporte, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(Reporte, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.http = http
         self.fecha = Widgets.Fecha()
         self.fecha.set_size_request(150, 30)
-        vbox_main = Gtk.VBox(False, 0)
-        self.display = Gdk.Display.get_default()
+        vbox_main = gtk.VBox(False, 0)
+        self.display = gtk.gdk.display_get_default()
         self.connect('destroy', self.on_destroy)
         self.add(vbox_main)
         self.datos = {}
         self.unidad = 0
         self.dia = None
-        hbox = Gtk.HBox(False, 2)
+        hbox = gtk.HBox(False, 2)
         vbox_main.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Día:'), False, False, 0)
+        hbox.pack_start(gtk.Label('D\xc3\xada:'), False, False, 0)
         hbox.pack_start(self.fecha, False, False, 0)
         self.ruta = Widgets.ComboBox()
-        hbox.pack_start(Gtk.Label('Ruta:'), False, False, 0)
+        hbox.pack_start(gtk.Label('Ruta:'), False, False, 0)
         hbox.pack_start(self.ruta, False, False, 0)
         self.lado = Widgets.ComboBox()
-        hbox.pack_start(Gtk.Label('Lado:'), False, False, 0)
+        hbox.pack_start(gtk.Label('Lado:'), False, False, 0)
         hbox.pack_start(self.lado, False, False, 0)
         self.tipo = Widgets.ComboBox()
-        hbox.pack_start(Gtk.Label('Tipo:'), False, False, 0)
+        hbox.pack_start(gtk.Label('Tipo:'), False, False, 0)
         hbox.pack_start(self.tipo, False, False, 0)
         self.tipo.set_lista((('Voladas', 0),
          ('Retardos', 1),
@@ -4813,7 +4930,7 @@ class Reporte(Gtk.Window):
         toolbar.add_button('Ver Video', 'video.png', self.video)
         hbox.pack_start(toolbar, False, False, 0)
 
-        # self.controles = Gtk.CheckButton('Mostrar Todos')
+        # self.controles = gtk.CheckButton('Mostrar Todos')
         # self.controles.connect('toggled', self.mostrar_controles)
         # hbox.pack_start(self.controles, False, False, 0)
         # self.but_actualizar = Widgets.Button('actualizar.png', 'Actualizar')
@@ -4840,45 +4957,45 @@ class Reporte(Gtk.Window):
          ('+30min', 'skip-forward.png', self.skip_forward),
          ('Finalizar', 'eject.png', self.eject)]
         self.toolbar = Widgets.Toolbar(herramientas)
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox_main.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Reproducto de Video'), False, False, 10)
+        hbox.pack_start(gtk.Label('Reproducto de Video'), False, False, 10)
         hbox.pack_start(self.toolbar, False, False, 10)
         self.dia = self.fecha.get_date()
         self.lado.set_lista((('A', 0), ('B', 1)))
-        lista = self.http.get_rutas()
+        lista = self.http.datos['rutas']
         self.ruta.set_lista(lista)
         self.set_title('Monitoreo de Flota')
-        vpaned = Gtk.VPaned()
+        vpaned = gtk.VPaned()
         vbox_main.pack_start(vpaned, True, True, 0)
-        self.sw = Gtk.ScrolledWindow()
-        self.sw.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        self.sw = gtk.ScrolledWindow()
+        self.sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         self.sw.set_size_request(100, 100)
         vpaned.pack1(self.sw, True, False)
-        hpaned = Gtk.HPaned()
+        hpaned = gtk.HPaned()
         vpaned.pack2(hpaned, True, True)
         url = 'http://%s/despacho/ingresar/?sessionid=%s&next=monitoreo' % (self.http.appengine, self.http.sessionid)
         if os.name == 'nt':
             self.www = Chrome.Browser(url, 550, 100)
         else:
             self.www = Chrome.IFrame(url, 550, 100)
-            print(url)
+            print url
         hpaned.pack1(self.www, True, False)
-        self.sw_eventos = Gtk.ScrolledWindow()
+        self.sw_eventos = gtk.ScrolledWindow()
         hpaned.pack2(self.sw_eventos, True, True)
         if os.name == 'nt':
             self.set_size_request(720, 540)
         else:
             self.set_size_request(800, 600)
-        self.model = Gtk.ListStore(int)
+        self.model = gtk.ListStore(int)
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_rubber_banding(True)
         selection = self.treeview.get_selection()
-        # selection.set_mode(Gtk.SELECTION_MULTIPLE)
+        # selection.set_mode(gtk.SELECTION_MULTIPLE)
         self.treeview.set_enable_search(False)
         self.treeview.set_reorderable(False)
         self.sw.add(self.treeview)
-        self.model_eventos = Gtk.ListStore(str, str, str, str)
+        self.model_eventos = gtk.ListStore(str, str, str, str)
         self.treeview_eventos = Widgets.TreeView(self.model_eventos)
         self.treeview_eventos.set_rubber_banding(False)
         self.treeview_eventos.set_enable_search(False)
@@ -4887,7 +5004,7 @@ class Reporte(Gtk.Window):
         self.sw_eventos.set_size_request(100, 100)
         columnas = ['HORA', 'EVENTO']
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i)
@@ -4896,9 +5013,9 @@ class Reporte(Gtk.Window):
             tvcolumn.encabezado()
 
         self.show_all()
-        self.toolbar.hide()
-        self.menu = Gtk.Menu()
-        item1 = Gtk.MenuItem('Refrecuenciar')
+        self.toolbar.hide_all()
+        self.menu = gtk.Menu()
+        item1 = gtk.MenuItem('Refrecuenciar')
         item1.connect('activate', self.refrecuenciar)
         self.menu.append(item1)
         self.treeview.connect('row-activated', self.salida_seleccionada)
@@ -4909,16 +5026,16 @@ class Reporte(Gtk.Window):
         self.lado.connect('changed', self.escribir_tabla)
         self.treeview.connect('button-release-event', self.on_release_button)
 
-        self.pop = Gtk.Window(Gtk.WindowType.POPUP)
-        self.eb = Gtk.EventBox()
-        self.label_pop = Gtk.Label()
+        self.pop = gtk.Window(gtk.WINDOW_POPUP)
+        self.eb = gtk.EventBox()
+        self.label_pop = gtk.Label()
         self.pop.add(self.eb)
-        self.eb.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('#F5F6CE'))
+        self.eb.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#F5F6CE'))
         self.eb.add(self.label_pop)
         self.pop.connect('button-press-event', self.cerrar_popup)
 
     def cerrar_popup(self, *args):
-        self.pop.hide()
+        self.pop.hide_all()
 
     def on_release_button(self, treeview, event):
         if event.button == 1:
@@ -4930,8 +5047,8 @@ class Reporte(Gtk.Window):
                 path, col, cellx, celly = pthinfo
                 treeview.grab_focus()
                 treeview.set_cursor(path, col, 0)
-                print(('HORA', self.model[path][1]))
-                print(('COL', col.columna))
+                print ('HORA', self.model[path][1])
+                print ('COL', col.columna)
                 for i, c in enumerate(self.cabeceras):
                     if c == col.columna:
                         volada = self.tabla[path[0]][i]
@@ -4941,7 +5058,7 @@ class Reporte(Gtk.Window):
                                 self.model[path][1], self.geocercas[i - 1][2], volada[2], volada[0]
                             )
                         except:
-                            self.pop.hide()
+                            self.pop.hide_all()
                             return
                         self.pop.show_all()
                         a, x, y, b = self.display.get_pointer()
@@ -4949,7 +5066,7 @@ class Reporte(Gtk.Window):
                         self.label_pop.set_markup(str(value))
                         return True
             else:
-                self.pop.hide()
+                self.pop.hide_all()
 
     def web(self, *args):
         url = '/monitoreo/mapa'
@@ -4978,16 +5095,16 @@ class Reporte(Gtk.Window):
         liststore = []
         for l in lista:
             liststore.append(eval(l))
-        print('lado', lado)
-        print(self.salidas)
+        print 'lado', lado
+        print self.salidas
         self.tabla = data['tabla']
-        self.model = Gtk.ListStore(*liststore)
+        self.model = gtk.ListStore(*liststore)
         cols = self.treeview.get_columns()
         for c in cols:
             self.treeview.remove_column(c)
 
         for i, columna in enumerate(self.columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             if isinstance(columna, list):
                 tvcolumn = Widgets.TreeViewColumn(columna[0])
             else:
@@ -5005,8 +5122,8 @@ class Reporte(Gtk.Window):
             try:
                 self.model.append(fila)
             except:
-                print(len(data['liststore']), data['liststore'])
-                print(len(fila), fila)
+                print len(data['liststore']), data['liststore']
+                print len(fila), fila
                 raise
 
         self.cambiar_contenido()
@@ -5038,7 +5155,7 @@ class Reporte(Gtk.Window):
                         else:
                             hora[x] = [[minutos, y, None]]
 
-            for x in list(hora.keys()):
+            for x in hora.keys():
                 primero = hora[x][0]
                 for row in hora[x]:
                     if row[0]:
@@ -5047,7 +5164,7 @@ class Reporte(Gtk.Window):
 
                 hora[x].sort(key=itemgetter(0))
 
-            for x in list(hora.keys()):
+            for x in hora.keys():
                 anterior = None
                 for row in hora[x]:
                     if row[0]:
@@ -5059,7 +5176,7 @@ class Reporte(Gtk.Window):
                         row[2] = 'NM'
                     anterior = row[0]
 
-            for x in list(hora.keys()):
+            for x in hora.keys():
                 hora[x].sort(key=itemgetter(1))
 
             for y, fila in enumerate(self.tabla):
@@ -5084,7 +5201,7 @@ class Reporte(Gtk.Window):
 
     def treeview_changed(self, *args):
         adj = self.sw.get_vadjustment()
-        adj.set_value(adj.get_upper() - adj.get_page_size())
+        adj.set_value(adj.upper - adj.page_size)
 
     def salida_seleccionada(self, *args):
         self.eject()
@@ -5093,7 +5210,7 @@ class Reporte(Gtk.Window):
             path = int(path[0])
         except:
             return
-        print('path', path)
+        print 'path', path
         salida, unidad, padron = self.salidas[path]
         self.www.execute_script('set_salida(%d);' % salida)
         dia = self.fecha.get_date()
@@ -5135,11 +5252,11 @@ class Reporte(Gtk.Window):
         self.www.execute_script('set_center(%s, %s);' % (lat, lng))
 
     def imprimir(self, *args):
-        reporte = Impresion.Excel('Reporte de Voladas', 'Día: %s Ruta: %s Lado: %s' % (self.fecha.get_date(), self.ruta.get_text(), self.lado.get_text()), self.cabeceras, list(self.model), self.widths)
+        reporte = Impresion.Excel('Reporte de Voladas', 'D\xc3\xada: %s Ruta: %s Lado: %s' % (self.fecha.get_date(), self.ruta.get_text(), self.lado.get_text()), self.cabeceras, list(self.model), self.widths)
         a = os.path.abspath(reporte.archivo)
         if os.name == 'nt':
             com = 'cd "%s" & start reporte.xls' % a[:-12]
-            print(com)
+            print com
             os.system(com)
         else:
             os.system('xdg-open ' + a)
@@ -5153,7 +5270,7 @@ class Reporte(Gtk.Window):
         except:
             return
 
-        dialogo = Widgets.Alerta_Entero('Refrecuenciar', 'editar.png', 'Indique La variación en minutos.', 2)
+        dialogo = Widgets.Alerta_Entero('Refrecuenciar', 'editar.png', 'Indique La variaci\xc3\xb3n en minutos.', 2)
         numero = int(dialogo.iniciar())
         dialogo.cerrar()
         if numero:
@@ -5172,13 +5289,13 @@ class Reporte(Gtk.Window):
                     liststore.append(eval(l))
 
                 tabla = data['tabla']
-                self.model = Gtk.ListStore(*liststore)
+                self.model = gtk.ListStore(*liststore)
                 cols = self.treeview.get_columns()
                 for c in cols:
                     self.treeview.remove_column(c)
 
                 for i, columna in enumerate(columnas):
-                    cell_text = Gtk.CellRendererText()
+                    cell_text = gtk.CellRendererText()
                     tvcolumn = Widgets.TreeViewColumn(columna)
                     tvcolumn.pack_start(cell_text, True)
                     tvcolumn.set_attributes(cell_text, markup=i)
@@ -5251,29 +5368,42 @@ class Reporte(Gtk.Window):
     def eject(self, *args):
         self.www.execute_script('eject();')
         self.toolbar.set_imagen_label(3, 'play.png', 'Play x20')
-        self.toolbar.hide()
+        self.toolbar.hide_all()
 
     def on_destroy(self, *args):
         self.cerrar_popup()
 
 
-class Relojes(Widgets.Dialog):
+class Relojes(gtk.Dialog):
 
     def __init__(self, llegadas):
-        super(Relojes, self).__init__('Registrar Relojes')
+        super(Relojes, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.llegadas = llegadas
-        formulario = Gtk.HBox(False, 0)
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_default_size(220, 50)
+        self.set_title('Registrar Relojes')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        formulario = gtk.HBox(False, 0)
         self.vbox.pack_start(formulario, False, False, 0)
-        formulario.pack_start(Gtk.Label('Nueva Hora:'), False, False, 0)
+        formulario.pack_start(gtk.Label('Nueva Hora:'), False, False, 0)
         self.entry_hora = Widgets.Hora()
         formulario.pack_start(self.entry_hora, False, False, 0)
         self.entry_hora.connect('enter', self.nueva_hora)
         self.button_deshacer = Widgets.Button('cancelar.png', '_Borrar')
         self.button_deshacer.connect('clicked', self.deshacer)
         formulario.pack_start(self.button_deshacer, False, False, 0)
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         self.vbox.pack_start(hbox, False, False, 10)
-        self.model = Gtk.ListStore(int, str, str, str)
+        self.model = gtk.ListStore(int, str, str, str)
         self.treeview = Widgets.TreeView(self.model)
         columnas = ['N\xc2\xba',
          'CONTROL',
@@ -5283,7 +5413,7 @@ class Relojes(Widgets.Dialog):
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_enable_search(False)
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, text=i)
@@ -5291,12 +5421,12 @@ class Relojes(Widgets.Dialog):
             tvcolumn.encabezado()
 
         self.treeview.set_reorderable(False)
-        sw = Gtk.ScrolledWindow()
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw = gtk.ScrolledWindow()
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         sw.set_size_request(200, 350)
         sw.add(self.treeview)
         hbox.pack_start(sw, False, False, 0)
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         hbox.pack_start(vbox, False, False, 0)
         self.but_arriba = Widgets.Button('arriba.png', None, 24, tooltip='Subir NM')
         vbox.pack_start(self.but_arriba, False, False, 0)
@@ -5306,9 +5436,9 @@ class Relojes(Widgets.Dialog):
         self.action_area.pack_start(self.but_falla, False, False, 0)
         self.but_falla.connect('clicked', self.falla_mecanica)
         self.but_salir = Widgets.Button('cancelar.png', '_Cancelar')
-        self.add_action_widget(self.but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(self.but_salir, gtk.RESPONSE_CANCEL)
         self.but_ok = Widgets.Button('aceptar.png', '_Aceptar')
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.but_arriba.connect('clicked', self.arriba)
         self.but_abajo.connect('clicked', self.abajo)
         self.lista_horas = []
@@ -5445,7 +5575,7 @@ class Relojes(Widgets.Dialog):
         return voladas
 
     def falla_mecanica(self, *args):
-        dialogo = Widgets.Alerta_SINO('Precaución', 'warning.png', 'Está seguro de guardar la salida como Falla Mecánica')
+        dialogo = Widgets.Alerta_SINO('Precauci\xc3\xb3n', 'warning.png', 'Est\xc3\xa1 seguro de guardar la salida como Falla Mec\xc3\xa1nica')
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
         if respuesta:
@@ -5455,7 +5585,7 @@ class Relojes(Widgets.Dialog):
     def iniciar(self):
         self.show_all()
         self.set_focus(self.entry_hora)
-        if self.run() == Gtk.ResponseType.OK:
+        if self.run() == gtk.RESPONSE_OK:
             voladas = self.calcular()
             datos = {'salida_id': self.llegadas.salida,
              'voladas': json.dumps(voladas),
@@ -5484,18 +5614,18 @@ class Grifo(Widgets.Window):
         self.http = http
         self.ruta = ruta
         self.lado = lado
-        hbox = Gtk.HBox(True, 15)
+        hbox = gtk.HBox(True, 15)
         self.vbox.pack_start(hbox, True, True, 15)
-        vbox = Gtk.VBox(False, 15)
+        vbox = gtk.VBox(False, 15)
         hbox.pack_start(vbox, True, True, 15)
-        tabla = Gtk.Table(2, 6)
+        tabla = gtk.Table(2, 6)
         vbox.pack_start(tabla, True, True, 0)
         y = 0
-        for t in ('Fecha:', 'Petroleo:', 'Al Contado:   ', 'Serie', 'Padrón:', 'Monto:', 'Galones:'):
-            label = Gtk.Label()
+        for t in ('Fecha:', 'Petroleo:', 'Al Contado:   ', 'Serie', 'Padr\xc3\xb3n:', 'Monto:', 'Galones:'):
+            label = gtk.Label()
             label.set_markup('<b>%s</b>' % t)
             label.set_alignment(0, 0.5)
-            tabla.attach(label, 0, 1, y, y + 1, Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL)
+            tabla.attach(label, 0, 1, y, y + 1, gtk.FILL, gtk.FILL)
             y += 1
 
         self.but_dia = Widgets.Fecha()
@@ -5503,7 +5633,7 @@ class Grifo(Widgets.Window):
         self.combo_petroleo = Widgets.ComboBox((str, int, float))
         self.combo_petroleo.set_lista(self.http.grifo)
         tabla.attach(self.combo_petroleo, 1, 2, 1, 2)
-        self.check_contado = Gtk.CheckButton()
+        self.check_contado = gtk.CheckButton()
         self.check_contado.set_active(self.http.config.contado)
         tabla.attach(self.check_contado, 1, 2, 2, 3)
         self.check_contado.connect('toggled', self.checked_contado)
@@ -5539,7 +5669,7 @@ class Grifo(Widgets.Window):
         if lista:
             VentasGrifo(self, lista)
         else:
-            Widgets.Alerta('Lista vacía', 'warning.png', 'No hay ventas en el día seleccionado.')
+            Widgets.Alerta('Lista vac\xc3\xada', 'warning.png', 'No hay ventas en el d\xc3\xada seleccionado.')
 
     def reporte(self, *args):
         dia = self.but_dia.get_date()
@@ -5583,28 +5713,28 @@ class Grifo(Widgets.Window):
     def guardar(self, *args):
         padron = self.entry_padron.get_text()
         if not padron.isdigit():
-            return Widgets.Alerta('Error Padrón', 'error_numero.png', 'Digite un Número Válido.')
+            return Widgets.Alerta('Error Padr\xc3\xb3n', 'error_numero.png', 'Digite un N\xc3\xbamero V\xc3\xa1lido.')
         pedido = []
         try:
             galones = float(self.entry_galones.get_text())
         except:
-            return Widgets.Alerta('Error en galones', 'error_numero.png', 'La cantidad no es un número válido')
+            return Widgets.Alerta('Error en galones', 'error_numero.png', 'La cantidad no es un n\xc3\xbamero v\xc3\xa1lido')
         if galones == 0:
             return Widgets.Alerta('Monto 0.00', 'error_numero.png', 'No puede imprimir un recibo por 0.00')
         precio = self.entry_monto.get_text()
         try:
             float(precio)
         except:
-            return Widgets.Alerta('Error en Precio', 'error_numero.png', 'La cantidad no es un número válido')
+            return Widgets.Alerta('Error en Precio', 'error_numero.png', 'La cantidad no es un n\xc3\xbamero v\xc3\xa1lido')
         if self.check_contado.get_active():
             tipo = 'AL CONTADO'
         else:
-            tipo = 'AL CRÉDITO'
+            tipo = 'AL CR\xc3\x89DITO'
         recibo = '\nPADRON: %s\nPRECIO: %s\nGALONES: %s\n<span foreground="#FF0000" weight="bold">%s</span>' % (padron,
          precio,
          galones,
          tipo)
-        dialogo = Widgets.Alerta_SINO('Confirmación', 'imprimir.png', '\xc2\xbfEstá seguro de Imprimir este recibo?' + recibo)
+        dialogo = Widgets.Alerta_SINO('Confirmaci\xc3\xb3n', 'imprimir.png', '\xc2\xbfEst\xc3\xa1 seguro de Imprimir este recibo?' + recibo)
         if dialogo.iniciar():
             datos = {
                 'ruta_id': self.ruta,
@@ -5640,7 +5770,7 @@ class Grifo(Widgets.Window):
                 respuesta = dialogo.iniciar()
                 dialogo.cerrar()
         else:
-            Widgets.Alerta('Error Padrón', 'error_numero.png', 'Digite un Número Válido.')
+            Widgets.Alerta('Error Padr\xc3\xb3n', 'error_numero.png', 'Digite un N\xc3\xbamero V\xc3\xa1lido.')
 
     def cerrar(self, *args):
         self.destroy()
@@ -5659,7 +5789,7 @@ class Mantenimiento(Widgets.Window):
         self.lado = lado
         self.dia = dia
         self.codigo_back = None
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         self.vbox.pack_start(hbox, False, False, 5)
         button_actualizar = Widgets.Button('actualizar.png', tooltip='Actualizar Productos')
         hbox.pack_start(button_actualizar)
@@ -5670,21 +5800,21 @@ class Mantenimiento(Widgets.Window):
         self.historia_but = Widgets.Button('relojes.png', '_Historia Compras')
         self.historia_but.connect('clicked', self.historia)
         hbox.pack_start(self.historia_but, False, False, 0)
-        self.piezas_but = Widgets.Button('calendario.png', '_Programación')
+        self.piezas_but = Widgets.Button('calendario.png', '_Programaci\xc3\xb3n')
         self.piezas_but.connect('clicked', self.programacion)
         hbox.pack_start(self.piezas_but, False, False, 0)
-        self.odometro_but = Widgets.Button('odometro.png', '_Odómetro')
+        self.odometro_but = Widgets.Button('odometro.png', '_Od\xc3\xb3metro')
         self.odometro_but.connect('clicked', self.odometro)
         hbox.pack_start(self.odometro_but, False, False, 0)
-        #hbox.pack_start(Gtk.Label('Padrón:'), False, False, 0)
+        #hbox.pack_start(gtk.Label('Padr\xc3\xb3n:'), False, False, 0)
         #self.entry_padron = Widgets.Numero(3)
         #hbox.pack_start(self.entry_padron, False, False, 0)
 
         frame = Widgets.Frame('Datos Comprador')
         self.vbox.pack_start(frame, False, False, 0)
-        hb = Gtk.HBox(False, 0)
+        hb = gtk.HBox(False, 0)
         frame.add(hb)
-        hb.pack_start(Gtk.Label('Código: '), False, False, 0)
+        hb.pack_start(gtk.Label('Código: '), False, False, 0)
         self.entry_codigo = Widgets.Numero(8)
         hb.pack_start(self.entry_codigo, False, False, 0)
         self.entry_codigo.connect('activate', self.buscar_aportante)
@@ -5696,14 +5826,14 @@ class Mantenimiento(Widgets.Window):
         hb.pack_start(self.entry_nombre, False, False, 0)
         self.entry_nombre.set_sensitive(False)
 
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         self.vbox.pack_start(sw, True, True, 5)
-        sw.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             sw.set_size_request(500, 350)
         else:
             sw.set_size_request(450, 350)
-        self.model = Gtk.ListStore(str, str, str, str, str, str, int, str)
+        self.model = gtk.ListStore(str, str, str, str, str, str, int, str)
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_rubber_banding(True)
         self.treeview.set_enable_search(False)
@@ -5726,10 +5856,10 @@ class Mantenimiento(Widgets.Window):
                 cell.connect('editado', self.editado, i)
                 cell.set_property('editable', True)
             else:
-                cell = Gtk.CellRendererText()
+                cell = gtk.CellRendererText()
                 cell.set_property('editable', False)
             self.cells.append(cell)
-            # column.set_flags(Gtk.CAN_FOCUS)
+            column.set_flags(gtk.CAN_FOCUS)
             self.columns.append(column)
             column.pack_start(cell, True)
             column.set_attributes(cell, text=i)
@@ -5738,10 +5868,10 @@ class Mantenimiento(Widgets.Window):
 
         self.model.append(('', '', '0.00', '0.00', 0, 0, 0, '0'))
         sw.add(self.treeview)
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         self.vbox.pack_start(hbox, False, False, 5)
-        hbox.pack_start(Gtk.Label('TOTAL:'), True, False, 0)
-        self.entry_total = Gtk.Entry()
+        hbox.pack_start(gtk.Label('TOTAL:'), True, False, 0)
+        self.entry_total = gtk.Entry()
         self.entry_total.set_property('editable', False)
         hbox.pack_start(self.entry_total, True, False, 0)
         self.combo_credito = Widgets.ComboBox()
@@ -5751,11 +5881,11 @@ class Mantenimiento(Widgets.Window):
         self.but_imprimir = self.crear_boton('imprimir.png', '_Imprimir', self.imprimir)
         self.show_all()
         self.set_focus(self.entry_codigo)
-        self.menu = Gtk.Menu()
-        item1 = Gtk.MenuItem('Cambiar el Precio')
+        self.menu = gtk.Menu()
+        item1 = gtk.MenuItem('Cambiar el Precio')
         item1.connect('activate', self.cambiar_precio)
         self.menu.append(item1)
-        item2 = Gtk.MenuItem('Aplicar Cargos')
+        item2 = gtk.MenuItem('Aplicar Cargos')
         item2.connect('activate', self.aplicar_cargos)
         self.menu.append(item2)
         self.treeview.connect('button-release-event', self.on_release_button)
@@ -5772,7 +5902,7 @@ class Mantenimiento(Widgets.Window):
                 path, col, cellx, celly = pthinfo
                 treeview.grab_focus()
                 treeview.set_cursor(path, col, 0)
-                self.menu.popup(None, None, None, None, event.button, t)
+                self.menu.popup(None, None, None, event.button, t)
                 self.menu.show_all()
             return True
         try:
@@ -5789,7 +5919,7 @@ class Mantenimiento(Widgets.Window):
         except:
             return
 
-        dialogo = Widgets.Alerta_Numero('Escriba el Nuevo Precio', 'dinero.png', 'El precio que escriba se guardará como el precio PREDETERMINADO.', 10, True)
+        dialogo = Widgets.Alerta_Numero('Escriba el Nuevo Precio', 'dinero.png', 'El precio que escriba se guardar\xc3\xa1 como el precio PREDETERMINADO.', 10, True)
         precio = dialogo.iniciar()
         dialogo.cerrar()
         fila = self.model[path]
@@ -5813,7 +5943,7 @@ class Mantenimiento(Widgets.Window):
         except:
             return
 
-        dialogo = Widgets.Alerta_Numero('Escriba el Precio para esta venta', 'dinero.png', 'El precio que escriba se usará sólo en ESTA VENTA.', 10, True)
+        dialogo = Widgets.Alerta_Numero('Escriba el Precio para esta venta', 'dinero.png', 'El precio que escriba se usar\xc3\xa1 s\xc3\xb3lo en ESTA VENTA.', 10, True)
         precio = dialogo.iniciar()
         dialogo.cerrar()
         fila = self.model[path]
@@ -5822,7 +5952,7 @@ class Mantenimiento(Widgets.Window):
             fila[3] = round(float(precio) * float(fila[0]), 2)
             self.calcular()
         else:
-            Widgets.Alerta('Operación no Permitida', 'warning.png', 'No puede reducir el precio de los productos.\nPero puede fijar un precio más bajo con la opción\nCAMBIAR DE PRECIO')
+            Widgets.Alerta('Operaci\xc3\xb3n no Permitida', 'warning.png', 'No puede reducir el precio de los productos.\nPero puede fijar un precio m\xc3\xa1s bajo con la opci\xc3\xb3n\nCAMBIAR DE PRECIO')
 
     def borrar(self, *args):
         if len(self.model) > 1:
@@ -5914,7 +6044,7 @@ class Mantenimiento(Widgets.Window):
                 respuesta = dialogo.iniciar()
                 dialogo.cerrar()
         else:
-            Widgets.Alerta('Error Padrón', 'error_numero.png', 'Digite un Número Válido.')
+            Widgets.Alerta('Error Padr\xc3\xb3n', 'error_numero.png', 'Digite un N\xc3\xbamero V\xc3\xa1lido.')
 
     def programacion(self, *args):
         padron = self.entry_padron.get_text()
@@ -5929,7 +6059,7 @@ class Mantenimiento(Widgets.Window):
     def odometro(self, *args):
         padron = self.entry_padron.get_text()
         if padron.isdigit():
-            dialogo = Widgets.Alerta_Numero('Ajustar Odómetro', 'odometro.png', 'Escriba el número que aparece en el odómetro', 15, True)
+            dialogo = Widgets.Alerta_Numero('Ajustar Od\xc3\xb3metro', 'odometro.png', 'Escriba el n\xc3\xbamero que aparece en el od\xc3\xb3metro', 15, True)
             odometro = dialogo.iniciar()
             dialogo.cerrar()
             if odometro:
@@ -5938,12 +6068,12 @@ class Mantenimiento(Widgets.Window):
                  'padron': padron,
                  'odometro': odometro})
         else:
-            Widgets.Alerta('Error Padrón', 'error_numero.png', 'Digite un Número Válido.')
+            Widgets.Alerta('Error Padr\xc3\xb3n', 'error_numero.png', 'Digite un N\xc3\xbamero V\xc3\xa1lido.')
 
     def buscar_aportante(self, *args):
         codigo = self.entry_codigo.get_text()
         if codigo == self.codigo_back:
-            self.do_move_focus(self, Gtk.DirectionType.TAB_FORWARD)
+            self.do_move_focus(self, gtk.DIR_TAB_FORWARD)
         self.entry_nombre.set_text('')
         llave = None
         if self.http.conductores == []:
@@ -6027,7 +6157,7 @@ class Mantenimiento(Widgets.Window):
         try:
             total = float(self.entry_total.get_text())
         except:
-            return Widgets.Alerta('Error en monto', 'error_numero.png', 'El monto no es un número válido')
+            return Widgets.Alerta('Error en monto', 'error_numero.png', 'El monto no es un n\xc3\xbamero v\xc3\xa1lido')
 
         if total == 0:
             return Widgets.Alerta('Monto 0.00', 'error_numero.png', 'No puede imprimir un recibo por 0.00')
@@ -6046,7 +6176,7 @@ class Mantenimiento(Widgets.Window):
                     return Widgets.Alerta('No puede mezclar monedas', 'dinero.png', mensaje)
 
             if float(r[0]) > float(r[5]) and self.http.datos['almacen-stock']:
-                mensaje = 'Sólo hay %s unidades de %s' % (r[5], r[1])
+                mensaje = 'S\xc3\xb3lo hay %s unidades de %s' % (r[5], r[1])
                 return Widgets.Alerta('Falta de existencias', 'error_numero.png', mensaje)
             pedido.append([r[0], r[1], r[2], r[3], r[4]])
         datos = {
@@ -6090,42 +6220,53 @@ class Mantenimiento(Widgets.Window):
     def cerrar(self, *args):
         self.destroy()
 
-
-class Productos(Widgets.Dialog):
+class Productos(gtk.Dialog):
 
     def __init__(self, lista, search, parent):
-        super(Productos, self).__init__('Búsqueda de Productos: ' + search)
+        super(Productos, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
         self.http = parent.http
         self.ruta = parent.ruta
         self.lado = parent.lado
-        hbox = Gtk.HBox()
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_default_size(650, 400)
+        self.set_title('B\xc3\xbasqueda de Productos: ' + search)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        hbox = gtk.HBox()
         self.vbox.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Por Nombre:'))
+        hbox.pack_start(gtk.Label('Por Nombre:'))
         self.entry_nombre = Widgets.Texto(45)
         self.entry_nombre.set_width_chars(10)
         hbox.pack_start(self.entry_nombre)
         button_actualizar = Widgets.Button('actualizar.png', tooltip='Actualizar Productos')
         hbox.pack_start(button_actualizar)
         button_actualizar.connect('clicked', self.actualizar)
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(650, 300)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(str, str, str, str, str, str, int, str)
-        self.treeview = Gtk.TreeView(self.model)
-        columnas = ('CODIGO', 'NOMBRE', 'VENTA', 'CANT', 'UBICACIÓN')
+        self.model = gtk.ListStore(str, str, str, str, str, str, int, str)
+        self.treeview = gtk.TreeView(self.model)
+        columnas = ('CODIGO', 'NOMBRE', 'VENTA', 'CANT', 'UBICACI\xc3\x93N')
         self.treeview.connect('cursor-changed', self.cursor_changed)
         self.treeview.connect('row-activated', self.row_activated)
         sw.add(self.treeview)
         for i, name in enumerate(columnas):
-            cell = Gtk.CellRendererText()
-            column = Gtk.TreeViewColumn(name, cell, text=i)
+            cell = gtk.CellRendererText()
+            column = gtk.TreeViewColumn(name, cell, text=i)
             self.treeview.append_column(column)
 
         self.but_ok = Widgets.Button('aceptar.png', '_Ok')
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.entry_nombre.set_text(search)
         self.entry_nombre.connect('key-release-event', self.filtrar)
         self.row = False
@@ -6173,7 +6314,7 @@ class Productos(Widgets.Dialog):
         self.show_all()
         self.but_ok.set_sensitive(False)
         self.set_focus(self.entry_nombre)
-        if self.run() == Gtk.ResponseType.OK:
+        if self.run() == gtk.RESPONSE_OK:
             return self.row
         else:
             return False
@@ -6185,28 +6326,40 @@ class Productos(Widgets.Dialog):
         self.destroy()
 
 
-class Trabajos(Widgets.Dialog):
+class Trabajos(gtk.Dialog):
 
     def __init__(self, parent, lista, padron):
-        super(Trabajos, self).__init__('Trabajos de la Unidad: %s' % padron)
+        super(Trabajos, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.http = parent.http
         self.padron = padron
-        sw = Gtk.ScrolledWindow()
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Trabajos de la Unidad: %s' % padron)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(600, 500)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(str, str, str, str, bool, str)
-        self.treeview = Gtk.TreeView(self.model)
+        self.model = gtk.ListStore(str, str, str, str, bool, str)
+        self.treeview = gtk.TreeView(self.model)
         columnas = ('DIA', 'OBSERVACION', 'MON', 'SALDO', 'FACTURADO')
         sw.add(self.treeview)
         for i, columna in enumerate(columnas):
             if i == 4:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
             else:
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i)
@@ -6217,11 +6370,11 @@ class Trabajos(Widgets.Dialog):
             self.model.append(l)
 
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.treeview.connect('row-activated', self.detalle)
         self.modificaciones = False
-        self.menu = Gtk.Menu()
-        item1 = Gtk.MenuItem('Anular Orden de Pago')
+        self.menu = gtk.Menu()
+        item1 = gtk.MenuItem('Anular Orden de Pago')
         item1.connect('activate', self.anular_orden)
         self.menu.append(item1)
         self.treeview.connect('button-release-event', self.on_release_button)
@@ -6236,7 +6389,7 @@ class Trabajos(Widgets.Dialog):
                 path, col, cellx, celly = pthinfo
                 treeview.grab_focus()
                 treeview.set_cursor(path, col, 0)
-                self.menu.popup(None, None, None, None, event.button, t)
+                self.menu.popup(None, None, None, event.button, t)
                 self.menu.show_all()
             return True
         try:
@@ -6256,8 +6409,8 @@ class Trabajos(Widgets.Dialog):
 
         facturado = self.model[path][4]
         if facturado:
-            return Widgets.Alerta('Error al Anular', 'warning.png', 'No puede anular un pago si ya está facturado')
-        dialogo = Widgets.Alerta_SINO('Anular Orden', 'anular.png', '\xc2\xbfEstá seguro de anular esta cotización?.')
+            return Widgets.Alerta('Error al Anular', 'warning.png', 'No puede anular un pago si ya est\xc3\xa1 facturado')
+        dialogo = Widgets.Alerta_SINO('Anular Orden', 'anular.png', '\xc2\xbfEst\xc3\xa1 seguro de anular esta cotizaci\xc3\xb3n?.')
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
         if respuesta:
@@ -6298,14 +6451,14 @@ class DetalleTrabajo(Widgets.Window):
         else:
             self.set_size_request(600, 550)
         self.http = padre.http
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         self.vbox.pack_start(sw, True, True, 5)
-        sw.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             sw.set_size_request(500, 350)
         else:
             sw.set_size_request(450, 350)
-        self.model = Gtk.ListStore(str, str, str, str, str)
+        self.model = gtk.ListStore(str, str, str, str, str)
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_rubber_banding(True)
         self.treeview.set_enable_search(False)
@@ -6315,10 +6468,10 @@ class DetalleTrabajo(Widgets.Window):
         self.cells = []
         for i, columna in enumerate(columnas):
             column = Widgets.TreeViewColumn(columna)
-            cell = Gtk.CellRendererText()
+            cell = gtk.CellRendererText()
             cell.set_property('editable', False)
             self.cells.append(cell)
-            # column.set_flags(Gtk.CAN_FOCUS)
+            column.set_flags(gtk.CAN_FOCUS)
             self.columns.append(column)
             column.pack_start(cell, True)
             column.set_attributes(cell, text=i)
@@ -6329,14 +6482,14 @@ class DetalleTrabajo(Widgets.Window):
         for l in lista:
             self.model.append(l)
 
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         self.vbox.pack_start(hbox, False, False, 5)
-        hbox.pack_start(Gtk.Label('TOTAL:'), True, False, 0)
-        self.entry_total = Gtk.Entry()
+        hbox.pack_start(gtk.Label('TOTAL:'), True, False, 0)
+        self.entry_total = gtk.Entry()
         self.entry_total.set_property('editable', False)
         hbox.pack_start(self.entry_total, True, False, 0)
         self.combo_moneda = Widgets.ComboBox()
-        self.combo_moneda.set_lista((('Soles', 0), ('Dólares', 1)))
+        self.combo_moneda.set_lista((('Soles', 0), ('D\xc3\xb3lares', 1)))
         hbox.pack_start(self.combo_moneda, True, False, 0)
         self.but_salir = self.crear_boton('cancelar.png', '_Cancelar', self.cerrar)
         self.show_all()
@@ -6353,23 +6506,35 @@ class DetalleTrabajo(Widgets.Window):
         self.destroy()
 
 
-class ProgramacionUnidad(Widgets.Dialog):
+class ProgramacionUnidad(gtk.Dialog):
 
     def __init__(self, parent, lista, padron, dia):
-        super(ProgramacionUnidad, self).__init__('Programacion de la Unidad: %s' % padron)
+        super(ProgramacionUnidad, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.http = parent.http
         self.padron = padron
         self.dia = dia
-        sw = Gtk.ScrolledWindow()
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Programacion de la Unidad: %s' % padron)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(600, 600)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, True, True, 0)
-        self.model = Gtk.ListStore(int, str, int, int, str, str, str, str, int)
-        self.treeview = Gtk.TreeView(self.model)
+        self.model = gtk.ListStore(int, str, int, int, str, str, str, str, int)
+        self.treeview = gtk.TreeView(self.model)
         columnas = ('PADRON', 'PIEZA', 'KM', 'LIMITE', 'INICIO', 'ESTIMADO')
         sw.add(self.treeview)
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i, background=6)
@@ -6380,21 +6545,21 @@ class ProgramacionUnidad(Widgets.Dialog):
             self.model.append(l)
 
         if padron:
-            hbox = Gtk.HBox()
+            hbox = gtk.HBox()
             self.vbox.pack_start(hbox, False, False, 0)
             but_cambiar = Widgets.Button('servicio.png', '_Nuevo Trabajo')
             but_cambiar.connect('clicked', self.nuevo_trabajo)
             self.action_area.pack_start(but_cambiar, False, False, 0)
             self.treeview.connect('row_activated', self.cambiar_pieza)
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.iniciar()
         self.cerrar()
 
     def nuevo_trabajo(self, *args):
         grupos = []
         i = 0
-        mttos = list(self.http.piezas.keys())
+        mttos = self.http.piezas.keys()
         mttos.sort()
         for k in mttos:
             if k != 'null':
@@ -6405,30 +6570,30 @@ class ProgramacionUnidad(Widgets.Dialog):
         pieza = dialogo.iniciar()
         mtto = dialogo.combo.get_text()
         dialogo.cerrar()
-        print(mtto, pieza)
+        print mtto, pieza
         for g in grupos:
-            print(g)
-            print(self.http.piezas[g[0]])
+            print g
+            print self.http.piezas[g[0]]
 
         limite = int(mtto.split(' ')[-1])
         if pieza:
             piezas = self.http.piezas[mtto]
-            print(piezas)
+            print piezas
             lista = []
             if len(lista) != len(piezas):
                 for p in piezas:
                     esta = False
                     for l in self.model:
-                        print('buscando', p[1])
+                        print 'buscando', p[1]
                         if p[1] == l[1]:
                             esta = True
-                            print('cambio de pieza', l)
+                            print 'cambio de pieza', l
                             lista.append(l)
                         else:
-                            print(' no es', l[1])
+                            print ' no es', l[1]
 
                     if not esta:
-                        print('nueva pieza')
+                        print 'nueva pieza'
                         lista.append((self.padron,
                          p[1],
                          0,
@@ -6445,7 +6610,7 @@ class ProgramacionUnidad(Widgets.Dialog):
             if data:
                 self.model.clear()
                 for r in data:
-                    print()
+                    print
                     self.model.append(r)
 
     def cambiar_pieza(self, *args):
@@ -6456,7 +6621,7 @@ class ProgramacionUnidad(Widgets.Dialog):
             return
 
         padron = self.model[path][0]
-        for k in list(self.http.piezas.keys()):
+        for k in self.http.piezas.keys():
             for i, nombre in self.http.piezas[k]:
                 if nombre == self.model[path][1]:
                     pieza = i
@@ -6483,24 +6648,37 @@ class ProgramacionUnidad(Widgets.Dialog):
         self.destroy()
 
 
-class Trabajo(Widgets.Dialog):
+class Trabajo(gtk.Dialog):
 
     def __init__(self, padre, lista):
-        super(Trabajo, self).__init__('Nuevo Trabajo de Mantenimiento')
+        super(Trabajo, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.lista = lista
         self.http = padre.http
         self.dia = padre.dia
-        sw = Gtk.ScrolledWindow()
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_default_size(650, 400)
+        self.set_title('Nuevo Trabajo de Mantenimiento')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(800, 400)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(int, str, int, str, str, bool, int, str, str, str, int)
-        self.treeview = Gtk.TreeView(self.model)
+        self.model = gtk.ListStore(int, str, int, str, str, bool, int, str, str, str, int)
+        self.treeview = gtk.TreeView(self.model)
         columnas = ('PAD', 'PIEZA', 'KM', 'INICIO', 'ESTIMADO', 'HECHO', 'LIMITE', 'OBSERVACION')
         sw.add(self.treeview)
         for i, columna in enumerate(columnas):
             if i == 5:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
@@ -6513,7 +6691,7 @@ class Trabajo(Widgets.Dialog):
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 cell.connect('editado', self.editado_limite)
                 cell.set_property('editable', True)
-                # tvcolumn.set_flags(Gtk.CAN_FOCUS)
+                tvcolumn.set_flags(gtk.CAN_FOCUS)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, text=i)
                 self.column6 = tvcolumn
@@ -6525,7 +6703,7 @@ class Trabajo(Widgets.Dialog):
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 cell.connect('editado', self.editado_observacion)
                 cell.set_property('editable', True)
-                # tvcolumn.set_flags(Gtk.CAN_FOCUS)
+                tvcolumn.set_flags(gtk.CAN_FOCUS)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, text=i)
                 self.column7 = tvcolumn
@@ -6533,16 +6711,16 @@ class Trabajo(Widgets.Dialog):
                 self.treeview.append_column(tvcolumn)
                 tvcolumn.encabezado()
             else:
-                cell = Gtk.CellRendererText()
+                cell = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
-                print(columna)
+                print columna
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, text=i, background=8)
                 self.treeview.append_column(tvcolumn)
                 tvcolumn.encabezado()
 
         for l in lista:
-            print((int(l[0]),
+            print (int(l[0]),
              l[1],
              l[2],
              l[4],
@@ -6552,7 +6730,7 @@ class Trabajo(Widgets.Dialog):
              '',
              l[6],
              l[7],
-             l[8]))
+             l[8])
             self.model.append((int(l[0]),
              l[1],
              l[2],
@@ -6565,15 +6743,15 @@ class Trabajo(Widgets.Dialog):
              l[7],
              l[8]))
 
-        hbox = Gtk.HBox()
+        hbox = gtk.HBox()
         self.vbox.pack_start(hbox, False, False, 0)
         but_guardar = Widgets.Button('servicio.png', '_Guardar')
         but_guardar.connect('clicked', self.guardar)
         self.action_area.pack_start(but_guardar, False, False, 0)
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.but_ok = Widgets.Button('ok.png', 'OK')
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.data = False
 
     def toggled(self, cell, path):
@@ -6609,8 +6787,8 @@ class Trabajo(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
-        if self.run() == Gtk.ResponseType.OK:
+        self.but_ok.hide_all()
+        if self.run() == gtk.RESPONSE_OK:
             return self.data
         else:
             return False
@@ -6619,23 +6797,36 @@ class Trabajo(Widgets.Dialog):
         self.destroy()
 
 
-class Servicio(Widgets.Dialog):
+
+class Servicio(gtk.Dialog):
 
     def __init__(self, parent, nombre, precio):
-        super(Servicio, self).__init__('Descripción de Servicio')
-        frame = Widgets.Frame('Descripción')
+        super(Servicio, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Descripci\xc3\xb3n de Servicio')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        frame = Widgets.Frame('Descripci\xc3\xb3n')
         self.vbox.pack_start(frame, False, False, 0)
-        self.entry_nombre = Gtk.TextView()
-        sw = Gtk.ScrolledWindow()
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.entry_nombre = gtk.TextView()
+        sw = gtk.ScrolledWindow()
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         frame.add(sw)
         sw.add(self.entry_nombre)
         sw.set_size_request(200, 200)
         buff = self.entry_nombre.get_buffer()
         buff.set_text(nombre)
-        hbox = Gtk.HBox()
+        hbox = gtk.HBox()
         self.vbox.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Precio:'), False, False, 0)
+        hbox.pack_start(gtk.Label('Precio:'), False, False, 0)
         self.entry_precio = Widgets.Entry()
         self.entry_precio.connect('key-release-event', self.precio_change)
         self.entry_precio.connect('activate', self.precio_activate)
@@ -6643,8 +6834,8 @@ class Servicio(Widgets.Dialog):
         hbox.pack_start(self.entry_precio, False, False, 0)
         self.but_ok = Widgets.Button('aceptar.png', '_Ok')
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
 
     def precio_change(self, *args):
         text = self.entry_precio.get_text()
@@ -6662,7 +6853,7 @@ class Servicio(Widgets.Dialog):
     def iniciar(self):
         self.show_all()
         self.set_focus(self.entry_precio)
-        if self.run() == Gtk.ResponseType.OK:
+        if self.run() == gtk.RESPONSE_OK:
             buff = self.entry_nombre.get_buffer()
             inicio = buff.get_start_iter()
             fin = buff.get_end_iter()
@@ -6676,23 +6867,35 @@ class Servicio(Widgets.Dialog):
         self.destroy()
 
 
-class Deudas(Widgets.Dialog):
+
+class Deudas(gtk.Dialog):
 
     def __init__(self, parent, lista, padron, dia):
-        super(Deudas, self).__init__('Deudas de la Unidad: %s' % padron)
+        super(Deudas, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
         self.dia = dia
         self.http = parent.http
         self.padron = padron
-        sw = Gtk.ScrolledWindow()
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Deudas de la Unidad: %s' % padron)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(600, 500)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(str, str, str, GObject.TYPE_PYOBJECT)
-        self.treeview = Gtk.TreeView(self.model)
+        self.model = gtk.ListStore(str, str, str, gobject.TYPE_PYOBJECT)
+        self.treeview = gtk.TreeView(self.model)
         columnas = ('DIA', 'DETALLE', 'MONTO')
         sw.add(self.treeview)
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i)
@@ -6702,14 +6905,14 @@ class Deudas(Widgets.Dialog):
         for l in lista:
             self.model.append((l['dia'], l['detalle'], Widgets.currency(l['total']), l))
 
-        but_prestamo = Widgets.Button('credito.png', '_Nuevo Préstamo')
+        but_prestamo = Widgets.Button('credito.png', '_Nuevo Pr\xc3\xa9stamo')
         but_prestamo.connect('clicked', self.prestamo)
         # self.action_area.pack_start(but_prestamo, False, False, 0)
         but_pagar_total = Widgets.Button('dinero.png', '_Pagar Todo')
         but_pagar_total.connect('clicked', self.pagar_todo)
         self.action_area.pack_start(but_pagar_total, False, False, 0)
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.treeview.connect('row-activated', self.pagar)
 
     def pagar_todo(self, *args):
@@ -6717,7 +6920,7 @@ class Deudas(Widgets.Dialog):
         for r in self.model:
             total += Decimal(r[2])
 
-        dialogo = Widgets.Alerta_SINO('Confirme la acción', 'caja.png',
+        dialogo = Widgets.Alerta_SINO('Confirme la acci\xc3\xb3n', 'caja.png',
                                       'Pagar todas las deudas debe recibir %s.\n Confirme que tiene el total del dinero.' % total)
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
@@ -6761,44 +6964,56 @@ class Deudas(Widgets.Dialog):
         self.destroy()
 
 
-class Facturar(Widgets.Dialog):
+class Facturar(gtk.Dialog):
 
     def __init__(self, parent, monto):
-        super(Facturar, self).__init__('Facturar Compra o Servicio: ' + monto)
+        super(Facturar, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.http = parent.http
+        self.set_modal(True)
+        self.set_transient_for(parent)
         if self.http.seriacion == []:
             datos = {'post': True}
             respuesta = self.http.load('lista-series', datos)
             if respuesta:
                 self.http.seriacion = respuesta
+        self.set_title('Facturar Compra o Servicio: ' + monto)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
         self.fecha = Widgets.Fecha()
         self.vbox.pack_start(self.fecha, False, False, 0)
-        self.inafecto_check = Gtk.CheckButton('Inafecto al IGV')
+        self.inafecto_check = gtk.CheckButton('Inafecto al IGV')
         self.vbox.pack_start(self.inafecto_check, False, False, 0)
         self.combo_serie = Widgets.ComboBox()
         self.combo_serie.set_lista(self.http.seriacion['facturas'])
         self.vbox.pack_start(self.combo_serie, False, False, 0)
-        self.pagado_check = Gtk.CheckButton('Pago al Contado')
+        self.pagado_check = gtk.CheckButton('Pago al Contado')
         self.vbox.pack_start(self.pagado_check, False, False, 0)
         self.combo_serie_cobro = Widgets.ComboBox()
         self.combo_serie_cobro.set_lista(self.http.seriacion['cobranzas'])
         self.vbox.pack_start(self.combo_serie_cobro, False, False, 0)
         self.but_ok = Widgets.Button('dinero.png', '_Facturar')
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.pagado_check.connect('toggled', self.pagado_toggled)
 
     def pagado_toggled(self, *args):
         if self.pagado_check.get_active():
             self.combo_serie_cobro.show_all()
         else:
-            self.combo_serie_cobro.hide()
+            self.combo_serie_cobro.hide_all()
 
     def iniciar(self):
         self.show_all()
-        self.combo_serie_cobro.hide()
-        if self.run() == Gtk.ResponseType.OK:
+        self.combo_serie_cobro.hide_all()
+        if self.run() == gtk.RESPONSE_OK:
             serie = self.combo_serie.get_id()
             pagado = self.pagado_check.get_active()
             inafecto = self.inafecto_check.get_active()
@@ -6816,30 +7031,41 @@ class Facturar(Widgets.Dialog):
         self.destroy()
 
 
-class PagarDeuda(Widgets.Dialog):
+class PagarDeuda(gtk.Dialog):
 
     def __init__(self, parent, cobranza, dia):
-        super(PagarDeuda, self).__init__('Pagar Deuda Crédito: %s' % cobranza['nombre'])
+        super(PagarDeuda, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
         self.cobranza = cobranza
         self.dia = dia
         self.http = parent.http
-        hbox = Gtk.HBox(False, 0)
-        hbox.pack_start(Gtk.Label('Monto Total:'), False, False, 0)
+        self.set_modal(True)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        self.set_transient_for(parent)
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+        self.set_title('Pagar Deuda Cr\xc3\xa9dito: %s' % cobranza['nombre'])
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        hbox = gtk.HBox(False, 0)
+        hbox.pack_start(gtk.Label('Monto Total:'), False, False, 0)
         self.vbox.pack_start(hbox, False, False, 0)
-        self.entry_total = Gtk.Entry()
+        self.entry_total = gtk.Entry()
         self.entry_total.set_sensitive(False)
         self.entry_total.set_text(str(round(cobranza['saldo'], 2)))
         hbox.pack_start(self.entry_total, False, False, 0)
-        hbox = Gtk.HBox(False, 0)
-        hbox.pack_start(Gtk.Label('Monto a Pagar:'), False, False, 0)
+        hbox = gtk.HBox(False, 0)
+        hbox.pack_start(gtk.Label('Monto a Pagar:'), False, False, 0)
         self.vbox.pack_start(hbox, False, False, 0)
 
-        self.entry_monto = Gtk.Entry()
+        self.entry_monto = gtk.Entry()
         hbox.pack_start(self.entry_monto, False, False, 0)
         self.entry_monto.connect('key-release-event', self.calcular)
-        hbox = Gtk.HBox(False, 0)
-        hbox.pack_start(Gtk.Label('Saldo Restante:'), False, False, 0)
-        self.entry_saldo = Gtk.Entry()
+        hbox = gtk.HBox(False, 0)
+        hbox.pack_start(gtk.Label('Saldo Restante:'), False, False, 0)
+        self.entry_saldo = gtk.Entry()
         self.entry_saldo.set_sensitive(False)
         hbox.pack_start(self.entry_saldo, False, False, 0)
 
@@ -6847,8 +7073,8 @@ class PagarDeuda(Widgets.Dialog):
         but_salir = Widgets.Button('cancelar.png', '_Salir')
         self.but_ok = Widgets.Button('dinero.png', '_OK')
         self.but_pagar = Widgets.Button('dinero.png', '_Pagar')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.action_area.pack_start(self.but_pagar, False, False, 0)
         self.entry_monto.connect('activate', self.entry_activate)
         self.but_pagar.connect('clicked', self.pagar)
@@ -6890,8 +7116,8 @@ class PagarDeuda(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
-        if self.run() == Gtk.ResponseType.OK:
+        self.but_ok.hide_all()
+        if self.run() == gtk.RESPONSE_OK:
             return self.data
         else:
             return False
@@ -6900,13 +7126,26 @@ class PagarDeuda(Widgets.Dialog):
         self.destroy()
 
 
-class Stock(Widgets.Dialog):
+class Stock(gtk.Dialog):
 
     def __init__(self, http, unidad):
-        super(Stock, self).__init__('Asignar Stock: PADRON %d' % self.unidad.padron)
+        super(Stock, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
+        self.set_modal(True)
+        self.set_transient_for(parent)
         self.unidad = unidad
         self.http = http
         self.set_default_size(400, 200)
+        self.set_border_width(10)
+        self.set_title('Asignar Stock: PADRON %d' % self.unidad.padron)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
         faltan = self.unidad.get_falta_stock()
         n = len(faltan)
         self.series = [None] * n
@@ -6915,27 +7154,27 @@ class Stock(Widgets.Dialog):
         self.boleto = [None] * n
         self.stock = [None] * n
         self.checks = [None] * n
-        tabla = Gtk.Table()
+        tabla = gtk.Table()
         self.vbox.pack_start(tabla, False, False, 0)
-        label = Gtk.Label()
+        label = gtk.Label()
         label.set_markup('<b>BOLETO</b>')
         tabla.attach(label, 0, 1, 0, 1)
-        label = Gtk.Label()
+        label = gtk.Label()
         label.set_markup('<b>QUEDAN</b>')
         tabla.attach(label, 1, 2, 0, 1)
-        label = Gtk.Label()
+        label = gtk.Label()
         label.set_markup('<b>TARIFA</b>')
         tabla.attach(label, 2, 3, 0, 1)
-        label = Gtk.Label()
+        label = gtk.Label()
         label.set_markup('<b>SERIE</b>')
         tabla.attach(label, 3, 4, 0, 1)
-        label = Gtk.Label()
+        label = gtk.Label()
         label.set_markup('<b>INICIO</b>')
         tabla.attach(label, 4, 5, 0, 1)
-        label = Gtk.Label()
+        label = gtk.Label()
         label.set_markup('<b>TACOS</b>')
         tabla.attach(label, 5, 6, 0, 1)
-        label = Gtk.Label()
+        label = gtk.Label()
         label.set_markup('<b>ENTREGAR</b>')
         tabla.attach(label, 6, 7, 0, 1)
         for i, boleto in enumerate(faltan):
@@ -6946,18 +7185,18 @@ class Stock(Widgets.Dialog):
                 color = '#CCFFCC'
             self.boleto[i] = boleto['boleto']
             self.stock[i] = stock
-            hbox = Gtk.HBox()
+            hbox = gtk.HBox()
 
-            label = Gtk.Label()
+            label = gtk.Label()
             label.set_markup('<b>%s</b>' % boleto['boleto'].nombre[:10])
             label.set_alignment(0, 0.5)
             tabla.attach(label, 0, 1, i + 1, i + 2)
 
-            label = Gtk.Label()
+            label = gtk.Label()
             label.set_markup(str(boleto['cantidad']))
             tabla.attach(label, 1, 2, i + 1, i + 2)
 
-            label = Gtk.Label()
+            label = gtk.Label()
             label.set_markup('<b>%s</b>' % boleto['boleto'].get_tarifa())
             label.set_alignment(0, 0.5)
             tabla.attach(label, 2, 3, i + 1, i + 2)
@@ -6967,7 +7206,7 @@ class Stock(Widgets.Dialog):
                 entry.set_text(stock.serie)
             else:
                 entry.set_text('A1')
-            entry.modify_base(Gtk.StateType.NORMAL, Gdk.color_parse(color))
+            entry.modify_base(gtk.STATE_NORMAL, gtk.gdk.color_parse(color))
             tabla.attach(entry, 3, 4, i + 1, i + 2)
             self.series[i] = entry
             entry = Widgets.Numero(6)
@@ -6975,15 +7214,15 @@ class Stock(Widgets.Dialog):
                 entry.set_text(str(stock.actual))
             else:
                 entry.set_text('1')
-            entry.modify_base(Gtk.StateType.NORMAL, Gdk.color_parse(color))
+            entry.modify_base(gtk.STATE_NORMAL, gtk.gdk.color_parse(color))
             tabla.attach(entry, 4, 5, i + 1, i + 2)
             self.inicios[i] = entry
             entry = Widgets.Numero(6)
-            entry.modify_base(Gtk.StateType.NORMAL, Gdk.color_parse(color))
+            entry.modify_base(gtk.STATE_NORMAL, gtk.gdk.color_parse(color))
             tabla.attach(entry, 5, 6, i + 1, i + 2)
             self.tacos[i] = entry
             entry.set_text(str(boleto['boleto'].tacos))
-            check = Gtk.CheckButton()
+            check = gtk.CheckButton()
             tabla.attach(check, 6, 7, i + 1, i + 2)
             self.checks[i] = check
             check.set_active(False)
@@ -6993,8 +7232,8 @@ class Stock(Widgets.Dialog):
         self.but_guardar.connect('clicked', self.comprobar)
         self.but_ok = Widgets.Button('aceptar.png', '_Aceptar')
         but_salir = Widgets.Button('cancelar.png', '_Cancelar')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         try:
             self.series[0].grab_focus()
         except:
@@ -7036,8 +7275,8 @@ class Stock(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
-        if self.run() == Gtk.ResponseType.OK:
+        self.but_ok.hide_all()
+        if self.run() == gtk.RESPONSE_OK:
             return True
         else:
             return False
@@ -7046,10 +7285,17 @@ class Stock(Widgets.Dialog):
         self.destroy()
 
 
-class Pagar(Widgets.Dialog):
+class Pagar(gtk.Dialog):
 
     def __init__(self, padre, padron):
-        super(Pagar, self).__init__('Pagos de la Unidad: %s del día %s' % (padron, self.dia))
+        super(Pagar, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.cambiado = False
         self.http = padre.http
         self.padron = padron
@@ -7057,20 +7303,25 @@ class Pagar(Widgets.Dialog):
         self.lado = padre.lado
         self.dia = padre.dia
         self.pagos = self.http.get_pagos(self.ruta)
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Pagos de la Unidad: %s del d\xc3\xada %s' % (padron, self.dia))
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
         self.datos = {'padron': padron,
          'ruta_id': self.ruta,
          'lado': self.lado,
          'dia': self.dia}
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(400, 300)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(str, str, str, str)
-        self.treeview = Gtk.TreeView(self.model)
+        self.model = gtk.ListStore(str, str, str, str)
+        self.treeview = gtk.TreeView(self.model)
         columnas = ('CONCEPTO', 'MONTO', 'HORA')
         sw.add(self.treeview)
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i)
@@ -7082,7 +7333,7 @@ class Pagar(Widgets.Dialog):
             for l in lista:
                 self.model.append(l)
 
-        hbox = Gtk.HBox()
+        hbox = gtk.HBox()
         self.vbox.pack_start(hbox, False, False, 0)
         but_pagar = Widgets.Button('caja.png', '_Cobrar')
         but_pagar.connect('clicked', self.cobrar, True)
@@ -7097,7 +7348,7 @@ class Pagar(Widgets.Dialog):
         but_anular.connect('clicked', self.anular)
         hbox.pack_start(but_anular, False, False, 0)
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
 
     def cobrar(self, widget, tipo):
         dialogo = Factura(self, tipo)
@@ -7115,7 +7366,7 @@ class Pagar(Widgets.Dialog):
         except:
             return
 
-        dialogo = Widgets.Alerta_SINO_Clave('Anular Pago', 'anular.png', '\xc2\xbfEstá seguro de anular este pago?.')
+        dialogo = Widgets.Alerta_SINO_Clave('Anular Pago', 'anular.png', '\xc2\xbfEst\xc3\xa1 seguro de anular este pago?.')
         respuesta = dialogo.iniciar()
         clave = dialogo.clave
         dialogo.cerrar()
@@ -7151,17 +7402,29 @@ class Pagar(Widgets.Dialog):
         self.destroy()
 
 
-class Fondo(Widgets.Dialog):
+class Fondo(gtk.Dialog):
 
     def __init__(self, padre, cond, cobr, padron):
-        super(Fondo, self).__init__('Cobro de Fondos y Multas:')
+        super(Fondo, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.http = padre.http
         self.ruta = padre.ruta
         self.lado = padre.lado
         self.dia = padre.dia
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Cobro de Fondos y Multas:')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
         frame = Widgets.Frame('Aportante')
         self.vbox.pack_start(frame, False, False, 0)
-        hb = Gtk.HBox(False, 5)
+        hb = gtk.HBox(False, 5)
         frame.add(hb)
         self.entry_codigo = Widgets.Numero(8)
         hb.pack_start(self.entry_codigo, False, False, 0)
@@ -7179,22 +7442,22 @@ class Fondo(Widgets.Dialog):
         frame = Widgets.Frame('Tipo de Cuenta')
         if len(self.http.multas):  # solo STA CRUZ, por compatibilidad
             self.vbox.pack_start(frame, False, False, 0)
-        hb = Gtk.HBox(False, 5)
+        hb = gtk.HBox(False, 5)
         frame.add(hb)
-        self.radio_fondos = Gtk.RadioButton(None, 'Fondos y Deudas', False)
+        self.radio_fondos = gtk.RadioButton(None, 'Fondos y Deudas', False)
         hb.pack_start(self.radio_fondos, False, False, 0)
-        self.radio_multas = Gtk.RadioButton(self.radio_fondos, 'Multas y otros', False)
+        self.radio_multas = gtk.RadioButton(self.radio_fondos, 'Multas y otros', False)
         hb.pack_start(self.radio_multas, False, False, 0)
         self.radio_fondos.connect('toggled', self.radio_toggled)
 
         frame = Widgets.Frame('Detalle del Pago')
         self.vbox.pack_start(frame, False, False, 0)
-        vbox = Gtk.VBox(False, 5)
+        vbox = gtk.VBox(False, 5)
         frame.add(vbox)
 
-        self.hbox_fondos = Gtk.HBox(False, 5)
+        self.hbox_fondos = gtk.HBox(False, 5)
         vbox.pack_start(self.hbox_fondos)
-        self.hbox_fondos.pack_start(Gtk.Label('Cuenta:'), False, False, 0)
+        self.hbox_fondos.pack_start(gtk.Label('Cuenta:'), False, False, 0)
         self.combo_fondos = Widgets.ComboBox()
         fondos = []
         for f in self.http.datos['seriacion']['fondo']:
@@ -7206,41 +7469,41 @@ class Fondo(Widgets.Dialog):
         # grupo = None
         # for f in self.http.datos['seriacion']['fondo']:
         #     if self.ruta == f[1]:
-        #         radiobutton = Gtk.RadioButton(grupo, f[0], False)
+        #         radiobutton = gtk.RadioButton(grupo, f[0], False)
         #         vbox.pack_start(radiobutton, False, False, 0)
         #         self.series.append((radiobutton, f[2]))
         #         radiobutton.set_active(False)
         #         if grupo is None:
         #             grupo = radiobutton
-        self.hbox_multas = Gtk.HBox(False, 5)
+        self.hbox_multas = gtk.HBox(False, 5)
         vbox.pack_start(self.hbox_multas, False, False, 0)
-        # radiobutton = Gtk.RadioButton(grupo, 'Multas', False)
+        # radiobutton = gtk.RadioButton(grupo, 'Multas', False)
         # if len(self.http.multas):
         #     self.hbox_multas.pack_start(radiobutton, False, False, 0)
         # self.series.append([radiobutton, None])
         # radiobutton.set_active(True)
 
-        self.hbox_multas.pack_start(Gtk.Label('Multa:'), False, False, 5)
+        self.hbox_multas.pack_start(gtk.Label('Multa:'), False, False, 5)
         self.combo_multa = Widgets.ComboBox()
         self.combo_multa.set_lista(self.http.multas)
         self.hbox_multas.pack_start(self.combo_multa)
 
         self.entry_monto = Widgets.Texto(7)
-        hb = Gtk.HBox(False, 5)
+        hb = gtk.HBox(False, 5)
         vbox.pack_start(hb, False, False, 0)
         self.entry_almacen = Widgets.Texto(16)
-        hb.pack_start(Gtk.Label('Ref. Almacén:'), False, False, 0)
+        hb.pack_start(gtk.Label('Ref. Almacén:'), False, False, 0)
         hb.pack_start(self.entry_almacen, False, False, 0)
         self.entry_almacen.connect('activate', self.buscar_producto)
-        hb.pack_start(Gtk.Label('Padrón Referencia:'), False, False, 0)
+        hb.pack_start(gtk.Label('Padrón Referencia:'), False, False, 0)
         self.entry_padron = Widgets.Texto(4)
         hb.pack_start(self.entry_padron, False, False, 0)
-        hb = Gtk.HBox(False, 5)
-        hb.pack_start(Gtk.Label('Monto:'), False, False, 0)
+        hb = gtk.HBox(False, 5)
+        hb.pack_start(gtk.Label('Monto:'), False, False, 0)
         hb.pack_start(self.entry_monto, False, False, 0)
         vbox.pack_start(hb, False, False, 0)
         self.entry_concepto = Widgets.Texto(32)
-        hb.pack_start(Gtk.Label('Detalle:'), False, False, 0)
+        hb.pack_start(gtk.Label('Detalle:'), False, False, 0)
         hb.pack_start(self.entry_concepto, False, False, 0)
 
         but_pagar = Widgets.Button('caja.png', '_Cobrar')
@@ -7248,16 +7511,16 @@ class Fondo(Widgets.Dialog):
         self.action_area.pack_start(but_pagar, False, False)
 
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.codigo_back = None
         self.cuenta_back = None
 
     def radio_toggled(self, *args):
         if self.radio_multas.get_active():
             self.hbox_multas.show_all()
-            self.hbox_fondos.hide()
+            self.hbox_fondos.hide_all()
         else:
-            self.hbox_multas.hide()
+            self.hbox_multas.hide_all()
             self.hbox_fondos.show_all()
 
 
@@ -7381,9 +7644,9 @@ class Fondo(Widgets.Dialog):
         try:
             monto = Decimal(monto)
         except:
-            return Widgets.Alerta('Error en el monto', 'warning.png', 'El monto está mal escrito')
+            return Widgets.Alerta('Error en el monto', 'warning.png', 'El monto est\xc3\xa1 mal escrito')
 
-        dialogo = Widgets.Alerta_SINO('Confirme la acción', 'caja.png', 'Confirme que desea registrar el abono.')
+        dialogo = Widgets.Alerta_SINO('Confirme la acci\xc3\xb3n', 'caja.png', 'Confirme que desea registrar el abono.')
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
         if respuesta:
@@ -7407,7 +7670,7 @@ class Fondo(Widgets.Dialog):
                 'padron': self.entry_padron.get_text(),
                 'concepto': concepto,
                 'dia': self.dia}
-            print(('datos multa', datos))
+            print('datos multa', datos)
             if float(monto) < 0:
                 if len(concepto) < 5:
                     return Widgets.Alerta('Error', 'error.png', 'El concepto debe tener al menos 5 caracteres')
@@ -7418,27 +7681,39 @@ class Fondo(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.hbox_multas.hide()
+        self.hbox_multas.hide_all()
         self.run()
 
     def cerrar(self, *args):
         self.destroy()
 
 
-class Recaudo(Widgets.Dialog):
+class Recaudo(gtk.Dialog):
 
     def __init__(self, parent, padron):
-        super(Recaudo, self).__init__('Recaudo de la Unidad: %d' % padron)
+        super(Recaudo, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.cambiado = False
         self.http = parent.http
         self.ruta = parent.ruta
         self.lado = parent.lado
         self.padron = padron
-        sw = Gtk.ScrolledWindow()
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Recaudo de la Unidad: %d' % padron)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(250, 300)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(bool, str, str, str)
+        self.model = gtk.ListStore(bool, str, str, str)
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_rubber_banding(True)
         self.treeview.set_enable_search(False)
@@ -7447,14 +7722,14 @@ class Recaudo(Widgets.Dialog):
         columnas = ('USAR', 'SALIDA', 'RUTA')
         for i, columna in enumerate(columnas):
             if i == 0:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
                 cell.connect('toggled', self.toggled)
                 cell.set_property('activatable', True)
             else:
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i)
@@ -7471,18 +7746,18 @@ class Recaudo(Widgets.Dialog):
         for f in lista:
             self.model.append(f)
 
-        tabla = Gtk.Table()
+        tabla = gtk.Table()
         self.vbox.pack_start(tabla, False, False, 0)
-        tabla.attach(Gtk.Label('Monto:'), 0, 1, 1, 2)
+        tabla.attach(gtk.Label('Monto:'), 0, 1, 1, 2)
         self.entry_monto = Widgets.Texto(10)
         tabla.attach(self.entry_monto, 1, 2, 1, 2)
         but_pagar = Widgets.Button('dinero.png', '_Recaudar')
         but_pagar.connect('clicked', self.recaudar)
         self.action_area.pack_start(but_pagar, False, False, 0)
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.but_ok = Widgets.Button('aceptar.png', '_OK')
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.respuesta = False
         self.iniciar()
 
@@ -7501,7 +7776,7 @@ class Recaudo(Widgets.Dialog):
         try:
             float(monto)
         except:
-            Widgets.Alerta('Error Número', 'error.png', 'El monto es inválido')
+            Widgets.Alerta('Error N\xc3\xbamero', 'error.png', 'El monto es inv\xc3\xa1lido')
             return
 
         ids = []
@@ -7521,17 +7796,24 @@ class Recaudo(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
+        self.but_ok.hide_all()
         self.run()
 
     def cerrar(self, *args):
         self.destroy()
 
 
-class Programacion(Widgets.Dialog):
+class Programacion(gtk.Dialog):
 
     def __init__(self, parent, ruta):
-        super(Recaudo, self).__init__('Programación de Flota: %s' % ruta)
+        super(Recaudo, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.cambiado = False
         self.http = parent.http
         self.ruta = parent.ruta
@@ -7539,11 +7821,16 @@ class Programacion(Widgets.Dialog):
         datos = {'ruta': self.ruta}
         unidades = self.http.load('unidades', datos)
         self.padron = padron
-        sw = Gtk.ScrolledWindow()
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Programaci\xc3\xb3n de Flota: %s' % ruta)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(250, 300)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(bool, str, str, str)
+        self.model = gtk.ListStore(bool, str, str, str)
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_rubber_banding(True)
         self.treeview.set_enable_search(False)
@@ -7552,14 +7839,14 @@ class Programacion(Widgets.Dialog):
         columnas = ('USAR', 'SALIDA', 'RUTA')
         for i, columna in enumerate(columnas):
             if i == 0:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
                 cell.connect('toggled', self.toggled)
                 cell.set_property('activatable', True)
             else:
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i)
@@ -7576,18 +7863,18 @@ class Programacion(Widgets.Dialog):
         for f in lista:
             self.model.append(f)
 
-        tabla = Gtk.Table()
+        tabla = gtk.Table()
         self.vbox.pack_start(tabla, False, False, 0)
-        tabla.attach(Gtk.Label('Monto:'), 0, 1, 1, 2)
+        tabla.attach(gtk.Label('Monto:'), 0, 1, 1, 2)
         self.entry_monto = Widgets.Texto(10)
         tabla.attach(self.entry_monto, 1, 2, 1, 2)
         but_pagar = Widgets.Button('dinero.png', '_Recaudar')
         but_pagar.connect('clicked', self.recaudar)
         self.action_area.pack_start(but_pagar, False, False, 0)
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.but_ok = Widgets.Button('aceptar.png', '_OK')
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.iniciar()
 
     def toggled(self, cell, path):
@@ -7605,7 +7892,7 @@ class Programacion(Widgets.Dialog):
         try:
             float(monto)
         except:
-            Widgets.Alerta('Error Número', 'error.png', 'El monto es inválido')
+            Widgets.Alerta('Error N\xc3\xbamero', 'error.png', 'El monto es inv\xc3\xa1lido')
             return
 
         ids = []
@@ -7624,7 +7911,7 @@ class Programacion(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
+        self.but_ok.hide_all()
         self.run()
         self.cerrar()
 
@@ -7632,17 +7919,29 @@ class Programacion(Widgets.Dialog):
         self.destroy()
 
 
-class ProgramacionFlota(Widgets.Dialog):
+class ProgramacionFlota(gtk.Dialog):
 
     def __init__(self, padre):
-        super(ProgramacionFlota, self).__init__('Programación de Flota: %s' % ruta)
+        super(ProgramacionFlota, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.http = padre.http
         ruta = padre.selector.ruta.get_text()
         self.dia = padre.dia
         self.ruta = padre.ruta
-        hbox = Gtk.HBox()
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Programaci\xc3\xb3n de Flota: %s' % ruta)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        hbox = gtk.HBox()
         self.vbox.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Mes: '), False, False, 0)
+        hbox.pack_start(gtk.Label('Mes: '), False, False, 0)
         self.combo_mes = Widgets.ComboBox()
         self.combo_mes.set_lista((('Enero', 1),
          ('Febrero', 2),
@@ -7657,7 +7956,7 @@ class ProgramacionFlota(Widgets.Dialog):
          ('Noviembre', 11),
          ('Diciembre', 12)))
         hbox.pack_start(self.combo_mes, False, False, 0)
-        hbox.pack_start(Gtk.Label('Año: '), False, False, 0)
+        hbox.pack_start(gtk.Label('A\xc3\xb1o: '), False, False, 0)
         self.combo_year = Widgets.ComboBox()
         self.combo_year.set_lista((('2014', 2014),
          ('2015', 2015),
@@ -7667,7 +7966,7 @@ class ProgramacionFlota(Widgets.Dialog):
         hbox.pack_start(self.combo_year, False, False, 0)
         self.combo_mes.set_id(self.dia.month)
         self.combo_year.set_id(self.dia.year)
-        hbox.pack_start(Gtk.Label('Lado: '), False, False, 0)
+        hbox.pack_start(gtk.Label('Lado: '), False, False, 0)
         self.combo_lado = Widgets.ComboBox()
         self.combo_lado.set_lista((('A', 0), ('B', 1)))
         hbox.pack_start(self.combo_lado, False, False, 0)
@@ -7677,19 +7976,19 @@ class ProgramacionFlota(Widgets.Dialog):
         self.but_editar = Widgets.Button('editar.png', '_Editar')
         self.but_editar.connect('clicked', self.editar)
         hbox.pack_start(self.but_editar, False, False, 0)
-        self.model = Gtk.ListStore(int, str, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, str)
+        self.model = gtk.ListStore(int, str, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, str)
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_rubber_banding(True)
         self.treeview.set_enable_search(False)
         self.treeview.set_reorderable(False)
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(920, 600)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
         sw.add(self.treeview)
         columnas = ('N', 'HORA', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31')
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i, background=33)
@@ -7793,13 +8092,25 @@ class ProgramacionFlota(Widgets.Dialog):
         self.destroy()
 
 
-class NuevaProgramacion(Widgets.Dialog):
+class NuevaProgramacion(gtk.Dialog):
 
     def __init__(self, padre):
-        super(NuevaProgramacion, self).__init__('Editar Programación: %s-%s' % (padre.combo_mes.get_text(), padre.combo_year.get_text()))
+        super(NuevaProgramacion, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.http = padre.http
         self.ruta = padre.ruta
-        hbox = Gtk.HBox()
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Editar Programaci\xc3\xb3n: %s-%s' % (padre.combo_mes.get_text(), padre.combo_year.get_text()))
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        hbox = gtk.HBox()
         self.programaciones = {}
         self.unidades = padre.unidades
         self.unidades.append([0, 0])
@@ -7814,28 +8125,28 @@ class NuevaProgramacion(Widgets.Dialog):
         else:
             dia = datetime.date(padre.combo_year.get_id(), padre.combo_mes.get_id(), 1)
             self.fecha.set_date(dia)
-            self.fecha.hide()
+            self.fecha.hide_all()
         self.vbox.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Programacion:'), False, False, 0)
+        hbox.pack_start(gtk.Label('Programacion:'), False, False, 0)
         self.combo_prog = Widgets.ComboBox()
         self.combo_prog.set_lista(lista)
         hbox.pack_start(self.combo_prog, False, False, 0)
         self.combo_prog.connect('changed', self.leer)
-        self.but_borrar = Widgets.Button('anular.png', '_Borrar Programación')
+        self.but_borrar = Widgets.Button('anular.png', '_Borrar Programaci\xc3\xb3n')
         self.but_borrar.connect('clicked', self.borrar)
         hbox.pack_start(self.but_borrar, False, False, 0)
-        self.but_nueva = Widgets.Button('nuevo.png', '_Nueva Programación')
+        self.but_nueva = Widgets.Button('nuevo.png', '_Nueva Programaci\xc3\xb3n')
         self.but_nueva.connect('clicked', self.nueva)
         hbox.pack_start(self.but_nueva, False, False, 0)
-        self.but_guardar = Widgets.Button('guardar.png', '_Guardar Programación')
+        self.but_guardar = Widgets.Button('guardar.png', '_Guardar Programaci\xc3\xb3n')
         self.but_guardar.connect('clicked', self.guardar)
         hbox.pack_start(self.but_guardar, False, False, 0)
-        hbox_main = Gtk.HBox(True, 10)
+        hbox_main = gtk.HBox(True, 10)
         self.vbox.pack_start(hbox_main, True, True, 0)
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         hbox_main.pack_start(vbox, True, True, 0)
-        vbox.pack_start(Gtk.Label('LADO A'), False, False, 0)
-        hbox_in = Gtk.HBox(True, 0)
+        vbox.pack_start(gtk.Label('LADO A'), False, False, 0)
+        hbox_in = gtk.HBox(True, 0)
         vbox.pack_start(hbox_in, False, False, 0)
         self.but_a_up = Widgets.Button('arriba.png', None, tooltip='Subir')
         self.but_a_down = Widgets.Button('abajo.png', None, tooltip='Bajar')
@@ -7843,14 +8154,14 @@ class NuevaProgramacion(Widgets.Dialog):
         hbox_in.pack_start(self.but_a_up, True, True, 0)
         hbox_in.pack_start(self.but_a_down, True, True, 0)
         hbox_in.pack_start(self.but_a_remove, True, True, 0)
-        sw_a = Gtk.ScrolledWindow()
+        sw_a = gtk.ScrolledWindow()
         sw_a.set_size_request(250, 600)
-        sw_a.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw_a.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         vbox.pack_start(sw_a, True, True, 0)
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         hbox_main.pack_start(vbox, True, True, 0)
-        hbox_in = Gtk.HBox(True, 0)
-        vbox.pack_start(Gtk.Label('UNIDADES RESTANTES'), False, False, 0)
+        hbox_in = gtk.HBox(True, 0)
+        vbox.pack_start(gtk.Label('UNIDADES RESTANTES'), False, False, 0)
         vbox.pack_start(hbox_in, False, False, 0)
         self.but_a = Widgets.Button('izquierda.png', None, tooltip='Mover al Lado A')
         self.but_a.connect('clicked', self.lado_a)
@@ -7858,14 +8169,14 @@ class NuevaProgramacion(Widgets.Dialog):
         self.but_b.connect('clicked', self.lado_b)
         hbox_in.pack_start(self.but_a, True, True, 0)
         hbox_in.pack_start(self.but_b, True, True, 0)
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(60, 600)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         vbox.pack_start(sw, True, True, 0)
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         hbox_main.pack_start(vbox, True, True, 0)
-        vbox.pack_start(Gtk.Label('LADO B'), False, False, 0)
-        hbox_in = Gtk.HBox(True, 0)
+        vbox.pack_start(gtk.Label('LADO B'), False, False, 0)
+        hbox_in = gtk.HBox(True, 0)
         vbox.pack_start(hbox_in, False, False, 0)
         self.but_b_remove = Widgets.Button('izquierda.png', None, tooltip='No usar')
         self.but_b_up = Widgets.Button('arriba.png', None, tooltip='Subir')
@@ -7873,11 +8184,11 @@ class NuevaProgramacion(Widgets.Dialog):
         hbox_in.pack_start(self.but_b_remove, True, True, 0)
         hbox_in.pack_start(self.but_b_up, True, True, 0)
         hbox_in.pack_start(self.but_b_down, True, True, 0)
-        sw_b = Gtk.ScrolledWindow()
+        sw_b = gtk.ScrolledWindow()
         sw_b.set_size_request(250, 600)
-        sw_b.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw_b.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         vbox.pack_start(sw_b, True, True, 0)
-        self.model_a = Gtk.ListStore(int, int, str, str)
+        self.model_a = gtk.ListStore(int, int, str, str)
         self.treeview_a = Widgets.TreeView(self.model_a)
         self.treeview_a.set_rubber_banding(True)
         self.treeview_a.set_enable_search(False)
@@ -7885,14 +8196,14 @@ class NuevaProgramacion(Widgets.Dialog):
         sw_a.add(self.treeview_a)
         columnas = ('N', 'PADRON')
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i, background=3)
             self.treeview_a.append_column(tvcolumn)
             tvcolumn.encabezado()
 
-        self.model_b = Gtk.ListStore(int, int, str, str)
+        self.model_b = gtk.ListStore(int, int, str, str)
         self.treeview_b = Widgets.TreeView(self.model_b)
         self.treeview_b.set_rubber_banding(True)
         self.treeview_b.set_enable_search(False)
@@ -7900,14 +8211,14 @@ class NuevaProgramacion(Widgets.Dialog):
         sw_b.add(self.treeview_b)
         columnas = ('N', 'PADRON')
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i, background=3)
             self.treeview_b.append_column(tvcolumn)
             tvcolumn.encabezado()
 
-        self.model = Gtk.ListStore(int, str)
+        self.model = gtk.ListStore(int, str)
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_rubber_banding(True)
         self.treeview.set_enable_search(False)
@@ -7915,7 +8226,7 @@ class NuevaProgramacion(Widgets.Dialog):
         sw.add(self.treeview)
         columnas = ('PADRON',)
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i)
@@ -7928,37 +8239,37 @@ class NuevaProgramacion(Widgets.Dialog):
         self.but_b_remove.connect('clicked', self.remove, self.treeview_b)
         self.but_b_up.connect('clicked', self.up, self.treeview_b)
         self.but_b_down.connect('clicked', self.down, self.treeview_b)
-        hbox = Gtk.HBox(True, 10)
+        hbox = gtk.HBox(True, 10)
         self.vbox.pack_start(hbox, False, False, 0)
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         hbox.pack_start(vbox, True, True, 0)
-        vbox.pack_start(Gtk.Label('GRUPOS LADO A'), False, False, 0)
-        sw_a = Gtk.ScrolledWindow()
+        vbox.pack_start(gtk.Label('GRUPOS LADO A'), False, False, 0)
+        sw_a = gtk.ScrolledWindow()
         sw_a.set_size_request(290, 100)
-        sw_a.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw_a.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         vbox.pack_start(sw_a, True, True, 0)
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         hbox.pack_start(vbox, True, True, 0)
-        vbox.pack_start(Gtk.Label('GRUPOS LADO B'), False, False, 0)
-        sw_b = Gtk.ScrolledWindow()
+        vbox.pack_start(gtk.Label('GRUPOS LADO B'), False, False, 0)
+        sw_b = gtk.ScrolledWindow()
         sw_b.set_size_request(290, 100)
-        sw_b.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw_b.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         vbox.pack_start(sw_b, True, True, 0)
-        self.model_grupo_a = Gtk.ListStore(int, GObject.TYPE_OBJECT, str, int)
+        self.model_grupo_a = gtk.ListStore(int, gobject.TYPE_OBJECT, str, int)
         self.treeview_grupo_a = Widgets.TreeView(self.model_grupo_a)
         self.treeview_grupo_a.set_rubber_banding(True)
         self.treeview_grupo_a.set_enable_search(False)
         self.treeview_grupo_a.set_reorderable(False)
         sw_a.add(self.treeview_grupo_a)
         columnas = ('CANTIDAD', 'PATRON')
-        model = Gtk.ListStore(str, int)
+        model = gtk.ListStore(str, int)
         model.append(('ROMBO ASC', 1))
         model.append(('ROMBO DESC', 2))
         model.append(('ASCENDENTE', 3))
         model.append(('DESCENDENTE', 4))
         for i, columna in enumerate(columnas):
             if i == 1:
-                cell_text = Gtk.CellRendererCombo()
+                cell_text = gtk.CellRendererCombo()
                 cell_text.set_property('model', model)
                 cell_text.set_property('text-column', 0)
                 cell_text.set_property('editable', True)
@@ -7973,13 +8284,13 @@ class NuevaProgramacion(Widgets.Dialog):
                 cell_text.connect('editado', self.editado, self.treeview_grupo_a)
                 cell_text.set_property('editable', True)
                 tvcolumn = Widgets.TreeViewColumn(columna)
-                # tvcolumn.set_flags(Gtk.CAN_FOCUS)
+                tvcolumn.set_flags(gtk.CAN_FOCUS)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i)
                 self.treeview_grupo_a.append_column(tvcolumn)
                 tvcolumn.encabezado()
 
-        self.model_grupo_b = Gtk.ListStore(int, GObject.TYPE_OBJECT, str, int)
+        self.model_grupo_b = gtk.ListStore(int, gobject.TYPE_OBJECT, str, int)
         self.treeview_grupo_b = Widgets.TreeView(self.model_grupo_b)
         self.treeview_grupo_b.set_rubber_banding(True)
         self.treeview_grupo_b.set_enable_search(False)
@@ -7988,7 +8299,7 @@ class NuevaProgramacion(Widgets.Dialog):
         columnas = ('CANTIDAD', 'PATRON')
         for i, columna in enumerate(columnas):
             if i == 1:
-                cell_text = Gtk.CellRendererCombo()
+                cell_text = gtk.CellRendererCombo()
                 cell_text.set_property('model', model)
                 cell_text.set_property('text-column', 0)
                 cell_text.set_property('editable', True)
@@ -8003,7 +8314,7 @@ class NuevaProgramacion(Widgets.Dialog):
                 cell_text.connect('editado', self.editado, self.treeview_grupo_b)
                 cell_text.set_property('editable', True)
                 tvcolumn = Widgets.TreeViewColumn(columna)
-                # tvcolumn.set_flags(Gtk.CAN_FOCUS)
+                tvcolumn.set_flags(gtk.CAN_FOCUS)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i)
                 self.treeview_grupo_b.append_column(tvcolumn)
@@ -8175,7 +8486,7 @@ class NuevaProgramacion(Widgets.Dialog):
         i = 0
         for a in self.model_grupo_a:
             if a[3] == 0:
-                return Widgets.Alerta('Error', 'warning.png', 'Tiene que definir el Patrón para cada grupo')
+                return Widgets.Alerta('Error', 'warning.png', 'Tiene que definir el Patr\xc3\xb3n para cada grupo')
             grupo = []
             cont = a[0]
             if cont == 0:
@@ -8191,7 +8502,7 @@ class NuevaProgramacion(Widgets.Dialog):
         i = 0
         for a in self.model_grupo_b:
             if a[3] == 0:
-                return Widgets.Alerta('Error', 'warning.png', 'Tiene que definir el Patrón para cada grupo')
+                return Widgets.Alerta('Error', 'warning.png', 'Tiene que definir el Patr\xc3\xb3n para cada grupo')
             grupo = []
             cont = a[0]
             if cont == 0:
@@ -8308,28 +8619,40 @@ class NuevaProgramacion(Widgets.Dialog):
         self.destroy()
 
 
-class Prestamos(Widgets.Dialog):
+class Prestamos(gtk.Dialog):
 
     def __init__(self, parent, trabajador_id, nombre):
-        super(Prestamos, self).__init__('Préstamos del Trabajador: %s' % nombre)
+        super(Prestamos, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.http = parent.http
         self.trabajador = trabajador_id
-        sw = Gtk.ScrolledWindow()
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Pr\xc3\xa9stamos del Trabajador: %s' % nombre)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(600, 500)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(str, str, str, str, bool, str)
-        self.treeview = Gtk.TreeView(self.model)
+        self.model = gtk.ListStore(str, str, str, str, bool, str)
+        self.treeview = gtk.TreeView(self.model)
         columnas = ('DIA', 'OBSERVACION', 'MON', 'SALDO', 'FACT')
         sw.add(self.treeview)
         for i, columna in enumerate(columnas):
             if i == 4:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
             else:
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i)
@@ -8345,13 +8668,13 @@ class Prestamos(Widgets.Dialog):
         self.action_area.pack_start(but_nuevo, False, False, 0)
         but_nuevo.connect('clicked', self.nuevo)
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.but_ok = Widgets.Button('ok.png', '_OK')
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.treeview.connect('row-activated', self.facturar)
         self.modificaciones = False
-        self.menu = Gtk.Menu()
-        item1 = Gtk.MenuItem('Anular Orden de Pago')
+        self.menu = gtk.Menu()
+        item1 = gtk.MenuItem('Anular Orden de Pago')
         item1.connect('activate', self.anular_orden)
         self.menu.append(item1)
         self.treeview.connect('button-release-event', self.on_release_button)
@@ -8379,7 +8702,7 @@ class Prestamos(Widgets.Dialog):
                 path, col, cellx, celly = pthinfo
                 treeview.grab_focus()
                 treeview.set_cursor(path, col, 0)
-                self.menu.popup(None, None, None, None, event.button, t)
+                self.menu.popup(None, None, None, event.button, t)
                 self.menu.show_all()
             return True
         try:
@@ -8399,8 +8722,8 @@ class Prestamos(Widgets.Dialog):
 
         amortizado = self.model[path][4]
         if amortizado:
-            return Widgets.Alerta('Error al Anular', 'warning.png', 'No puede anular un préstamo si ya está amortizado')
-        dialogo = Widgets.Alerta_SINO('Anular Orden', 'anular.png', '\xc2\xbfEstá seguro de anular esta cotización?.')
+            return Widgets.Alerta('Error al Anular', 'warning.png', 'No puede anular un pr\xc3\xa9stamo si ya est\xc3\xa1 amortizado')
+        dialogo = Widgets.Alerta_SINO('Anular Orden', 'anular.png', '\xc2\xbfEst\xc3\xa1 seguro de anular esta cotizaci\xc3\xb3n?.')
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
         if respuesta:
@@ -8419,7 +8742,7 @@ class Prestamos(Widgets.Dialog):
             return
 
         facturado = self.model[path][4]
-        dialogo = Widgets.Alerta_FechaNumero('Amortizar Préstamo', 'dinero.png', 'Escriba el monto a pagar', 10, True)
+        dialogo = Widgets.Alerta_FechaNumero('Amortizar Pr\xc3\xa9stamo', 'dinero.png', 'Escriba el monto a pagar', 10, True)
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
         if respuesta:
@@ -8432,7 +8755,7 @@ class Prestamos(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
+        self.but_ok.hide_all()
         self.run()
         self.cerrar()
 
@@ -8440,12 +8763,24 @@ class Prestamos(Widgets.Dialog):
         self.destroy()
 
 
-class Castigar(Widgets.Dialog):
+class Castigar(gtk.Dialog):
 
     def __init__(self, parent, trabajador_id, nombre):
-        super(Castigar, self).__init__('Castigar Trabajador: %s' % nombre)
+        super(Castigar, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
         self.http = parent.http
         self.trabajador = trabajador_id
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Castigar Trabajador: %s' % nombre)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
         if not self.http.castigos:
             data = self.http.load('castigos', {'trabajador_id': self.trabajador})
             if data:
@@ -8453,16 +8788,16 @@ class Castigar(Widgets.Dialog):
             else:
                 self.cerrar()
                 return
-        tabla = Gtk.Table(2, 3)
+        tabla = gtk.Table(2, 3)
         self.vbox.pack_start(tabla, False, False, 0)
-        tabla.attach(Gtk.Label('Día:'), 0, 1, 0, 1)
+        tabla.attach(gtk.Label('D\xc3\xada:'), 0, 1, 0, 1)
         self.fecha = Widgets.Fecha()
         tabla.attach(self.fecha, 1, 2, 0, 1)
-        tabla.attach(Gtk.Label('Motivo:'), 0, 1, 1, 2)
+        tabla.attach(gtk.Label('Motivo:'), 0, 1, 1, 2)
         self.combo_motivo = Widgets.ComboBox()
         tabla.attach(self.combo_motivo, 1, 2, 1, 2)
         self.combo_motivo.set_lista(self.http.castigos)
-        tabla.attach(Gtk.Label('Detalle:'), 0, 1, 2, 3)
+        tabla.attach(gtk.Label('Detalle:'), 0, 1, 2, 3)
         self.entry_detalle = Widgets.Texto(64)
         tabla.attach(self.entry_detalle, 1, 2, 2, 3)
         but_ok = Widgets.Button('castigos.png', '_Castigar')
@@ -8470,8 +8805,8 @@ class Castigar(Widgets.Dialog):
         but_ok.connect('clicked', self.castigar)
         self.but_ok = Widgets.Button('castigos.png', 'Castigar')
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.respuesta = False
 
     def castigar(self, *args):
@@ -8484,27 +8819,40 @@ class Castigar(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
-        if self.run() == Gtk.ResponseType.OK:
+        self.but_ok.hide_all()
+        if self.run() == gtk.RESPONSE_OK:
             return self.respuesta
 
     def cerrar(self, *args):
         self.destroy()
 
 
-class FechaConceptoMonto(Widgets.Dialog):
+class FechaConceptoMonto(gtk.Dialog):
 
     def __init__(self, parent):
-        super(FechaConceptoMonto, self).__init__('Préstamo Nuevo:')
-        tabla = Gtk.Table(2, 3)
+        super(FechaConceptoMonto, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
+        self.http = parent.http
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Pr\xc3\xa9stamo Nuevo:')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        tabla = gtk.Table(2, 3)
         self.vbox.pack_start(tabla, False, False, 0)
-        tabla.attach(Gtk.Label('Día:'), 0, 1, 0, 1)
+        tabla.attach(gtk.Label('D\xc3\xada:'), 0, 1, 0, 1)
         self.fecha = Widgets.Fecha()
         tabla.attach(self.fecha, 1, 2, 0, 1)
-        tabla.attach(Gtk.Label('Concepto:'), 0, 1, 1, 2)
+        tabla.attach(gtk.Label('Concepto:'), 0, 1, 1, 2)
         self.entry_concepto = Widgets.Texto(128)
         tabla.attach(self.entry_concepto, 1, 2, 1, 2)
-        tabla.attach(Gtk.Label('Monto:'), 0, 1, 2, 3)
+        tabla.attach(gtk.Label('Monto:'), 0, 1, 2, 3)
         self.entry_monto = Widgets.Texto(10)
         tabla.attach(self.entry_monto, 1, 2, 2, 3)
         but_ok = Widgets.Button('dinero.png', '_Facturar')
@@ -8512,8 +8860,8 @@ class FechaConceptoMonto(Widgets.Dialog):
         but_ok.connect('clicked', self.enviar)
         self.but_ok = Widgets.Button('dinero.png', '_Facturar')
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
 
     def enviar(self, *args):
         try:
@@ -8521,14 +8869,14 @@ class FechaConceptoMonto(Widgets.Dialog):
             concepto = self.entry_concepto.get_text()
             monto = float(self.entry_monto.get_text())
         except:
-            return Widgets.Alerta('Error', 'warning.png', 'Monto inválido')
+            return Widgets.Alerta('Error', 'warning.png', 'Monto inv\xc3\xa1lido')
 
         self.but_ok.clicked()
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
-        if self.run() == Gtk.ResponseType.OK:
+        self.but_ok.hide_all()
+        if self.run() == gtk.RESPONSE_OK:
             fecha = self.fecha.get_date()
             concepto = self.entry_concepto.get_text()
             monto = float(self.entry_monto.get_text())
@@ -8540,26 +8888,39 @@ class FechaConceptoMonto(Widgets.Dialog):
         self.destroy()
 
 
-class VentasGrifo(Widgets.Dialog):
+class VentasGrifo(gtk.Dialog):
 
     def __init__(self, padre, lista):
-        super(VentasGrifo, self).__init__('Ventas del día')
-        sw = Gtk.ScrolledWindow()
+        super(VentasGrifo, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
+        self.http = padre.http
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Ventas del d\xc3\xada')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(600, 500)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(str, str, int, str, bool, bool, str)
-        self.treeview = Gtk.TreeView(self.model)
+        self.model = gtk.ListStore(str, str, int, str, bool, bool, str)
+        self.treeview = gtk.TreeView(self.model)
         columnas = ('N\xc2\xba COMPROBANTE', 'HORA', 'PAD', 'MONTO', 'CONTADO', 'ANULADO')
         sw.add(self.treeview)
         for i, columna in enumerate(columnas):
             if i > 3:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
             else:
-                cell_text = Gtk.CellRendererText()
+                cell_text = gtk.CellRendererText()
                 tvcolumn = Widgets.TreeViewColumn(columna)
                 tvcolumn.pack_start(cell_text, True)
                 tvcolumn.set_attributes(cell_text, markup=i)
@@ -8573,9 +8934,9 @@ class VentasGrifo(Widgets.Dialog):
         self.action_area.pack_start(but_anular, False, False, 0)
         but_anular.connect('clicked', self.anular)
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.but_ok = Widgets.Button('ok.png', '_OK')
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.iniciar()
 
     def anular(self, *args):
@@ -8585,7 +8946,7 @@ class VentasGrifo(Widgets.Dialog):
         except:
             return
 
-        dialogo = Widgets.Alerta_SINO('Anular Venta', 'anular.png', '\xc2\xbfEstá seguro de anular esta venta?')
+        dialogo = Widgets.Alerta_SINO('Anular Venta', 'anular.png', '\xc2\xbfEst\xc3\xa1 seguro de anular esta venta?')
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
         if respuesta:
@@ -8597,7 +8958,7 @@ class VentasGrifo(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
+        self.but_ok.hide_all()
         self.run()
         self.cerrar()
 
@@ -8605,20 +8966,20 @@ class VentasGrifo(Widgets.Dialog):
         self.destroy()
 
 
-class ReporteCobro(Gtk.Window):
+class ReporteCobro(gtk.Window):
 
     def __init__(self, http, padre):
-        super(ReporteCobro, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(ReporteCobro, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.http = http
-        vbox_main = Gtk.VBox(False, 0)
+        vbox_main = gtk.VBox(False, 0)
         self.add(vbox_main)
-        hbox = Gtk.HBox(False, 2)
+        hbox = gtk.HBox(False, 2)
         vbox_main.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Día:'), False, False, 0)
+        hbox.pack_start(gtk.Label('D\xc3\xada:'), False, False, 0)
         self.fecha = Widgets.Fecha()
         self.fecha.set_size_request(150, 30)
         hbox.pack_start(self.fecha, False, False, 0)
-        hbox.pack_start(Gtk.Label('Concepto:'), False, False, 0)
+        hbox.pack_start(gtk.Label('Concepto:'), False, False, 0)
         self.concepto = Widgets.ComboBox()
         hbox.pack_start(self.concepto, False, False, 0)
         self.dia, self.ruta, self.lado = padre.padre.selector.get_datos()
@@ -8632,13 +8993,13 @@ class ReporteCobro(Gtk.Window):
         #hbox.pack_start(self.but_bloquear, False, False, 0)
         self.dia = self.fecha.get_date()
         self.set_title('Reporte de Cobros')
-        sw = Gtk.ScrolledWindow()
-        sw.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw = gtk.ScrolledWindow()
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             sw.set_size_request(720, 540)
         else:
             sw.set_size_request(800, 600)
-        self.model = Gtk.ListStore(int, str)
+        self.model = gtk.ListStore(int, str)
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_rubber_banding(True)
         selection = self.treeview.get_selection()
@@ -8648,7 +9009,7 @@ class ReporteCobro(Gtk.Window):
         sw.add(self.treeview)
         columnas = ('PADRON', 'MONTO')
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i)
@@ -8700,124 +9061,124 @@ class ReporteCobro(Gtk.Window):
         self.destroy()
 
 
-class Arqueo(Gtk.Window):
+class Arqueo(gtk.Window):
 
     def __init__(self, http, padre):
-        super(Arqueo, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(Arqueo, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.http = http
         self.set_size_request(400, 520)
         self.ruta = padre.ruta
         self.lado = padre.lado
-        vbox_main = Gtk.VBox(False, 0)
+        vbox_main = gtk.VBox(False, 0)
         self.add(vbox_main)
         frame = Widgets.Frame('Billetes')
         vbox_main.pack_start(frame, False, False, 10)
-        tabla = Gtk.Table(3, 5)
+        tabla = gtk.Table(3, 5)
         frame.add(tabla)
 
-        label = Gtk.Label('S/ 200.00')
+        label = gtk.Label('S/ 200.00')
         tabla.attach(label, 0, 1, 0, 1)
         self.entry_doscientos = Widgets.Numero(3)
         tabla.attach(self.entry_doscientos, 1, 2, 0, 1)
-        self.suma_doscientos = Gtk.Label()
+        self.suma_doscientos = gtk.Label()
         tabla.attach(self.suma_doscientos, 2, 3, 0, 1)
 
-        label = Gtk.Label('S/ 100.00')
+        label = gtk.Label('S/ 100.00')
         tabla.attach(label, 0, 1, 1, 2)
         self.entry_cien = Widgets.Numero(3)
         tabla.attach(self.entry_cien, 1, 2, 1, 2)
-        self.suma_cien = Gtk.Label()
+        self.suma_cien = gtk.Label()
         tabla.attach(self.suma_cien, 2, 3, 1, 2)
 
-        label = Gtk.Label('S/ 50.00')
+        label = gtk.Label('S/ 50.00')
         tabla.attach(label, 0, 1, 2, 3)
         self.entry_cincuenta = Widgets.Numero(3)
         tabla.attach(self.entry_cincuenta, 1, 2, 2, 3)
-        self.suma_cincuenta = Gtk.Label()
+        self.suma_cincuenta = gtk.Label()
         tabla.attach(self.suma_cincuenta, 2, 3, 2, 3)
 
-        label = Gtk.Label('S/ 20.00')
+        label = gtk.Label('S/ 20.00')
         tabla.attach(label, 0, 1, 3, 4)
         self.entry_veinte = Widgets.Numero(3)
         tabla.attach(self.entry_veinte, 1, 2, 3, 4)
-        self.suma_veinte = Gtk.Label()
+        self.suma_veinte = gtk.Label()
         tabla.attach(self.suma_veinte, 2, 3, 3, 4)
 
-        label = Gtk.Label('S/ 10.00')
+        label = gtk.Label('S/ 10.00')
         tabla.attach(label, 0, 1, 4, 5)
         self.entry_diez = Widgets.Numero(3)
         tabla.attach(self.entry_diez, 1, 2, 4, 5)
-        self.suma_diez = Gtk.Label()
+        self.suma_diez = gtk.Label()
         tabla.attach(self.suma_diez, 2, 3, 4, 5)
 
         frame = Widgets.Frame('Monedas')
         vbox_main.pack_start(frame, False, False, 10)
-        tabla = Gtk.Table(3, 6)
+        tabla = gtk.Table(3, 6)
         frame.add(tabla)
 
-        label = Gtk.Label('S/ 5.00')
+        label = gtk.Label('S/ 5.00')
         tabla.attach(label, 0, 1, 0, 1)
         self.entry_cinco = Widgets.Numero(3)
         tabla.attach(self.entry_cinco, 1, 2, 0, 1)
-        self.suma_cinco = Gtk.Label()
+        self.suma_cinco = gtk.Label()
         tabla.attach(self.suma_cinco, 2, 3, 0, 1)
 
-        label = Gtk.Label('S/ 2.00')
+        label = gtk.Label('S/ 2.00')
         tabla.attach(label, 0, 1, 1, 2)
         self.entry_dos = Widgets.Numero(3)
         tabla.attach(self.entry_dos, 1, 2, 1, 2)
-        self.suma_dos = Gtk.Label()
+        self.suma_dos = gtk.Label()
         tabla.attach(self.suma_dos, 2, 3, 1, 2)
 
-        label = Gtk.Label('S/ 1.00')
+        label = gtk.Label('S/ 1.00')
         tabla.attach(label, 0, 1, 2, 3)
         self.entry_uno = Widgets.Numero(3)
         tabla.attach(self.entry_uno, 1, 2, 2, 3)
-        self.suma_uno = Gtk.Label()
+        self.suma_uno = gtk.Label()
         tabla.attach(self.suma_uno, 2, 3, 2, 3)
 
-        label = Gtk.Label('S/ 0.50')
+        label = gtk.Label('S/ 0.50')
         tabla.attach(label, 0, 1, 3, 4)
         self.entry_cincu = Widgets.Numero(3)
         tabla.attach(self.entry_cincu, 1, 2, 3, 4)
-        self.suma_cincu = Gtk.Label()
+        self.suma_cincu = gtk.Label()
         tabla.attach(self.suma_cincu, 2, 3, 3, 4)
 
-        label = Gtk.Label('S/ 0.20')
+        label = gtk.Label('S/ 0.20')
         tabla.attach(label, 0, 1, 4, 5)
         self.entry_vein = Widgets.Numero(3)
         tabla.attach(self.entry_vein, 1, 2, 4, 5)
-        self.suma_vein = Gtk.Label()
+        self.suma_vein = gtk.Label()
         tabla.attach(self.suma_vein, 2, 3, 4, 5)
 
-        label = Gtk.Label('S/ 0.10')
+        label = gtk.Label('S/ 0.10')
         tabla.attach(label, 0, 1, 5, 6)
         self.entry_die = Widgets.Numero(3)
         tabla.attach(self.entry_die, 1, 2, 5, 6)
-        self.suma_die = Gtk.Label()
+        self.suma_die = gtk.Label()
         tabla.attach(self.suma_die, 2, 3, 5, 6)
 
         frame = Widgets.Frame('SUMA')
         vbox_main.pack_start(frame, False, False, 10)
-        tabla = Gtk.Table(3, 5)
+        tabla = gtk.Table(3, 5)
         frame.add(tabla)
 
-        label = Gtk.Label('Billetes')
+        label = gtk.Label('Billetes')
         tabla.attach(label, 0, 1, 0, 1)
-        self.suma_billetes = Gtk.Label()
+        self.suma_billetes = gtk.Label()
         tabla.attach(self.suma_billetes, 2, 3, 0, 1)
 
-        label = Gtk.Label('Monedas')
+        label = gtk.Label('Monedas')
         tabla.attach(label, 0, 1, 1, 2)
-        self.suma_monedas = Gtk.Label()
+        self.suma_monedas = gtk.Label()
         tabla.attach(self.suma_monedas, 2, 3, 1, 2)
 
-        label = Gtk.Label('TOTAL')
+        label = gtk.Label('TOTAL')
         tabla.attach(label, 0, 1, 2, 3)
-        self.suma_total = Gtk.Label()
+        self.suma_total = gtk.Label()
         tabla.attach(self.suma_total, 2, 3, 2, 3)
 
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox_main.pack_start(hbox, False, False, 10)
 
         self.button_cancelar = Widgets.Button('cancelar.png', 'Cancelar')
@@ -8921,18 +9282,18 @@ class Arqueo(Gtk.Window):
     def cerrar(self, *args):
         self.destroy()
 
-class MiCaja(Gtk.Window):
+class MiCaja(gtk.Window):
 
     def __init__(self, http, padre):
-        super(MiCaja, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(MiCaja, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.http = http
-        vbox_main = Gtk.VBox(False, 0)
+        vbox_main = gtk.VBox(False, 0)
         self.add(vbox_main)
         self.padre = padre
         self.dia = padre.dia
         self.ruta = padre.ruta
         self.lado = padre.lado
-        hbox = Gtk.HBox(False, 2)
+        hbox = gtk.HBox(False, 2)
         vbox_main.pack_start(hbox, False, False, 0)
         self.but_gasto = Widgets.Button('dinero.png', 'Reg. Gasto')
         hbox.pack_start(self.but_gasto, False, False, 0)
@@ -8950,7 +9311,7 @@ class MiCaja(Gtk.Window):
         hbox.pack_start(self.but_arqueo, False, False, 0)
         self.but_arqueo.connect('clicked', self.arqueo)
 
-        hbox = Gtk.HBox(False, 2)
+        hbox = gtk.HBox(False, 2)
         vbox_main.pack_start(hbox, False, False, 0)
         self.but_actualizar = Widgets.Button('actualizar.png', 'Resumen')
         hbox.pack_start(self.but_actualizar, False, False, 0)
@@ -8965,8 +9326,8 @@ class MiCaja(Gtk.Window):
         hbox.pack_start(self.but_anular, False, False, 0)
         self.but_anular.connect('clicked', self.anular)
         self.set_title('Reporte de Caja: ' + self.http.despachador)
-        sw = Gtk.ScrolledWindow()
-        sw.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw = gtk.ScrolledWindow()
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         sw.set_size_request(1000, 540)
 
         columnas = ('CONCEPTO', 'TICKETS', 'MONTO')
@@ -9016,7 +9377,7 @@ class MiCaja(Gtk.Window):
                  'hora': '',
                  'clave': clave,
                 }
-                print(('anular-pago-nuevo', datos))
+                print('anular-pago-nuevo', datos)
                 data = self.http.load('anular-pago', datos)
                 if data:
                     model[len(model) - 1][6] = ''
@@ -9181,7 +9542,7 @@ class MiCaja(Gtk.Window):
         self.cerrar()
 
     def cerrar_caja(self, *args):
-        dialogo = Widgets.Alerta_Dia('Advertencia Operación Irreversible', 'warning.png', 'Antes de CERRAR SU CAJA asegurese de haber impreso los reportes necesarios.\nSi desea continuar de todas maneras, <b>Indique el día al que pertenece sus cobros.</b>')
+        dialogo = Widgets.Alerta_Dia('Advertencia Operaci\xc3\xb3n Irreversible', 'warning.png', 'Antes de CERRAR SU CAJA asegurese de haber impreso los reportes necesarios.\nSi desea continuar de todas maneras, <b>Indique el d\xc3\xada al que pertenece sus cobros.</b>')
         if dialogo.iniciar():
             data = self.http.load('cerrar-caja', {'dia': dialogo.dia.get_date().strftime('%d-%m-%Y')})
             dialogo.cerrar()
@@ -9211,28 +9572,40 @@ class MiCaja(Gtk.Window):
         dialogo.cerrar()
 
 
-class Gasto(Widgets.Dialog):
+class Gasto(gtk.Dialog):
 
     def __init__(self, padre):
-        super(Gasto, self).__init__('Registrar Gasto')
+        super(Gasto, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
+        self.set_modal(True)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.set_transient_for(parent)
         self.padre = padre
         self.http = padre.http
-        table = Gtk.Table(2, 2)
+        self.connect('delete_event', self.cerrar)
+        self.set_title('Registrar Gasto')
+        table = gtk.Table(2, 2)
         self.vbox.pack_start(table, False, False, 0)
         self.entry_concepto = Widgets.Texto(64)
-        table.attach(Gtk.Label('Concepto:'), 0, 1, 0, 1, Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL, 2, 2)
-        table.attach(self.entry_concepto, 1, 2, 0, 1, Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL, 2, 2)
+        table.attach(gtk.Label('Concepto:'), 0, 1, 0, 1, gtk.FILL, gtk.FILL, 2, 2)
+        table.attach(self.entry_concepto, 1, 2, 0, 1, gtk.FILL, gtk.FILL, 2, 2)
         self.entry_monto = Widgets.Texto(7)
-        table.attach(Gtk.Label('Monto:'), 0, 1, 1, 2, Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL, 2, 2)
-        table.attach(self.entry_monto, 1, 2, 1, 2, Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL, 2, 2)
+        table.attach(gtk.Label('Monto:'), 0, 1, 1, 2, gtk.FILL, gtk.FILL, 2, 2)
+        table.attach(self.entry_monto, 1, 2, 1, 2, gtk.FILL, gtk.FILL, 2, 2)
         self.but_ok = Widgets.Button('aceptar.png', '_Aceptar')
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         self.but_salir = Widgets.Button('cancelar.png', '_Cancelar')
-        self.add_action_widget(self.but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(self.but_salir, gtk.RESPONSE_CANCEL)
 
     def iniciar(self):
         self.show_all()
-        if self.run() == Gtk.ResponseType.OK:
+        if self.run() == gtk.RESPONSE_OK:
             self.datos = {'concepto': self.entry_concepto.get_text(),
              'monto': self.entry_monto.get_text(),
              'ruta_id': self.padre.padre.ruta,
@@ -9245,26 +9618,26 @@ class Gasto(Widgets.Dialog):
         self.destroy()
 
 
-class Transbordo(Gtk.Window):
+class Transbordo(gtk.Window):
 
     def __init__(self, http, padre):
-        super(Transbordo, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(Transbordo, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.http = http
-        vbox_main = Gtk.VBox(False, 0)
-        self.set_position(Gtk.WindowPosition.CENTER)
+        vbox_main = gtk.VBox(False, 0)
+        self.set_position(gtk.WIN_POS_CENTER)
         self.padre = padre
         self.ruta = self.padre.ruta
         self.lado = self.padre.lado
         self.padron = self.padre.padron
         self.set_title('Transbordos A Favor de la Unidad %s' % self.padre.padron)
         self.add(vbox_main)
-        hbox_main = Gtk.HBox(False, 2)
+        hbox_main = gtk.HBox(False, 2)
         vbox_main.pack_start(hbox_main, False, False, 0)
-        frame = Gtk.Frame('Transbordos de La Unidad')
+        frame = gtk.Frame('Transbordos de La Unidad')
         hbox_main.pack_start(frame, False, False, 0)
-        vbox_transbordos = Gtk.VBox(False, 0)
+        vbox_transbordos = gtk.VBox(False, 0)
         frame.add(vbox_transbordos)
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         vbox_transbordos.pack_start(hbox, False, False, 0)
         self.but_nuevo = Widgets.Button('nuevo.png', 'Nuevo')
         hbox.pack_start(self.but_nuevo, False, False, 0)
@@ -9272,17 +9645,17 @@ class Transbordo(Gtk.Window):
         self.but_anular = Widgets.Button('cancelar.png', 'Anular')
         hbox.pack_start(self.but_anular, False, False, 0)
         self.but_anular.connect('clicked', self.anular)
-        sw = Gtk.ScrolledWindow()
-        sw.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw = gtk.ScrolledWindow()
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             sw.set_size_request(180, 300)
         else:
             sw.set_size_request(200, 300)
-        self.model_transbordo = Gtk.ListStore(str, str, str, str, str, str, GObject.TYPE_PYOBJECT)
+        self.model_transbordo = gtk.ListStore(str, str, str, str, str, str, gobject.TYPE_PYOBJECT)
         self.treeview_transbordo = Widgets.TreeView(self.model_transbordo)
         columnas = ['PAD', 'RUTA', 'SALIDA', 'ESTADO']
         for i, columna in enumerate(columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i)
@@ -9296,13 +9669,13 @@ class Transbordo(Gtk.Window):
         self.treeview_transbordo.set_reorderable(False)
         vbox_transbordos.pack_start(sw, True, True, 0)
         sw.add(self.treeview_transbordo)
-        frame = Gtk.Frame('Boletos del Transbordo')
+        frame = gtk.Frame('Boletos del Transbordo')
         hbox_main.pack_start(frame, False, False, 0)
-        vbox_boletos = Gtk.VBox(False, 0)
+        vbox_boletos = gtk.VBox(False, 0)
         frame.add(vbox_boletos)
-        self.label = Gtk.Label()
+        self.label = gtk.Label()
         vbox_boletos.pack_start(self.label, False, False, 0)
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         vbox_boletos.pack_start(hbox, False, False, 0)
         self.boleto = Widgets.ComboBox()
         datos = {'ruta_id': self.padre.ruta}
@@ -9327,13 +9700,13 @@ class Transbordo(Gtk.Window):
         self.but_eliminar = Widgets.Button('cancelar.png', 'Eliminar')
         hbox.pack_start(self.but_eliminar, False, False, 0)
         self.but_eliminar.connect('clicked', self.eliminar)
-        sw = Gtk.ScrolledWindow()
-        sw.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sw = gtk.ScrolledWindow()
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
         if os.name == 'nt':
             sw.set_size_request(400, 300)
         else:
             sw.set_size_request(450, 300)
-        self.model_boleto = Gtk.ListStore(str, int, str)
+        self.model_boleto = gtk.ListStore(str, int, str)
         self.treeview_boleto = Widgets.TreeView(self.model_boleto)
         columnas = ['BOLETO', 'NUMERO', 'PAGAR']
         for i, columna in enumerate(columnas):
@@ -9342,11 +9715,11 @@ class Transbordo(Gtk.Window):
                 cell = Widgets.Cell()
                 cell.connect('editado', self.editado)
                 cell.set_property('editable', True)
-                # column.set_flags(Gtk.CAN_FOCUS)
+                column.set_flags(gtk.CAN_FOCUS)
                 self.column = column
                 self.cell = cell
             else:
-                cell = Gtk.CellRendererText()
+                cell = gtk.CellRendererText()
                 cell.set_property('editable', False)
             column.pack_start(cell, True)
             column.set_attributes(cell, text=i)
@@ -9360,8 +9733,8 @@ class Transbordo(Gtk.Window):
         vbox_boletos.pack_start(sw, True, True, 0)
         sw.add(self.treeview_boleto)
         self.cargar()
-        hbox = Gtk.HBox(False, 0)
-        hbox.pack_start(Gtk.Label('TOTAL TRANSBORDO:'))
+        hbox = gtk.HBox(False, 0)
+        hbox.pack_start(gtk.Label('TOTAL TRANSBORDO:'))
         self.entry_total = Widgets.Texto(10)
         self.entry_total.set_sensitive(False)
         hbox.pack_start(self.entry_total, False, False, 0)
@@ -9439,11 +9812,11 @@ class Transbordo(Gtk.Window):
             return
 
         if row[3] == 'ANULADO':
-            return Widgets.Alerta('Ya está anulado', 'error.png', 'El transbordo ya está anulado')
+            return Widgets.Alerta('Ya est\xc3\xa1 anulado', 'error.png', 'El transbordo ya est\xc3\xa1 anulado')
         if row[3] == 'EDITAR':
             treeiter = self.model_transbordo.get_iter(path)
             self.model_transbordo.remove(treeiter)
-        dialogo = Widgets.Alerta_SINO('Anular Transbordo', 'warning.png', 'Confirme que desea anular el transbordo del padrón %s' % row[0])
+        dialogo = Widgets.Alerta_SINO('Anular Transbordo', 'warning.png', 'Confirme que desea anular el transbordo del padr\xc3\xb3n %s' % row[0])
         if dialogo.iniciar():
             datos = {'transbordo_id': i,
              'padron': row[0],
@@ -9457,7 +9830,7 @@ class Transbordo(Gtk.Window):
 
     def actualizar(self, *args):
         if self.editable:
-            dialogo = Widgets.Alerta_SINO('Advertencia', 'salir.png', '\xc2\xbfEstá seguro de cancelar el ingreso de este transbordo?')
+            dialogo = Widgets.Alerta_SINO('Advertencia', 'salir.png', '\xc2\xbfEst\xc3\xa1 seguro de cancelar el ingreso de este transbordo?')
             if dialogo.iniciar():
                 path = 0
                 for b in self.model_boleto:
@@ -9503,7 +9876,7 @@ class Transbordo(Gtk.Window):
         numero = self.entry_numero.get_int()
         for b in self.model_boleto:
             if int(b[1]) == numero:
-                return Widgets.Alerta('No se puede usar el Boleto', 'warning.png', 'El boleto ya está repetido')
+                return Widgets.Alerta('No se puede usar el Boleto', 'warning.png', 'El boleto ya est\xc3\xa1 repetido')
 
         existe = False
         anulado = False
@@ -9518,7 +9891,7 @@ class Transbordo(Gtk.Window):
                     existe = True
 
         if not self.editable:
-            return Widgets.Alerta('El transbordo está cerrado', 'warning.png', 'No puede agregar más boletos al transbordo,\ndebe anularlo y crear uno nuevamente')
+            return Widgets.Alerta('El transbordo est\xc3\xa1 cerrado', 'warning.png', 'No puede agregar m\xc3\xa1s boletos al transbordo,\ndebe anularlo y crear uno nuevamente')
         if anulado:
             return Widgets.Alerta('No se puede usar el Boleto', 'warning.png', 'El boleto ha sido anulado')
         if not existe:
@@ -9528,7 +9901,7 @@ class Transbordo(Gtk.Window):
 
     def retroceder(self, widget, event):
         if event.keyval == 65293 or event.keyval == 65421:
-            self.do_move_focus(self, Gtk.DirectionType.TAB_BACKWARD)
+            self.do_move_focus(self, gtk.DIR_TAB_BACKWARD)
 
     def eliminar(self, *args):
         try:
@@ -9576,30 +9949,42 @@ class Transbordo(Gtk.Window):
         self.destroy()
 
 
-class BuscarSalida(Widgets.Dialog):
+class BuscarSalida(gtk.Dialog):
 
     def __init__(self, padre):
-        super(BuscarSalida, self).__init__('Buscar Salida')
+        super(BuscarSalida, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+
+        self.set_modal(True)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.set_transient_for(parent)
         self.padre = padre
         self.http = padre.http
-        hbox = Gtk.HBox(False, 2)
+        self.connect('delete_event', self.cerrar)
+        self.set_title('Buscar Salida')
+        hbox = gtk.HBox(False, 2)
         self.vbox.pack_start(hbox, False, False, 0)
         self.fecha = Widgets.Fecha()
         self.fecha.set_size_request(90, 30)
         hbox.pack_start(self.fecha, False, False, 0)
-        hbox.pack_start(Gtk.Label('Padrón:'), False, False, 0)
+        hbox.pack_start(gtk.Label('Padr\xc3\xb3n:'), False, False, 0)
         self.entry_padron = Widgets.Numero(4)
         hbox.pack_start(self.entry_padron, False, False, 0)
         self.entry_padron.connect('activate', self.buscar)
-        self.vueltas = Vueltas(self.http)
+        self.vueltas = Vueltas()
         self.vbox.pack_start(self.vueltas, True, True, 0)
         self.vueltas.connect('editar-llegadas', self.aceptar)
         self.vueltas.connect('salida-seleccionada', self.seleccionada)
         self.salida = None
         self.but_salir = Widgets.Button('cancelar.png', '_Cancelar')
-        self.add_action_widget(self.but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(self.but_salir, gtk.RESPONSE_CANCEL)
         self.but_ok = Widgets.Button('aceptar.png', '_Aceptar')
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
 
     def buscar(self, *args):
         datos = {'padron': self.entry_padron.get_int(),
@@ -9607,7 +9992,7 @@ class BuscarSalida(Widgets.Dialog):
          'lado': self.padre.lado,
          'dia': self.fecha.get_date()}
         if self.padre.padron == self.entry_padron.get_int():
-            return Widgets.Alerta('No puede usar ese padron', 'error.png', 'No se puede usar el mismo padrón para el transbordo')
+            return Widgets.Alerta('No puede usar ese padron', 'error.png', 'No se puede usar el mismo padr\xc3\xb3n para el transbordo')
         data = self.http.load('salidas-unidad', datos)
         if data:
             self.padron = self.entry_padron.get_int()
@@ -9631,7 +10016,7 @@ class BuscarSalida(Widgets.Dialog):
     def iniciar(self):
         self.show_all()
         self.but_ok.hide()
-        if self.run() == Gtk.ResponseType.OK:
+        if self.run() == gtk.RESPONSE_OK:
             return True
         return False
 
@@ -9639,10 +10024,10 @@ class BuscarSalida(Widgets.Dialog):
         self.destroy()
 
 
-class Trackers(Gtk.Window):
+class Trackers(gtk.Window):
 
     def __init__(self, http, dia, ruta, lado, padron):
-        super(Trackers, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(Trackers, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.http = http
         self.dia = dia
         self.ruta = ruta
@@ -9652,18 +10037,18 @@ class Trackers(Gtk.Window):
             self.padron = padron
         else:
             self.padron = None
-        hbox_main = Gtk.HBox(True, 5)
+        hbox_main = gtk.HBox(True, 5)
         self.add(hbox_main)
         frame = Widgets.Frame()
         # hbox_main.pack_start(frame, False, False, 10)
-        vbox = Gtk.VBox(False, 5)
+        vbox = gtk.VBox(False, 5)
         frame.add(vbox)
-        hbox = Gtk.HBox(False, 5)
-        label = Gtk.Label()
+        hbox = gtk.HBox(False, 5)
+        label = gtk.Label()
         label.set_markup('<big><b>Configuración Tracker</b></big>')
         vbox.pack_start(label, False, False, 10)
         vbox.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Buscar Padrón:'), False, False, 0)
+        hbox.pack_start(gtk.Label('Buscar Padrón:'), False, False, 0)
         self.entry_padron = Widgets.Numero(4)
         hbox.pack_start(self.entry_padron, True, True, 0)
         tabla = Widgets.Tabla()
@@ -9683,25 +10068,25 @@ class Trackers(Gtk.Window):
         i = 0
         self.datos = {}
         for k, t in titulos:
-            tit = Gtk.Label()
+            tit = gtk.Label()
             tit.set_markup('<b>%s</b>   ' % t)
             tit.set_alignment(1, 0.5)
             tabla.attach(tit, 0, 1, i, i + 1)
-            label = Gtk.Label('-')
+            label = gtk.Label('-')
             label.set_alignment(0, 0.5)
             self.datos[k] = label
             tabla.attach(label, 1, 2, i, i + 1)
             i += 1
         frame = Widgets.Frame()
         vbox.pack_start(frame, False, False, 0)
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         frame.add(vbox)
-        label = Gtk.Label()
+        label = gtk.Label()
         label.set_markup('<big><b>Emparejar Dispositivo GPS</b></big>')
         vbox.pack_start(label, False, False, 10)
-        hbox = Gtk.HBox(False, 5)
+        hbox = gtk.HBox(False, 5)
         vbox.pack_start(hbox, False, False, 5)
-        hbox.pack_start(Gtk.Label('# Serie GPS:'), False, False, 5)
+        hbox.pack_start(gtk.Label('# Serie GPS:'), False, False, 5)
         self.entry_tracker = Widgets.Numero(5)
         hbox.pack_start(self.entry_tracker, False, False, 0)
         self.but_emparejar = Widgets.Button('icono.png', 'Busque una unidad', 48)
@@ -9709,23 +10094,23 @@ class Trackers(Gtk.Window):
         hbox.pack_start(self.but_emparejar, False, False, 0)
         frame = Widgets.Frame()
         hbox_main.pack_start(frame, False, False, 5)
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         frame.add(vbox)
-        label = Gtk.Label()
+        label = gtk.Label()
         # label.set_markup('<big><b>Enviar Mensaje de Texto</b></big>')
         label.set_markup('Escriba el mensaje y seleccione a qué unidades enviará el mensaje')
         vbox.pack_start(label, False, False, 10)
 
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         vbox.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('Mensaje (max 64):'), False, False, 0)
+        hbox.pack_start(gtk.Label('Mensaje (max 64):'), False, False, 0)
         self.entry_mensaje = Widgets.Texto(64)
         hbox.pack_end(self.entry_mensaje, False, False, 0)
-        self.radio_padrones = Gtk.RadioButton(None, 'Enviar a: ', False)
-        hbox = Gtk.HBox(False, 0)
+        self.radio_padrones = gtk.RadioButton(None, 'Enviar a: ', False)
+        hbox = gtk.HBox(False, 0)
         vbox.pack_start(hbox, False, False, 5)
         hbox.pack_start(self.radio_padrones, False, False, 0)
-        self.radio_todos = Gtk.RadioButton(self.radio_padrones, 'Todos', True)
+        self.radio_todos = gtk.RadioButton(self.radio_padrones, 'Todos', True)
         self.radio_todos.connect('clicked', self.toggled)
         vbox.pack_start(self.radio_todos, False, False, 0)
         self.entry_padrones = Widgets.Texto(64)
@@ -9806,45 +10191,56 @@ class Trackers(Gtk.Window):
         self.http.load('enviar-mensaje', datos)
 
 
-class FondoMultiple(Widgets.Dialog):
+class FondoMultiple(gtk.Dialog):
 
     referencia = ''
     llave = None
     codigo = None
 
     def __init__(self, padre):
-        super(FondoMultiple, self).__init__('Fondos Múltiples')
+        super(FondoMultiple, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
         self.http = padre.http
         self.padron = padre.padron
+        self.set_title('Fondos Múltiples')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        self.set_modal(True)
+        self.set_transient_for(parent)
         self.set_size_request(300, 500)
         self.ruta = padre.ruta
         self.lado = padre.lado
         self.dia = padre.dia
         self.fondos = self.http.get_fondos()
-        tabla = Gtk.Table(2, 2)
-        tabla.attach(Gtk.Label('Padrón:'), 0, 1, 0, 1)
-        tabla.attach(Gtk.Label('Día:'), 0, 1, 1, 2)
+        tabla = gtk.Table(2, 2)
+        tabla.attach(gtk.Label('Padrón:'), 0, 1, 0, 1)
+        tabla.attach(gtk.Label('Día:'), 0, 1, 1, 2)
         self.entry_padron = Widgets.Numero(11)
         self.fecha = Widgets.Fecha()
         tabla.attach(self.entry_padron, 1, 2, 0, 1)
         tabla.attach(self.fecha, 1, 2, 1, 2)
         self.entry_padron.set_text(str(self.padron))
         self.fecha.set_date(self.dia)
-        print(('DIA', self.dia))
+        print('DIA', self.dia)
         self.vbox.pack_start(tabla, False, False, 10)
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(300, 300)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 5)
-        self.model = Gtk.ListStore(str, str, bool, int)
-        self.treeview = Gtk.TreeView(self.model)
+        self.model = gtk.ListStore(str, str, bool, int)
+        self.treeview = gtk.TreeView(self.model)
         columnas = ('CONCEPTO', 'MONTO', 'COBRAR')
         sw.add(self.treeview)
         self.columns = []
         for i, columna in enumerate(columnas):
             tvcolumn = Widgets.TreeViewColumn(columna)
             if i == 2:
-                cell = Gtk.CellRendererToggle()
+                cell = gtk.CellRendererToggle()
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, active=i)
                 cell.connect('toggled', self.toggled)
@@ -9867,8 +10263,8 @@ class FondoMultiple(Widgets.Dialog):
         self.but_facturar = Widgets.Button('dinero.png', '_Facturar')
         self.action_area.pack_start(self.but_facturar, False, False, 0)
         self.but_facturar.connect('clicked', self.facturar)
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
-        self.add_action_widget(self.but_ok, Gtk.ResponseType.OK)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
+        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
         for f in self.fondos:
             if f['moneda']:
                 monto = 0
@@ -9880,9 +10276,9 @@ class FondoMultiple(Widgets.Dialog):
 
         self.set_focus(self.treeview)
         self.treeview.set_cursor(0, self.columns[2], True)
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         self.vbox.pack_start(hbox, False, False, 0)
-        hbox.pack_start(Gtk.Label('TOTAL:'), False, False, 0)
+        hbox.pack_start(gtk.Label('TOTAL:'), False, False, 0)
         self.entry_total = Widgets.Entry()
         self.entry_total.set_property('editable', False)
         hbox.pack_end(self.entry_total, False, False, 0)
@@ -9933,7 +10329,7 @@ class FondoMultiple(Widgets.Dialog):
         self.model.remove(treeiter)
 
     def facturar(self, *args):
-        mensaje = 'Confirme que desea grabar la facturación.\nPAGO AL CONTADO'
+        mensaje = 'Confirme que desea grabar la facturaci\xc3\xb3n.\nPAGO AL CONTADO'
         dialogo = Widgets.Alerta_SINO('Facturar', 'caja.png', mensaje)
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
@@ -9976,7 +10372,7 @@ class FondoMultiple(Widgets.Dialog):
                 }
                 respuesta = self.http.load('fondo-multiple', datos)
                 if respuesta:
-                    print(('respuesta', respuesta))
+                    print('respuesta', respuesta)
                     if respuesta['error']:
                         return Widgets.Alerta('Comprobación de Fondos', 'warning.png',
                                           respuesta['mensaje'])
@@ -10002,9 +10398,9 @@ class FondoMultiple(Widgets.Dialog):
 
     def iniciar(self):
         self.show_all()
-        self.but_ok.hide()
+        self.but_ok.hide_all()
         respuesta = self.run()
-        if respuesta == Gtk.ResponseType.OK:
+        if respuesta == gtk.RESPONSE_OK:
             return self.data
         else:
             return False
@@ -10015,10 +10411,10 @@ class FondoMultiple(Widgets.Dialog):
 
 if __name__ == '__main__':
     # t = Trackers(None, '2108', 1, 1, None)
-    from Principal import Http
+    from Http import Http
     http = Http([])
     t = Reporte(http, '2018-04-12', 1, None)
     # http.grifo = []
     # http.seriacion = {'facturas': []}
     # g = Grifo(http, None, None)
-    Gtk.main()
+    gtk.main()

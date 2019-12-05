@@ -4,16 +4,14 @@
 import datetime
 import json
 
+import gobject
 import threading
 import time
 
 import Widgets
-import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
-from gi.repository import GObject
+import gtk
 
-from Principal import Http
+from Http import Http
 DIA_SEMANA = [
     'LUNES',
     'MARTES',
@@ -94,7 +92,7 @@ class Adelantos(Widgets.Alerta_TreeView):
             tabla
         )
         self.set_size_request(420, 500)
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         self.vbox.pack_start(hbox, False, False, 10)
 
         self.entry_saldo = Widgets.Entry(7)
@@ -102,7 +100,7 @@ class Adelantos(Widgets.Alerta_TreeView):
         self.entry_saldo.set_property('editable', False)
 
         hbox.pack_end(self.entry_saldo, False, False, 5)
-        label = Gtk.Label()
+        label = gtk.Label()
         if total > 0:
             label.set_markup('<span color="#0B0">Saldo a Favor</span>')
         else:
@@ -110,7 +108,7 @@ class Adelantos(Widgets.Alerta_TreeView):
         hbox.pack_end(label, False, False, 5)
         hbox.show_all()
 
-        self.but_ok.hide()
+        self.but_ok.hide_all()
 
         if self.tiene_saldos_pendientes:
             self.set_title('Saldo Días Anteriores')
@@ -197,22 +195,22 @@ class Adelantos(Widgets.Alerta_TreeView):
                 self.but_ok.clicked()
 
 
-class Produccion(Gtk.Window):
+class Produccion(gtk.Window):
 
     def __init__(self, http, datos):
 
-        super(Produccion, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(Produccion, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.http = http
         self.ruta = datos['ruta']
         self.set_title('Producciones de Flota')
 
-        vbox_main = Gtk.VBox(False, 5)
+        vbox_main = gtk.VBox(False, 5)
         self.add(vbox_main)
 
-        hbox = Gtk.HBox(False, 5)
+        hbox = gtk.HBox(False, 5)
         vbox_main.pack_start(hbox, False, False, 5)
 
-        hbox.pack_start(Gtk.Label('Año'), False, False, 5)
+        hbox.pack_start(gtk.Label('Año'), False, False, 5)
         self.combo_year = Widgets.ComboBox()
         lista = []
         inicio = 2016
@@ -223,7 +221,7 @@ class Produccion(Gtk.Window):
         self.combo_year.set_lista(lista)
         hbox.pack_start(self.combo_year, False, False, 5)
 
-        hbox.pack_start(Gtk.Label('Mes'), False, False, 5)
+        hbox.pack_start(gtk.Label('Mes'), False, False, 5)
         self.combo_month = Widgets.ComboBox()
         self.combo_month.set_lista(COMBO_LIST_MESES)
         self.combo_month.set_id(datetime.datetime.now().month)
@@ -242,12 +240,12 @@ class Produccion(Gtk.Window):
         self.treeview.set_size_request(620, 250)
         self.treeview.set_border_width(5)
         self.treeview.set_liststore(
-            (str, str, str, str, str, str, str, str, bool, bool, bool, GObject.TYPE_PYOBJECT)
+            (str, str, str, str, str, str, str, str, bool, bool, bool, gobject.TYPE_PYOBJECT)
         )
         self.treeview.treeview.connect('cursor-changed', self.row_selected)
         vbox_main.pack_start(self.treeview, True, True, 5)
 
-        hbox = Gtk.HBox(False, 5)
+        hbox = gtk.HBox(False, 5)
         vbox_main.pack_start(hbox, False, False, 5)
 
         self.saldarBtn = Widgets.Button('dinero.png', 'Saldar Pagos')
@@ -264,9 +262,9 @@ class Produccion(Gtk.Window):
 
         self.show_all()
 
-        self.generarBtn.hide()
-        self.saldarBtn.hide()
-        self.actualizarBtn.hide()
+        self.generarBtn.hide_all()
+        self.saldarBtn.hide_all()
+        self.actualizarBtn.hide_all()
 
     def saldar(self, *args):
         p = self.get_row()
@@ -278,15 +276,15 @@ class Produccion(Gtk.Window):
         selected = self.get_row()
         if selected:
             if selected['guardado']:
-                self.generarBtn.hide()
+                self.generarBtn.hide_all()
                 self.saldarBtn.show_all()
             else:
                 self.generarBtn.show_all()
-                self.saldarBtn.hide()
+                self.saldarBtn.hide_all()
             if selected['bloqueado']:
-                self.actualizarBtn.hide()
+                self.actualizarBtn.hide_all()
             else:
-                self.generarBtn.hide()
+                self.generarBtn.hide_all()
                 self.actualizarBtn.show_all()
             if selected['cancelado']:
                 self.saldarBtn.set_text('Ver Pagos')
@@ -332,7 +330,7 @@ class Produccion(Gtk.Window):
                 if bloquear:
                     prod = self.http.load('bloquear-produccion', datos)
                     self.generarBtn.show_all()
-                    self.actualizarBtn.hide()
+                    self.actualizarBtn.hide_all()
             self.replace_row(prod)
 
     def generar(self, *args):
@@ -394,10 +392,10 @@ class Produccion(Gtk.Window):
         self.add_row(produccion)
 
 
-class Distribucion(Gtk.Window):
+class Distribucion(gtk.Window):
 
     def __init__(self, padre, prod):
-        super(Distribucion, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(Distribucion, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.produccion = prod
         self.padre = padre
         self.produccion_reemplazar = None
@@ -405,15 +403,15 @@ class Distribucion(Gtk.Window):
         self.set_size_request(500, 120)
         self.set_title('Procesando...')
 
-        vbox_main = Gtk.VBox(False, 5)
+        vbox_main = gtk.VBox(False, 5)
         self.add(vbox_main)
 
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox_main.pack_start(hbox, False, False, 15)
-        self.progress_bar = Gtk.ProgressBar()
+        self.progress_bar = gtk.ProgressBar()
         hbox.pack_start(self.progress_bar, True, True, 10)
 
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox_main.pack_start(hbox, False, False, 10)
 
         self.cancelarBtn = Widgets.Button('cancelar.png', 'Cancelar')
@@ -438,7 +436,7 @@ class Distribucion(Gtk.Window):
 
     def reintentar(self, *args):
         self.worker.error = False
-        self.reintentarBtn.hide()
+        self.reintentarBtn.hide_all()
 
     def cancelar(self, *args):
         self.worker.done = True
@@ -451,7 +449,7 @@ class Distribucion(Gtk.Window):
         if self.produccion_reemplazar:
             self.padre.replace_row(self.produccion_reemplazar)
             if self.produccion_reemplazar['guardado']:
-                self.padre.generarBtn.hide()
+                self.padre.generarBtn.hide_all()
                 self.padre.saldarBtn.show_all()
 
 
@@ -473,7 +471,7 @@ class WorkerPago(threading.Thread):
             self.total = len(self.items) + 4
             self.done = False
             self.error = False
-            GObject.idle_add(self.window.update_progress)
+            gobject.idle_add(self.window.update_progress)
 
             data = {
                 'json': json.dumps(self.window.produccion)
@@ -483,7 +481,7 @@ class WorkerPago(threading.Thread):
             if respuesta:
                 print('items', len(self.items))
                 self.counter += 1
-                GObject.idle_add(self.window.update_progress)
+                gobject.idle_add(self.window.update_progress)
                 while len(self.items):
                     if self.done:
                         break
@@ -502,7 +500,7 @@ class WorkerPago(threading.Thread):
                     else:
                         self.error = True
                     self.items = self.items[1:]
-                    GObject.idle_add(self.window.update_progress)
+                    gobject.idle_add(self.window.update_progress)
 
                 print('items', len(self.items))
                 if len(self.items) == 0:
@@ -516,27 +514,27 @@ class WorkerPago(threading.Thread):
                     print('guardar-produccion-dia', data, respuesta)
                     if respuesta:
                         self.window.produccion_reemplazar = respuesta
-                        GObject.idle_add(self.window.actualizar_produccion)
+                        gobject.idle_add(self.window.actualizar_produccion)
                     else:
                         self.error = True
                     print('finalizado')
-        GObject.idle_add(self.window.cancelar)
+        gobject.idle_add(self.window.cancelar)
 
 
-class Saldar(Gtk.Window):
+class Saldar(gtk.Window):
 
     def __init__(self, padre, produccion):
 
-        super(Saldar, self).__init__(Gtk.WindowType.TOPLEVEL)
+        super(Saldar, self).__init__(gtk.WINDOW_TOPLEVEL)
         self.http = padre.http
         self.produccion = produccion
 
         self.set_title('Distribución Día %s' % produccion['dia'])
 
-        vbox_main = Gtk.VBox(False, 5)
+        vbox_main = gtk.VBox(False, 5)
         self.add(vbox_main)
 
-        hbox = Gtk.HBox(False, 5)
+        hbox = gtk.HBox(False, 5)
         vbox_main.pack_start(hbox, False, False, 5)
 
         self.por_pagar = Widgets.TreeViewId('', ('NOMBRE', 'TOTAL', 'ADELANTADO', 'SALDO'))
@@ -544,9 +542,9 @@ class Saldar(Gtk.Window):
         self.por_pagar.set_size_request(500, 300)
         self.por_pagar.set_border_width(5)
         self.por_pagar.set_liststore(
-            (str, str, str, str, GObject.TYPE_PYOBJECT)
+            (str, str, str, str, gobject.TYPE_PYOBJECT)
         )
-        self.por_pagar.get_model().set_sort_column_id(0, Gtk.SORT_ASCENDING)
+        self.por_pagar.get_model().set_sort_column_id(0, gtk.SORT_ASCENDING)
         self.por_pagar.connect('activado', self.row_selected)
 
         self.pagados = Widgets.TreeViewId('', ('NOMBRE', 'TOTAL', 'PAGADO', 'SALDO'))
@@ -554,38 +552,38 @@ class Saldar(Gtk.Window):
         self.pagados.set_size_request(500, 300)
         self.pagados.set_border_width(5)
         self.pagados.set_liststore(
-            (str, str, str, str, GObject.TYPE_PYOBJECT)
+            (str, str, str, str, gobject.TYPE_PYOBJECT)
         )
-        self.pagados.get_model().set_sort_column_id(0, Gtk.SORT_ASCENDING)
+        self.pagados.get_model().set_sort_column_id(0, gtk.SORT_ASCENDING)
 
         self.notebook = Widgets.Notebook()
-        self.notebook.set_tab_pos(Gtk.POS_TOP)
-        self.notebook.insert_page(self.por_pagar, Gtk.Label('POR PAGAR'))
-        self.notebook.insert_page(self.pagados, Gtk.Label('PAGADOS'))
+        self.notebook.set_tab_pos(gtk.POS_TOP)
+        self.notebook.insert_page(self.por_pagar, gtk.Label('POR PAGAR'))
+        self.notebook.insert_page(self.pagados, gtk.Label('PAGADOS'))
         self.notebook.set_homogeneous_tabs(True)
         self.notebook.child_set_property(self.por_pagar, 'tab-expand', True)
 
         hbox.pack_start(self.notebook, True, True, 10)
 
-        hbox = Gtk.HBox(False, 5)
+        hbox = gtk.HBox(False, 5)
         vbox_main.pack_start(hbox, False, False, 5)
 
-        label = Gtk.Label()
+        label = gtk.Label()
         label.set_markup('<b>SALDO POR PAGAR</b>')
         hbox.pack_start(label, False, False, 5)
 
-        hbox = Gtk.HBox(False, 5)
+        hbox = gtk.HBox(False, 5)
         vbox_main.pack_start(hbox, False, False, 5)
 
         self.entry_total_unidades = Widgets.Entry(7)
         self.entry_total_unidades.set_property('editable', False)
         hbox.pack_end(self.entry_total_unidades, False, False, 5)
-        hbox.pack_end(Gtk.Label('Unidades'), False, False, 5)
+        hbox.pack_end(gtk.Label('Unidades'), False, False, 5)
 
         self.entry_total_trabajadores = Widgets.Entry(7)
         self.entry_total_trabajadores.set_property('editable', False)
         hbox.pack_end(self.entry_total_trabajadores, False, False, 5)
-        hbox.pack_end(Gtk.Label('Trabajadores'), False, False, 5)
+        hbox.pack_end(gtk.Label('Trabajadores'), False, False, 5)
 
 
         self.show_all()
@@ -597,8 +595,8 @@ class Saldar(Gtk.Window):
         if adelantos:
             self.compilar_adelantos(adelantos)
 
-        self.menu = Gtk.Menu()
-        item1 = Gtk.MenuItem('Ver Pagos')
+        self.menu = gtk.Menu()
+        item1 = gtk.MenuItem('Ver Pagos')
         item1.connect('activate', self.ver_pagos)
         self.menu.append(item1)
         self.por_pagar.connect('button-release-event', self.on_release_button)
@@ -616,7 +614,7 @@ class Saldar(Gtk.Window):
                 path, col, cellx, celly = pthinfo
                 treeview.treeview.grab_focus()
                 treeview.treeview.set_cursor(path, col, 0)
-                self.menu.popup(None, None, None, None, event.button, t)
+                self.menu.popup(None, None, None, event.button, t)
                 self.menu.show_all()
             return True
 
@@ -629,7 +627,7 @@ class Saldar(Gtk.Window):
             'ruta': self.produccion['ruta']
         }
         dialog = Adelantos(self.http, data)
-        dialog.action_area.hide()
+        dialog.action_area.hide_all()
         dialog.iniciar()
         dialog.cerrar()
 
@@ -828,4 +826,4 @@ if __name__ == '__main__':
     }
     http = Principal.Http([])
     a = Produccion(http, datos)
-    Gtk.main()
+    gtk.main()

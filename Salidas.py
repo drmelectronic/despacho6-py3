@@ -5,112 +5,96 @@ __author__ = "daniel"
 __date__ = "$06-mar-2012 16:06:23$"
 
 import json
-import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk
-from gi.repository import GObject
+import gtk
 import Modulos
 import Widgets
 import Cobranza
 import datetime
 import os
+import gobject
 import models
+from Http import Http
 
 if os.name != 'nt':
     import sh
 
 
-class Ventana(Gtk.Window):
+class Ventana(gtk.Window):
 
     __gsignals__ = {
-        'nueva-ventana': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
-        'cerrar': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
-        'login': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
-        'salidas': (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ())
+        'cerrar': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'login': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
+        'nueva-ventana': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())
     }
 
-    def __init__(self, principal, titulo, status_bar, version, ticketera):
-        self.version = version
+    def __init__(self):
         super(Ventana, self).__init__()
-        # pixbuf = Gtk.gdk.pixbuf_new_from_file("images/fondo-salida.jpg")
-        # pixmap, mask = pixbuf.render_pixmap_and_mask()
-        # width, height = pixmap.get_size()
-        # del pixbuf
-        self.status_bar = status_bar
-        self.logueado = False
-        # self.set_app_paintable(Gtk.TRUE)
-        # self.realize()
-        # self.window.set_back_pixmap(pixmap, Gtk.FALSE)
-        self.principal = principal
-        self.http = principal.http
-        self.http.connect('update', self.actualizar)
+        pixbuf = gtk.gdk.pixbuf_new_from_file("images/fondo-salida.jpg")
+        pixmap, mask = pixbuf.render_pixmap_and_mask()
+        width, height = pixmap.get_size()
+        del pixbuf
+
+        self.ticketera = Widgets.Button('imprimir.png', '', 16, tooltip='Configuración de Impresión')
+        self.twist = Widgets.ButtonTwist('desconectado.png', 'conectado.png', tooltip='Reconectar al servidor GPS')
+        self.status_bar = Widgets.Statusbar()
+        self.set_app_paintable(gtk.TRUE)
+        self.realize()
+        self.window.set_back_pixmap(pixmap, gtk.FALSE)
+        self.http = Http()
         self.sonido = self.http.sonido
         self.connect('destroy', self.cerrar)
         self.salidas = []
         self.unidades = []
         #Maquetación
         self.set_border_width(2)
-        self.set_title(titulo)
-        self.set_position(Gtk.WindowPosition.CENTER)
-        main_vbox = Gtk.VBox(False, 0)
+        self.set_title(self.http.titulo)
+        self.set_position(gtk.WIN_POS_CENTER)
+        main_vbox = gtk.VBox(False, 0)
         path = os.path.join('images', 'icono.png')
-        self.set_icon_from_file(path)
+        icon = gtk.gdk.pixbuf_new_from_file(path)
+        self.set_icon_list(icon)
         #main_vbox.pack_start(toolbar, False, False, 0)
 
         self.add(main_vbox)
-        hbox_main = Gtk.HBox(False, 2)
+        hbox_main = gtk.HBox(False, 2)
         main_vbox.pack_start(hbox_main, True, True, 0)
             #VBox 1
-        vbox1 = Gtk.VBox(False, 0)
+        vbox1 = gtk.VBox(False, 0)
         hbox_main.pack_start(vbox1, False, False, 0)
-
-        herramientas = [
-            ('Nueva Ventana (Ctrl + N)', 'salidas.png', self.nueva_ventana),
-            ('Monitoreo de Flota (Ctrl + F)', 'flota.png', self.flota),
-            ('Liquidaciones (Ctrl + L)', 'dinero.png', self.liquidar),
-            ('Mantenimiento (Ctrl + M)', 'mantenimiento.png', self.mantenimiento),
-            ('Grifo (Ctrl + G)', 'grifo.png', self.grifo),
-            ('Buscar Boleto (Ctrl + B)', 'buscar24.png', self.buscar),
-            ('Sistema Web (Ctrl + T)', 'chrome.png', self.chrome_web)
-        ]
-        self.toolbar = Widgets.Toolbar(herramientas)
-        vbox1.pack_start(self.toolbar, False, False, 0)
-
+        #vbox1.pack_start(toolbar, False, False, 0)
         frame_selector = Widgets.Frame()
         vbox1.pack_start(frame_selector, False, False, 0)
-        vbox1.show_all()
-        self.selector = Modulos.Selector(self)
 
+        self.selector = Modulos.Selector()
         self.selector.vertical()
         frame_selector.add(self.selector)
+        self.connect_selector()
+
         self.enruta = Modulos.EnRuta(self)
         vbox1.pack_start(self.enruta, True, True, 0)
             #VBox 2
-        vbox2 = Gtk.VBox(False, 0)
+        vbox2 = gtk.VBox(False, 0)
         hbox_main.pack_start(vbox2, True, True, 0)
                 #Notebook
         self.notebook = Widgets.Notebook()
-        self.notebook.set_tab_pos(Gtk.PositionType.TOP)
+        self.notebook.set_tab_pos(gtk.POS_TOP)
         self.datos_unidad = Modulos.Datos(self)
         vbox2.pack_start(self.datos_unidad.frame_padron, False, False, 0)
-        vpaned = Gtk.VPaned()
+        vpaned = gtk.VPaned()
         vbox2.pack_start(vpaned, True, True, 0)
         vpaned.pack1(self.notebook, True, True)
-        label_datos = Gtk.Label('Datos')
-        self.notebook.insert_page(self.datos_unidad, label_datos, 0)
-        label_llegadas = Gtk.Label('Voladas')
-        self.notebook.insert_page(self.datos_unidad.llegadas, label_llegadas, 1)
-        label_boletos = Gtk.Label('Boletos')
-        self.notebook.insert_page(self.datos_unidad.boletaje, label_boletos, 2)
-        label_boletos = Gtk.Label('Inspectoría')
-        self.notebook.insert_page(self.datos_unidad.inspectoria, label_boletos, 3)
-        # self.notebook.set_homogeneous_tabs(True)
+        label_datos = gtk.Label('Datos')
+        self.notebook.insert_page(self.datos_unidad, label_datos)
+        label_llegadas = gtk.Label('Voladas')
+        self.notebook.insert_page(self.datos_unidad.llegadas, label_llegadas)
+        label_boletos = gtk.Label('Boletos')
+        self.notebook.insert_page(self.datos_unidad.boletaje, label_boletos)
+        label_boletos = gtk.Label('Inspectoría')
+        self.notebook.insert_page(self.datos_unidad.inspectoria, label_boletos)
+        self.notebook.set_homogeneous_tabs(True)
         self.notebook.child_set_property(self.datos_unidad, 'tab-expand', True)
-        self.notebook.child_set_property(self.datos_unidad.llegadas, 'tab-expand', True)
-        self.notebook.child_set_property(self.datos_unidad.boletaje, 'tab-expand', True)
-        self.notebook.child_set_property(self.datos_unidad.inspectoria, 'tab-expand', True)
                 #Vueltas
-        vbox_pack2 = Gtk.VBox(False, 0)
+        vbox_pack2 = gtk.VBox(False, 0)
         vbox_pack2.pack_start(self.datos_unidad.vueltas, False, False, 0)
         vbox_pack2.pack_start(self.datos_unidad.cortes, False, False, 0)
         vpaned.pack2(vbox_pack2, False, False)
@@ -120,56 +104,57 @@ class Ventana(Gtk.Window):
         frame_llamada.add(self.llamada)
         self.llamada.pack_end(self.datos_unidad.vueltas.entry_total, False, False, 0)
             #VBox3
-        vbox3 = Gtk.VBox(False, 0)
+        vbox3 = gtk.VBox(False, 0)
         hbox_main.pack_start(vbox3, False, False, 0)
         frame_reloj = Widgets.Frame()
         vbox3.pack_start(frame_reloj, False, False, 0)
-        self.reloj = Modulos.Reloj(self.http)
+        self.reloj = Modulos.Reloj()
         frame_reloj.add(self.reloj)
                 #Notebook2
         self.notebook2 = Widgets.Notebook()
-        self.notebook2.set_tab_pos(Gtk.PositionType.TOP)
+        self.notebook2.set_tab_pos(gtk.POS_TOP)
         vbox3.pack_start(self.notebook2, True, True, 0)
         self.disponibles = Modulos.Disponibles(self.http)
-        self.notebook2.insert_page(self.disponibles, self.disponibles.label, 0)
+        self.notebook2.insert_page(self.disponibles, self.disponibles.label)
         self.excluidos = Modulos.Excluidos(self.http)
-        self.notebook2.insert_page(self.excluidos, self.excluidos.label, 1)
+        self.notebook2.insert_page(self.excluidos, self.excluidos.label)
+        self.notebook2.set_homogeneous_tabs(True)
         self.notebook2.child_set_property(self.disponibles, 'tab-expand', True)
-        self.notebook2.child_set_property(self.excluidos, 'tab-expand', True)
                 #Opciones
-        hbox_opciones = Gtk.HBox(True, 0)
+        hbox_opciones = gtk.HBox(True, 0)
         vbox3.pack_start(hbox_opciones, False, False, 0)
-        self.check_llamar = Gtk.CheckButton('Llamar auto')
-        hbox_opciones.pack_start(self.check_llamar, False, False, 0)
-        self.check_sonido_gps = Gtk.CheckButton('Sonido GPS')
-        hbox_opciones.pack_start(self.check_sonido_gps, False, False, 0)
-        self.check_imprimir = Gtk.CheckButton('Imprimir')
-        hbox_opciones.pack_start(self.check_imprimir, False, False, 0)
+        self.check_llamar = gtk.CheckButton('Llamar auto')
+        hbox_opciones.pack_start(self.check_llamar)
+        self.check_sonido_gps = gtk.CheckButton('Sonido GPS')
+        hbox_opciones.pack_start(self.check_sonido_gps)
+        self.check_imprimir = gtk.CheckButton('Imprimir')
+        hbox_opciones.pack_start(self.check_imprimir)
                 #Botones
         frame_botones = Widgets.Frame()
         vbox3.pack_start(frame_botones, False, False, 0)
-        hbox_botones = Gtk.HBox(False, 0)
+        hbox_botones = gtk.HBox(False, 0)
         frame_botones.add(hbox_botones)
         self.but_despachar = Widgets.Button('bus.png',
             'Despachar')
-        hbox_botones.pack_start(self.but_despachar, False, False, 0)
+        hbox_botones.pack_start(self.but_despachar)
         self.but_excluir = Widgets.Button('excluir.png',
             'Excluir')
-        hbox_botones.pack_start(self.but_excluir, False, False, 0)
+        hbox_botones.pack_start(self.but_excluir)
         self.but_llamar = Widgets.Button('llamar.png',
             'Llamar')
-        hbox_botones.pack_start(self.but_llamar, False, False, 0)
+        hbox_botones.pack_start(self.but_llamar)
         self.conexiones()
         self.dia = self.ruta = self.lado = None
         self.check_llamar.set_active(True)
         self.check_imprimir.set_active(True)
-        eb = Gtk.EventBox()
+        eb = gtk.EventBox()
         main_vbox.pack_end(eb, False, False, 0)
-        hbox = Gtk.HBox(False, 5)
+        hbox = gtk.HBox(False, 5)
         eb.add(hbox)
-        eb.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('#0188d1'))
-        hbox.pack_start(status_bar, False, False, 0)
-        hbox.pack_end(ticketera, False, False, 0)
+        eb.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#0188d1'))
+        hbox.pack_start(self.twist, False, False, 0)
+        hbox.pack_start(self.status_bar, False, False, 0)
+        hbox.pack_end(self.ticketera, False, False, 0)
         self.notebook.realize()
         self.disponibles.selector = self.selector
         self.excluidos.selector = self.selector
@@ -182,7 +167,7 @@ class Ventana(Gtk.Window):
         self.datos_unidad.entry_padron.grab_focus()
         self.llamado = 0
         self.show_all()
-        self.datos_unidad.cortes.hide()
+        self.datos_unidad.cortes.hide_all()
         self.datos_unidad.button_conductor.set(None)
         self.datos_unidad.button_cobrador.set(None)
         self.datos_unidad.button_propietario.set(None)
@@ -191,15 +176,11 @@ class Ventana(Gtk.Window):
         self.datos_unidad.button_bloquear.set(None)
         self.focus_entry()
 
-    def nueva_ventana(self, *args):
-        self.emit('nueva-ventana')
-
     def conexiones(self):
         self.datos_unidad.connect('agregar-espera', self.actualizar_unidad)
         self.datos_unidad.connect('unidad-modificada', self.actualizar_unidad)
         self.disponibles.connect('unidad-seleccionada', self.leer_unidad)
         self.disponibles.connect('unidad-excluida', self.actualizar_unidad)
-        self.disponibles.connect('cola-reordenada', self.cola_reordenada)
         self.enruta.connect('salida-seleccionada', self.leer_salida)
         self.enruta.connect('falla-mecanica', self.falla_mecanica)
         self.enruta.connect('eliminar-salida', self.eliminar_salida)
@@ -234,14 +215,17 @@ class Ventana(Gtk.Window):
             self.reloj.www.connect('mostrar', self.focus_entry)
             self.datos_unidad.www.connect('mostrar', self.focus_entry)
 
+    def nueva_ventana(self, *args):
+        self.emit('nueva-ventana')
+
     def actualizar_unidad(self, widget, unidad):
         for i, u in enumerate(self.unidades):
             if u.ruta == unidad.ruta and u.lado == unidad.lado:
                 if u.arreglada > unidad.arreglada:
-                    print(('disminuir', u.padron, u.arreglada))
+                    print('disminuir', u.padron, u.arreglada)
                     u.arreglada -= 1
                 else:
-                    print(('no disminuir', u.padron, u.arreglada))
+                    print('no disminuir', u.padron, u.arreglada)
         for i, u in enumerate(self.unidades):
             if u.id == unidad.id:
                 self.unidades[i] = unidad
@@ -250,24 +234,20 @@ class Ventana(Gtk.Window):
         self.unidades.append(unidad)
         self.actualizar_tablas()
 
-    def buscar(self, *args):
-        Modulos.BuscarBoleto(self.http, self.ruta)
+    def buscar_boleto(self, *args):
+        Modulos.BuscarBoleto(self.ruta)
 
     def chrome_web(self, *args):
         self.http.webbrowser('/')
 
     def liquidar(self, *args):
-        Modulos.Liquidaciones(self.http, self.ruta, self.lado)
-
-    def flota(self, *args):
-        self.http.webbrowser('monitoreo')
-        # Modulos.Reporte(self.http, self.dia, self.ruta, self.lado)
+        Modulos.Liquidaciones(self.ruta, self.lado)
 
     def grifo(self, *args):
-        Modulos.Grifo(self.http, self.ruta, self.lado)
+        Modulos.Grifo(self.ruta, self.lado)
 
     def mantenimiento(self, *args):
-        Modulos.Mantenimiento(self.http, self.ruta, self.lado, self.dia)
+        Modulos.Mantenimiento(self.ruta, self.lado, self.dia)
 
     def disponibles_key(self, widget, event):
         k = event.keyval
@@ -275,15 +255,11 @@ class Ventana(Gtk.Window):
             self.but_excluir.clicked()
 
     def focus_entry(self, *args):
-        # self.get_window().get_focus()
+        self.get_window().focus()
         self.datos_unidad.focus_entry()
 
-    def login(self, sessionid):
-        self.reloj.correr = False
+    def login(self):
         self.selector.update_data()
-        self.datos_unidad.update_selector()
-        self.datos_unidad.login(sessionid)
-        self.logueado = True
         self.cambio_selector()
 
     def twist_recibido(self, params):
@@ -296,40 +272,36 @@ class Ventana(Gtk.Window):
             self.twist_recibido(params)
 
     def cambio_selector(self, *args):
-        if self.logueado:
-            dia, ruta, lado = self.selector.get_datos()
-            if self.ruta != ruta or self.dia != dia:
-                self.dia = dia
-                self.ruta = ruta
-                self.lado = lado
-                actualizar = True
-            elif self.lado != lado:
-                actualizar = False
-                self.lado = lado
+        print('cambio selector')
+        dia, ruta, lado = self.selector.get_datos()
+        actualizar = False
+        if self.ruta != ruta or self.dia != dia:
+            self.dia = dia
+            self.ruta = ruta
+            self.lado = lado
+            actualizar = True
+        elif self.lado != lado:
+            self.lado = lado
 
-            self.focus_entry()
-            self.datos_unidad.hora.set_date(self.dia)
-            self.sonido_folder = self.llamada.set_ruta('H1')
-            self.datos_unidad.update_selector()
-            self.disponibles.update_selector()
-            self.enruta.update_selector()
-            self.excluidos.update_selector()
-            self.datos_unidad.vueltas.update_selector()
-            self.datos_unidad.llegadas.update_selector()
-            self.datos_unidad.boletaje.update_selector()
-            self.datos_unidad.inspectoria.update_selector()
-            if os.name == 'nt':
-                version = 'Sistema de Despacho TCONTUR v%s' % self.version
-            else:
-                version = 'Sistema de Despacho TCONTUR PRO v%s' % self.version
-            titulo = 'RUTA: %s Lado: %s del %s - %s' % (self.selector.ruta.get_text(),
-                self.selector.lado.get_text(),
-                self.selector.fecha.get_text(),
-                version)
-            self.set_title(titulo)
-            if actualizar:
-                self.actualizar()
-            self.actualizar_tablas()
+        self.focus_entry()
+        self.datos_unidad.hora.set_date(self.dia)
+        self.sonido_folder = self.llamada.set_ruta('H1')
+        self.datos_unidad.update_selector()
+        self.disponibles.update_selector()
+        self.enruta.update_selector()
+        self.excluidos.update_selector()
+        self.datos_unidad.vueltas.update_selector()
+        self.datos_unidad.llegadas.update_selector()
+        self.datos_unidad.boletaje.update_selector()
+        self.datos_unidad.inspectoria.update_selector()
+        titulo = 'RUTA: %s Lado: %s del %s - %s' % (self.selector.ruta.get_text(),
+            self.selector.lado.get_text(),
+            self.selector.fecha.get_text(),
+            self.http.version)
+        self.set_title(titulo)
+        if actualizar:
+            self.actualizar()
+        self.actualizar_tablas()
 
     def actualizar(self, *args):
         datos = {
@@ -342,11 +314,11 @@ class Ventana(Gtk.Window):
             self.unidades = []
             if tablas['unidades']:
                 for u in tablas['unidades']:
-                    self.unidades.append(models.Unidad(self.http, u))
+                    self.unidades.append(models.Unidad(u))
             self.salidas = []
             if tablas['salidas']:
                 for s in tablas['salidas']:
-                    self.salidas.append(models.Salida(self.http, s))
+                    self.salidas.append(models.Salida(s))
             self.ruta.set_manual(tablas['manual'])
             return tablas
 
@@ -373,12 +345,6 @@ class Ventana(Gtk.Window):
                 break
         self.actualizar_tablas()
 
-    def cola_reordenada(self, widget, unidades):
-        self.unidades = []
-        for u in unidades:
-            self.unidades.append(models.Unidad(self.http, u))
-        self.actualizar_tablas()
-
     def actualizar_tablas(self):
         ultimo = self.enruta.actualizar(self.salidas)
         excluidos = []
@@ -395,7 +361,7 @@ class Ventana(Gtk.Window):
             hora = None
             if ultimo:
                 hora = ultimo.get_inicio()
-            print(('inicio disponibles', hora))
+            print('inicio disponibles', hora)
             ultimo = self.disponibles.actualizar(disponibles, hora)
             ultimo, frecuencia = self.ruta.getSiguienteHora(ultimo, self.lado)
             self.datos_unidad.set_siguiente(ultimo, frecuencia, self.ruta.manual[int(self.lado)])
@@ -406,9 +372,9 @@ class Ventana(Gtk.Window):
             self.reloj.set_limite(datetime.datetime(2019, 1, 1))
             self.llamar(False)
             if ultimo:
-                self.datos_unidad.set_siguiente(ultimo.get_inicio(), 0, None)
+                self.datos_unidad.set_siguiente(ultimo.get_inicio(), 0, 0)
             else:
-                self.datos_unidad.set_siguiente(datetime.datetime(2019, 1, 1), 0, None)
+                self.datos_unidad.set_siguiente(datetime.datetime(2019, 1, 1), 0, 0)
 
     def frecuencia_reloj(self, *args):
         frecuencia = self.datos_unidad.frecuencia.get_int()
@@ -486,7 +452,7 @@ class Ventana(Gtk.Window):
                     else:
                         self.sonido.preparar(padron, self.sonido_folder)
                         self.llamado = padron
-                salida = models.SalidaCompleta(self.http, respuesta['salida'])
+                salida = models.SalidaCompleta(respuesta['salida'])
                 if self.datos_unidad.unidad and self.datos_unidad.unidad.id == unidad.id:
                     self.datos_unidad.unidad.estado = 'R'
                     self.datos_unidad.unidad.actual = salida.id
@@ -631,9 +597,9 @@ class Ventana(Gtk.Window):
     def on_key_release(self, widget, event):
         k = event.keyval
         if k == 65307:  # Escape
-            self.datos_unidad.entry_padron.grab_focus()
+            self.datos_unidad.entry_codigo.grab_focus()
         elif k == 65470:  # F1
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + F1
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + F1
                 mensaje = """Escape = Seleccionar Padron
 F1 = Pestaña Datos
 F2 = Pestaña Llegadas
@@ -671,7 +637,7 @@ Ctrl + E = Cola de Espera"""
         elif k == 65474:  # F5 Actualizar
             self.forzar_actualizar()
         elif k == 65475:  # F6
-            Cobranza.Cobranza(self.http)
+            self.modulo_cobranza()
         elif k == 65476:  # F7
             try:
                 unidad = self.disponibles.get_primera_unidad()
@@ -688,7 +654,7 @@ Ctrl + E = Cola de Espera"""
                 nuevo = anterior.replace(hour=hora.hour, minute=hora.minute)
                 frecuencia = (nuevo - anterior).seconds / 60
                 datos = {
-                    'frecuencia': int(frecuencia),
+                    'frecuencia': frecuencia,
                     'ruta': self.ruta.id,
                     'lado': int(self.lado),
                 }
@@ -777,7 +743,7 @@ Ctrl + E = Cola de Espera"""
         elif k == 65481:  # F12 Registrar Tarjeta
             self.datos_unidad.llegadas.registrar()
         elif k == 65535:  # Delete
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + Eliminar
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + Eliminar
                 try:
                     path = len(self.datos_unidad.vueltas.model) - 1
                     salida = self.datos_unidad.vueltas.model[path][12]['id']
@@ -796,45 +762,45 @@ Ctrl + E = Cola de Espera"""
                     self.anular(salida)
                 dialogo.cerrar()
         elif k == 65293 or k == 65421:  # return = 65293, intro= 65421
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + return
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + return
                 if self.datos_unidad.but_confirmar.get_sensitive():
                     self.datos_unidad.but_confirmar.clicked()
         elif k == 110:  # Ctrl + N
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + N
-                self.emit('salidas')
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + N
+                self.emit('nueva-ventana')
         elif k == 102:  # Ctrl + F
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + F
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + F
                 self.flota()
         elif k == 103:  # Ctrl + G
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + G
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + G
                 self.grifo()
         elif k == 98:  # Ctrl + B
-            if event.state & Gdk.ModifierType.CONTROL_MASK:
+            if event.state & gtk.gdk.CONTROL_MASK:
                 self.buscar()
         elif k == 113:                             # Control + Q
-            if event.state & Gdk.ModifierType.CONTROL_MASK:
+            if event.state & gtk.gdk.CONTROL_MASK:
                 self.backups()
         elif k == 109:  # Ctrl + M
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + M
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + M
                 self.mantenimiento()
         elif k == 112:  # Ctrl + P
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + M
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + M
                 self.programacion()
         elif k == 108:  # Ctrl + L
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + L
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + L
                 self.liquidar()
         elif k == 99:  # Ctrl + C
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + C
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + C
                 self.caja_central()
         elif k == 101:  # Ctrl + E
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + C
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + C
                 self.cola_espera()
         elif k == 116:  # Ctrl + T
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control + T
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control + T
                 self.chrome_web()
         else:
-            if event.state & Gdk.ModifierType.CONTROL_MASK:  # Control ++
-                print(k)
+            if event.state & gtk.gdk.CONTROL_MASK:  # Control ++
+                print k
 
     def backups(self):
         data = self.http.load('backups', {'dato': 1})
@@ -842,12 +808,12 @@ Ctrl + E = Cola de Espera"""
             dialogo = Widgets.Alerta_Combo('Lista de Backup', 'backup.png', 'Escoja el backup que desea descargar:', data, liststore=(str, str))
             url = dialogo.iniciar()
             if url:
-                print('Backup')
-                print(url)
+                print 'Backup'
+                print url
                 sh.wget(url)
                 1/0
                 sh.unzip()
-        print(data)
+        print data
 
     def cerrar(self, *args):
         self.emit('cerrar')
@@ -855,3 +821,13 @@ Ctrl + E = Cola de Espera"""
     def forzar_actualizar(self, *args):
         self.actualizar()
         self.actualizar_tablas()
+
+    def connect_selector(self):
+        self.selector.connect('nueva-ventana', self.nueva_ventana)
+        self.selector.connect('modulo-cobranza', self.modulo_cobranza)
+        self.selector.connect('buscar-boleto', self.buscar_boleto)
+        self.selector.connect('chrome-web', self.chrome_web)
+        self.selector.connect('forzar-actualizar', self.forzar_actualizar)
+
+    def modulo_cobranza(self, *args):
+        Cobranza.Cobranza()

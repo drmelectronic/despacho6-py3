@@ -1,159 +1,162 @@
 #! /usr/bin/python
 # -*- encoding: utf-8 -*-
 import datetime
+import gobject
 import json
 import os
 
 import Impresion
 import Widgets
-import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk
-from gi.repository import GObject
+import gtk
+
+import models
+from Http import Http
 
 
-class Cobranza(Gtk.Window):
+class Cobranza(gtk.Window):
 
     documento = None
     cliente = None
     moneda = None
     movimiento = None
 
-    def __init__(self, http):
+    def __init__(self):
         super(Cobranza, self).__init__()
 
-        acgroup = Gtk.AccelGroup()
+        acgroup = gtk.AccelGroup()
         self.add_accel_group(acgroup)
 
-        mb = Gtk.MenuBar()
+        mb = gtk.MenuBar()
 
-        menu1 = Gtk.Menu()
+        menu1 = gtk.Menu()
 
-        file = Gtk.MenuItem("_Reportes")
+        file = gtk.MenuItem("_Reportes")
         file.set_submenu(menu1)
         mb.append(file)
 
-        por_cobrar = Gtk.ImageMenuItem('Por Cobrar', acgroup)
-        por_cobrar.add_accelerator("activate", acgroup, ord('R'), Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
+        por_cobrar = gtk.ImageMenuItem('Por Cobrar', acgroup)
+        por_cobrar.add_accelerator("activate", acgroup, ord('R'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
         por_cobrar.connect('activate', self.por_cobrar)
         menu1.append(por_cobrar)
 
-        self.http = http
+        self.http = Http()
+        self.dataLocal = self.http.dataLocal
+        self.dataLocal.get_clientes()
 
         self.set_title('Módulo de Cobranza')
         self.set_size_request(720, 400)
 
-        vbox_main = Gtk.VBox(False, 0)
+        vbox_main = gtk.VBox(False, 0)
         self.add(vbox_main)
 
-        vbox_main.pack_start(mb, False, False, 0)
+        vbox_main.pack_start(mb, False, False, )
 
-        hbox_main = Gtk.HBox(False, 0)
+        hbox_main = gtk.HBox(False, 0)
         vbox_main.pack_start(hbox_main, False, False, 0)
 
-        vbox_form = Gtk.VBox(False, 0)
+        vbox_form = gtk.VBox(False, 0)
         hbox_main.pack_start(vbox_form, True, True, 0)
 
-        hbox_form = Gtk.HBox(False, 0)
+        hbox_form = gtk.HBox(False, 0)
         vbox_form.pack_start(hbox_form, False, False, 10)
 
-        frame1 = Widgets.Frame('Documento')
+        frame1 = gtk.Frame('Documento')
         frame1.set_size_request(200, 130)
         hbox_form.pack_start(frame1, True, True, 10)
 
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         frame1.add(hbox)
-        tabla = Gtk.Table(3, 3)
+        tabla = gtk.Table(3, 3)
         tabla.set_row_spacings(5)
         tabla.set_col_spacings(5)
         hbox.pack_start(tabla, False, False, 10)
 
-        label = Gtk.Label('TIPO:')
+        label = gtk.Label('TIPO:')
         label.set_alignment(0, 0.5)
         tabla.attach(label, 0, 1, 0, 1)
         self.entry_tipo_doc = Widgets.Numero(4)
         tabla.attach(self.entry_tipo_doc, 1, 2, 0, 1)
-        self.label_tipo_doc = Gtk.Label('Escoja un tipo')
+        self.label_tipo_doc = gtk.Label('Escoja un tipo')
         self.label_tipo_doc.set_alignment(0, 0.5)
         tabla.attach(self.label_tipo_doc, 2, 3, 0, 1)
         self.entry_tipo_doc.connect('activate', self.tipo_documento)
 
-        label = Gtk.Label('SERIE:')
+        label = gtk.Label('SERIE:')
         label.set_alignment(0, 0.5)
         tabla.attach(label, 0, 1, 1, 2)
         self.entry_serie = Widgets.Numero(4)
         tabla.attach(self.entry_serie, 1, 2, 1, 2)
-        self.label_serie = Gtk.Label('Escoja una serie')
+        self.label_serie = gtk.Label('Escoja una serie')
         self.label_serie.set_alignment(0, 0.5)
         tabla.attach(self.label_serie, 2, 3, 1, 2)
         self.entry_serie.connect('activate', self.buscar_documento)
 
-        label = Gtk.Label('MONEDA:')
+        label = gtk.Label('MONEDA:')
         label.set_alignment(0, 0.5)
         tabla.attach(label, 0, 1, 2, 3)
         self.entry_moneda = Widgets.Numero(4)
         tabla.attach(self.entry_moneda, 1, 2, 2, 3)
-        self.label_moneda = Gtk.Label('Escoja una moneda')
+        self.label_moneda = gtk.Label('Escoja una moneda')
         self.label_moneda.set_alignment(0, 0.5)
         tabla.attach(self.label_moneda, 2, 3, 2, 3)
         self.entry_moneda.connect('activate', self.buscar_moneda)
 
-        # tabla.attach(Gtk.Label('NUMERO:'), 0, 1, 1, 2)
-        # self.entry_serie = Gtk.Entry()
+        # tabla.attach(gtk.Label('NUMERO:'), 0, 1, 1, 2)
+        # self.entry_serie = gtk.Entry()
         # tabla.attach(self.entry_serie, 1, 2, 1, 2)
-        # tabla.attach(Gtk.Label('Escoja una serie'), 2, 3, 1, 2)
+        # tabla.attach(gtk.Label('Escoja una serie'), 2, 3, 1, 2)
 
-        frame2 = Widgets.Frame('Cliente')
+        frame2 = gtk.Frame('Cliente')
         frame2.set_size_request(200, 90)
         hbox_form.pack_start(frame2, True, True, 10)
 
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         frame2.add(hbox)
-        tabla = Gtk.Table(3, 3)
+        tabla = gtk.Table(3, 3)
         tabla.set_row_spacings(10)
         tabla.set_col_spacings(10)
         hbox.pack_start(tabla, False, False, 10)
 
-        label = Gtk.Label('MOV:')
+        label = gtk.Label('MOV:')
         label.set_alignment(0, 0.5)
         tabla.attach(label, 0, 1, 0, 1)
         self.entry_tipo_mov = Widgets.Texto(4)
         tabla.attach(self.entry_tipo_mov, 1, 2, 0, 1)
-        self.label_tipo_mov = Gtk.Label('Escoja un tipo')
+        self.label_tipo_mov = gtk.Label('Escoja un tipo')
         self.label_tipo_mov.set_alignment(0, 0.5)
         tabla.attach(self.label_tipo_mov, 2, 3, 0, 1)
         self.entry_tipo_mov.connect('activate', self.tipo_movimiento)
 
-        label = Gtk.Label('TIPO:')
-        label.set_alignment(0, 0.5)
-        tabla.attach(label, 0, 1, 1, 2)
-        self.entry_tipo_cli = Widgets.Texto(4)
-        tabla.attach(self.entry_tipo_cli, 1, 2, 1, 2)
-        self.label_tipo_cliente = Gtk.Label('Escoja un tipo')
-        self.label_tipo_cliente.set_alignment(0, 0.5)
-        tabla.attach(self.label_tipo_cliente, 2, 3, 1, 2)
-        self.entry_tipo_cli.connect('activate', self.tipo_cliente)
+        # label = gtk.Label('TIPO:')
+        # label.set_alignment(0, 0.5)
+        # tabla.attach(label, 0, 1, 1, 2)
+        # self.entry_tipo_cli = Widgets.Texto(4)
+        # tabla.attach(self.entry_tipo_cli, 1, 2, 1, 2)
+        # self.label_tipo_cliente = gtk.Label('Escoja un tipo')
+        # self.label_tipo_cliente.set_alignment(0, 0.5)
+        # tabla.attach(self.label_tipo_cliente, 2, 3, 1, 2)
+        # self.entry_tipo_cli.connect('activate', self.tipo_cliente)
 
-        label = Gtk.Label('CODIGO:')
+        label = gtk.Label('CODIGO:')
         label.set_alignment(0, 0.5)
         tabla.attach(label, 0, 1, 2, 3)
         self.entry_cliente = Widgets.Texto(11)
         tabla.attach(self.entry_cliente, 1, 3, 2, 3)
         self.entry_cliente.connect('activate', self.buscar_cliente)
 
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         vbox_form.pack_start(hbox, False, False, 10)
-        self.label_cliente = Gtk.Label('<b><big>CLIENTE: </big></b>')
+        self.label_cliente = gtk.Label('<b><big>CLIENTE: </big></b>')
         # self.label_cliente.set_size_request(500, 20)
         self.label_cliente.set_alignment(0, 0.5)
         self.label_cliente.set_use_markup(True)
         hbox.pack_start(self.label_cliente, False, False, 20)
 
 
-        vbox_buttons = Gtk.VBox(False, 0)
+        vbox_buttons = gtk.VBox(False, 0)
         hbox_main.pack_start(vbox_buttons, False, False, 10)
 
-        vbox_buttons.pack_start(Gtk.HBox(), False, False, 3)
+        vbox_buttons.pack_start(gtk.HBox(), False, False, 3)
 
         button_cargar = Widgets.Button('credito.png', "Buscar\nDeudas", 48)
         vbox_buttons.pack_start(button_cargar, False, False, 10)
@@ -166,10 +169,10 @@ class Cobranza(Gtk.Window):
         self.but_pagar.connect('clicked', self.pagar)
         vbox_buttons.pack_start(self.but_pagar, False, False, 0)
 
-        hbox_search = Gtk.HBox(False, 0)
+        hbox_search = gtk.HBox(False, 0)
         vbox_buttons.pack_start(hbox_search, False, False, 10)
 
-        hbox_search.pack_start(Gtk.Label('Nuevo Prod: '), False, False, 20)
+        hbox_search.pack_start(gtk.Label('Nuevo Prod: '), False, False, 20)
         self.entry_search = Widgets.Texto(10, DIR_TAB=False)
         hbox_search.pack_start(self.entry_search, False, False, 10)
         self.set_productos()
@@ -178,18 +181,18 @@ class Cobranza(Gtk.Window):
         self.entry_search.connect('activate', self.buscar_codigo)
         button.connect('clicked', self.buscar_codigo)
 
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         vbox_main.pack_start(hbox, True, True, 10)
 
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         hbox.pack_start(sw, True, True, 10)
         sw.set_size_request(560, 10)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        model = Gtk.ListStore(str, str, str, str, str, str, str, GObject.TYPE_PYOBJECT)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+        model = gtk.ListStore(str, str, str, str, str, str, str, gobject.TYPE_PYOBJECT)
         self.treeview = Widgets.TreeView(model)
         self.columnas = ['Nº', 'REF', 'DETALLE', 'CANT.', 'P.UNIT.', 'IGV', 'PAGAR']
         for i, columna in enumerate(self.columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, text=i)
@@ -237,17 +240,17 @@ class Cobranza(Gtk.Window):
 
 
     def set_productos(self):
-        liststore = Gtk.ListStore(str)
-        for p in self.http.get_productos():
+        liststore = gtk.ListStore(str)
+        for p in self.dataLocal.get_productos():
             liststore.append([p['codigo']])
-        completion = Gtk.EntryCompletion()
+        completion = gtk.EntryCompletion()
         completion.set_model(liststore)
         completion.set_text_column(0)
         self.entry_search.set_completion(completion)
 
     def on_key_pressed(self, widget, event):
         k = event.keyval
-        print(('key', k))
+        print('key', k)
         if k == 65307:  # Escape
             dialogo = Widgets.Alerta_SINO('Cancelar Cobranza', 'warning.png', 'Confirme si desea borrar todos los campos')
             respuesta = dialogo.iniciar()
@@ -261,11 +264,11 @@ class Cobranza(Gtk.Window):
                     self.entry_tipo_doc.grab_focus()
 
     def limpiar_form(self):
-        self.entry_tipo_cli.set_text('')
+        # self.entry_tipo_cli.set_text('')
         self.label_tipo_cliente.set_text('Escoja un tipo')
         self.entry_serie.set_text('')
         self.label_serie.set_text('Escoja una serie')
-        self.entry_tipo_cli.set_text('')
+        # self.entry_tipo_cli.set_text('')
         self.label_tipo_cliente.set_text('Escoja un tipo')
         self.entry_cliente.set_text('')
         self.label_cliente.set_text('Escoja un código')
@@ -290,7 +293,7 @@ class Cobranza(Gtk.Window):
 
     def buscar_documento(self, *args):
         tipo = self.entry_tipo_doc.get_int()
-        serie = self.entry_serie.get_int()
+        serie = unicode(self.entry_serie.get_text())
 
         self.documento = None
         if tipo == 0:
@@ -302,12 +305,11 @@ class Cobranza(Gtk.Window):
         else:
             return Widgets.Alerta('Error de Formulario', 'error.png', 'Tipo de Documento inválido')
 
-        documentos = self.http.get_documentos()
-        print(documentos)
+        documentos = self.dataLocal.get_tipos_documento()
+        print documentos
         for d in documentos:
-            if d['code'] == tipo and d['serie'] == serie:
-                self.label_serie.set_text(doc
-                                          [0] + str(serie).zfill(3))
+            if d.tipo == tipo and d.serie == serie:
+                self.label_serie.set_text(doc[0] + serie.zfill(3))
                 self.documento = d
                 return d
 
@@ -316,14 +318,12 @@ class Cobranza(Gtk.Window):
         respuesta = dialogo.iniciar()
         if respuesta:
             data = {
-                'json': json.dumps({
-                    'codigo': tipo,
-                    'serie': serie
-                })
+                'tipo': tipo,
+                'serie': serie
             }
-            creado = self.http.load('crear-serie', data)
+            creado = self.http.load('/api/tiposDocumento', data)
             if creado:
-                self.http.get_documentos(actualizar=True)
+                self.dataLocal.get_tipos_documento(actualizar=True)
                 self.buscar_documento()
         dialogo.cerrar()
 
@@ -332,7 +332,7 @@ class Cobranza(Gtk.Window):
         self.treeview.get_model().clear()
         tipo = self.entry_tipo_mov.get_text().upper()
         self.entry_tipo_mov.set_text(tipo)
-        print(('tipo movimiento', tipo))
+        print('tipo movimiento', tipo)
         if tipo == '0' or tipo == 'A' or tipo == '':
             cli = 'ABONO'
             self.movimiento = 'A'
@@ -347,22 +347,22 @@ class Cobranza(Gtk.Window):
             self.movimiento = 'A'
         self.label_tipo_mov.set_text(cli)
 
-    def tipo_cliente(self, *args):
-        tipo = self.entry_tipo_cli.get_text().upper()
-        self.entry_tipo_cli.set_text(tipo)
-        self.treeview.get_model().clear()
-        print(('tipo cliente', tipo))
-        if tipo == '0':
-            cli = 'PERSONAL x ID'
-        elif tipo == '1' or tipo == 'U' or tipo == '':
-            cli = 'UNIDAD'
-        elif tipo == 'F':
-            cli = 'CONDUCTOR'
-        elif tipo == 'C':
-            cli = 'COBRADOR'
-        else:
-            cli = 'TIPO INVÁLIDO'
-        self.label_tipo_cliente.set_text(cli)
+    # def tipo_cliente(self, *args):
+    #     tipo = self.entry_tipo_cli.get_text().upper()
+    #     self.entry_tipo_cli.set_text(tipo)
+    #     self.treeview.get_model().clear()
+    #     print('tipo cliente', tipo)
+    #     if tipo == '0':
+    #         cli = 'PERSONAL x ID'
+    #     elif tipo == '1' or tipo == 'U' or tipo == '':
+    #         cli = 'UNIDAD'
+    #     elif tipo == 'F':
+    #         cli = 'CONDUCTOR'
+    #     elif tipo == 'C':
+    #         cli = 'COBRADOR'
+    #     else:
+    #         cli = 'TIPO INVÁLIDO'
+    #     self.label_tipo_cliente.set_text(cli)
 
     def buscar_cliente(self, *args):
         if self.documento is None:
@@ -374,7 +374,7 @@ class Cobranza(Gtk.Window):
             self.label_tipo_doc.set_markup('<span foreground="#aa1111">Escoja un tipo</span>')
             self.entry_tipo_doc.grab_focus()
             return
-        tipo = self.entry_tipo_cli.get_text()
+        # tipo = self.entry_tipo_cli.get_text()
         codigo = self.entry_cliente.get_text()
 
         if codigo == '':
@@ -383,58 +383,51 @@ class Cobranza(Gtk.Window):
             return
         self.cliente = None
         self.treeview.get_model().clear()
+        self.deudas = None
 
-        if tipo == '0':
-            cli = 'ID'
-        elif tipo == '1' or tipo == 'U' or tipo == '':
-            cli = 'PAD'
-        elif tipo == 'F':
-            cli = 'F'
-        elif tipo == 'C':
-             cli = 'C'
-        else:
-            Widgets.Alerta('Error de Formulario', 'error.png', 'Tipo de Cliente inválido')
-            self.entry_tipo_cli.grab_focus()
-            return
+        for c in self.dataLocal.get_clientes():
+            if c.codigo == codigo:
+                self.cliente = c
+                break
 
-        data = {
-            'json': json.dumps({
-                'tipo': cli,
-                'codigo': codigo
-            })
-        }
-        respuesta = self.http.load('buscar-cliente', data)
-        if respuesta:
-            self.cliente = respuesta['cliente']
-            label_cliente = '<b><big>CLIENTE: %s</big></b>' % self.cliente['nombre']
-            if 'fondo' in self.cliente and self.cliente['fondo']:
-                label_cliente += ' <span foreground="#D33"><b><big>(FONDO: %s)</big></b></span>' % self.cliente['fondo']
+        if self.cliente is None:
+            data = {'codigo': codigo}
+            respuesta = self.http.load('buscar-cliente', data)
+            if respuesta:
+                self.cliente = respuesta['cliente']
+                self.dataLocal.add_dato('clientes', self.cliente)
+            else:
+                dialog = ClienteDialogo()
+                dialog.entry_codigo.set_text(codigo)
+                cliente = dialog.iniciar()
+                data = {
+                    'codigo': dialog.entry_codigo.get_text(),
+                    'referencia': dialog.entry_corto.get_text(),
+                    'nombre': dialog.entry_nombre.get_text(),
+                }
+                dialog.cerrar()
+                if cliente:
+                    respuesta = self.http.load('/api/clientes', data)
+                    if respuesta:
+                        self.cliente = self.dataLocal.add_cliente(respuesta)
+
+        if self.cliente:
+            label_cliente = '<b><big>CLIENTE: %s</big></b>' % self.cliente.nombre
             self.label_cliente.set_markup(label_cliente)
-            if self.documento['code'] == 1:  # Factura
-                if self.cliente['tipo'] == 'Unidad':
-                    if self.cliente['ruc'] is None or self.cliente['ruc'] < 10000000000:
-                        dialogo = Widgets.Alerta_Numero('Registrar RUC', 'personal.png', 'Registre el RUC del cliente para poder emitir factura', 11)
-                        ruc = dialogo.iniciar()
-                        dialogo.cerrar()
-                        if ruc:
-                            self.cliente['ruc'] = ruc
-                            data = {'json': json.dumps({
-                                'cliente': self.cliente
-                            })}
-                            self.http.load('registrar-cliente', data, True)
-                        else:
-                            self.entry_cliente.grab_focus()
-                            return
-                else:
-                    if self.cliente['ruc'] is None or self.cliente['ruc'] < 10000000000:
-                        Widgets.Alerta('Cliente no tiene RUC', 'error.png',
-                                       'El Cliente no tiene RUC y no debe ser modificado,\n cree un nuevo cliente con su RUC')
-                        self.entry_cliente.grab_focus()
-                        return
-            self.deudas = respuesta['deudas']
             self.abrir_deudas()
         else:
             self.entry_cliente.grab_focus()
+
+    def get_deudas(self):
+        if self.deudas is None:
+            data = {
+                'cliente': self.cliente.id
+            }
+            respuesta = self.http.load('buscar-deudas', data)
+            if respuesta:
+                self.deudas = []
+                for d in respuesta['deudas']:
+                    self.deudas.append(models.Deuda(d))
 
     def abrir_deudas(self, *args):
         if self.documento is None:
@@ -444,6 +437,7 @@ class Cobranza(Gtk.Window):
         elif self.moneda is None:
             Widgets.Alerta('Formulario Incompleto', 'road-closure.png', 'Escoja una Moneda')
         else:
+            self.get_deudas()
             deudas = []
             for d in self.deudas:
                 if d['moneda'] == self.moneda:
@@ -462,9 +456,9 @@ class Cobranza(Gtk.Window):
     def buscar_codigo(self, *args):
         codigo = self.entry_search.get_text()
         if codigo:
-            for prod in self.http.get_productos():
+            for prod in self.dataLocal.get_productos():
                 p = prod.copy()
-                print((p['codigo'], p['nombre']))
+                print(p['codigo'], p['nombre'])
                 if p['codigo'] == codigo:
                     if self.movimiento == 'D':
                         self.generar_deuda(p)
@@ -501,7 +495,7 @@ class Cobranza(Gtk.Window):
                             dialogo = Widgets.Alerta_Numero('Pagar', 'money.png',
                                                             'Escriba la cantidad a retirar\n<b>%s</b>' % p['nombre'],
                                                             10, True)
-                        print(('venta', p['venta']))
+                        print('venta', p['venta'])
                         dialogo.entry.set_text(Widgets.currency(p['venta']))
                         monto = dialogo.iniciar()
                         dialogo.cerrar()
@@ -545,7 +539,7 @@ class Cobranza(Gtk.Window):
 
     def add_concepto(self, concepto):
         model = self.treeview.get_model()
-        print(('concepto', concepto))
+        print('concepto', concepto)
         if concepto['moneda'] != self.moneda:
             Widgets.Alerta('Error', 'error.png', 'La concepto a pagar debe estar en %s' % self.moneda_str)
             return False
@@ -667,24 +661,35 @@ class Cobranza(Gtk.Window):
 
 
 
-class Deudas(Widgets.Dialog):
+class Deudas(gtk.Dialog):
 
     def __init__(self, parent, data):
-        super(Deudas, self).__init__('Deudas del Cliente: %s' % self.cliente['nombre'])
+        super(Deudas, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
         self.padre = parent
         self.http = parent.http
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+        self.set_modal(True)
+        self.set_transient_for(parent)
         self.cliente = data['cliente']
         self.deudas = data['deudas']
-        sw = Gtk.ScrolledWindow()
+        self.set_title('Deudas del Cliente: %s' % self.cliente['nombre'])
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+        sw = gtk.ScrolledWindow()
         sw.set_size_request(400, 300)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
         self.vbox.pack_start(sw, False, False, 0)
-        self.model = Gtk.ListStore(str, str, str, str, GObject.TYPE_PYOBJECT)
-        self.treeview = Gtk.TreeView(self.model)
+        self.model = gtk.ListStore(str, str, str, str, gobject.TYPE_PYOBJECT)
+        self.treeview = gtk.TreeView(self.model)
         self.columnas = ('DIA', 'DETALLE', 'MONEDA', 'MONTO')
         sw.add(self.treeview)
         for i, columna in enumerate(self.columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, markup=i)
@@ -701,11 +706,11 @@ class Deudas(Widgets.Dialog):
             if l['total'] > 0:
                 self.model.append((l['dia'], '%s-%s' % (l['numero'], l['detalle']), moneda, Widgets.currency(l['total']), l))
 
-        self.menu = Gtk.Menu()
-        item1 = Gtk.MenuItem('Conciliar Deuda')
-        item2 = Gtk.MenuItem('Eliminar Deuda')
-        item3 = Gtk.MenuItem('Editar Deuda')
-        item4 = Gtk.MenuItem('Historial Deuda')
+        self.menu = gtk.Menu()
+        item1 = gtk.MenuItem('Conciliar Deuda')
+        item2 = gtk.MenuItem('Eliminar Deuda')
+        item3 = gtk.MenuItem('Editar Deuda')
+        item4 = gtk.MenuItem('Historial Deuda')
         item1.connect('activate', self.conciliar)
         item2.connect('activate', self.eliminar)
         item3.connect('activate', self.editar)
@@ -720,7 +725,7 @@ class Deudas(Widgets.Dialog):
         but_pagar_todo.connect('clicked', self.pagar_todo)
 
         but_salir = Widgets.Button('cancelar.png', '_Salir')
-        self.add_action_widget(but_salir, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_salir, gtk.RESPONSE_CANCEL)
         self.treeview.connect('row-activated', self.pagar)
         self.treeview.set_enable_search(False)
 
@@ -734,7 +739,7 @@ class Deudas(Widgets.Dialog):
                 path, col, cellx, celly = pthinfo
                 treeview.grab_focus()
                 treeview.set_cursor(path, col, 0)
-                self.menu.popup(None, None, None, None, event.button, t)
+                self.menu.popup(None, None, None, event.button, t)
                 self.menu.show_all()
             return True
 
@@ -839,7 +844,7 @@ class Deudas(Widgets.Dialog):
         monto = dialogo.iniciar()
         dialogo.cerrar()
         pagar = int(float(monto) * 100)
-        print(('pagar', pagar, deuda['total']))
+        print('pagar', pagar, deuda['total'])
         if 0 < pagar <= deuda['total']:
             deuda['pagar'] = pagar
             deuda['referencia'] = 'D' + str(deuda['numero']).zfill(5)
@@ -866,7 +871,7 @@ class Deudas(Widgets.Dialog):
 
 
 
-class PorCobrar(Gtk.Window):
+class PorCobrar(gtk.Window):
 
     concepto = None
     tipo = None
@@ -879,31 +884,31 @@ class PorCobrar(Gtk.Window):
         self.set_title('Reporte General de Fondos')
         self.set_size_request(900, 400)
 
-        vbox_main = Gtk.VBox(False, 0)
+        vbox_main = gtk.VBox(False, 0)
         self.add(vbox_main)
 
-        hbox_main = Gtk.HBox(False, 0)
+        hbox_main = gtk.HBox(False, 0)
         vbox_main.pack_start(hbox_main, False, False, 0)
 
 
-        frame1 = Widgets.Frame('Búsqueda')
+        frame1 = gtk.Frame('Búsqueda')
         frame1.set_size_request(200, 60)
         hbox_main.pack_start(frame1, True, True, 10)
 
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         frame1.add(hbox)
 
-        label = Gtk.Label('TIPO DE BÚSQUEDA:')
+        label = gtk.Label('TIPO DE BÚSQUEDA:')
         label.set_alignment(0, 0.5)
         hbox.pack_start(label, False, False, 10)
         self.entry_tipo = Widgets.Texto(2, DIR_TAB=False)
         self.entry_tipo.connect('activate', self.buscar_tipo)
         hbox.pack_start(self.entry_tipo, False, False, 20)
-        self.label_tipo = Gtk.Label('Seleccione un tipo')
+        self.label_tipo = gtk.Label('Seleccione un tipo')
         self.label_tipo.set_alignment(0, 0.5)
         hbox.pack_start(self.label_tipo, True, True, 10)
 
-        label = Gtk.Label('CONCEPTO:')
+        label = gtk.Label('CONCEPTO:')
         label.set_alignment(0, 0.5)
         hbox.pack_start(label, False, False, 10)
         self.entry_codigo = Widgets.Texto(4, DIR_TAB=False)
@@ -914,16 +919,16 @@ class PorCobrar(Gtk.Window):
         hbox.pack_end(self.button_cargar, False, False, 10)
         self.button_cargar.connect('clicked', self.cargar_deudas)
 
-        hbox = Gtk.HBox(True, 10)
+        hbox = gtk.HBox(True, 10)
         vbox_main.pack_start(hbox, True, True, 10)
 
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         hbox.pack_start(vbox, True, True, 10)
 
-        hbox_fondos = Gtk.HBox(False, 0)
+        hbox_fondos = gtk.HBox(False, 0)
         vbox.pack_start(hbox_fondos, False, False, 0)
 
-        self.label_codigo = Gtk.Label()
+        self.label_codigo = gtk.Label()
         self.label_codigo.set_markup('<big><b>Escoja un código</b></big>')
         self.label_codigo.set_alignment(0, 0.5)
         hbox_fondos.pack_start(self.label_codigo, False, False, 10)
@@ -932,15 +937,15 @@ class PorCobrar(Gtk.Window):
         self.button_excel.connect('clicked', self.imprimir)
         hbox_fondos.pack_end(self.button_excel, False, False, 0)
 
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         vbox.pack_start(sw, True, True, 10)
         sw.set_size_request(560, 10)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        model = Gtk.ListStore(str, str, str, str, str, GObject.TYPE_PYOBJECT)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+        model = gtk.ListStore(str, str, str, str, str, gobject.TYPE_PYOBJECT)
         self.treeview_fondo = Widgets.TreeView(model)
         self.columnas = ['Nº', 'CODIGO', 'REF', 'CLIENTE', 'SALDO']
         for i, columna in enumerate(self.columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, text=i)
@@ -951,23 +956,23 @@ class PorCobrar(Gtk.Window):
         sw.add(self.treeview_fondo)
         self.treeview_fondo.connect('row-activated', self.abrir_deuda)
 
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         hbox.pack_start(vbox, True, True, 10)
 
-        self.label_fondo = Gtk.Label()
+        self.label_fondo = gtk.Label()
         self.label_fondo.set_markup('<big><b>Escoja un fondo</b></big>')
         self.label_fondo.set_alignment(0, 0.5)
         vbox.pack_start(self.label_fondo, False, False, 10)
 
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         vbox.pack_start(sw, True, True, 10)
         sw.set_size_request(560, 10)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        model = Gtk.ListStore(str, str, str, str, GObject.TYPE_PYOBJECT)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+        model = gtk.ListStore(str, str, str, str, gobject.TYPE_PYOBJECT)
         self.treeview_deposito = Widgets.TreeView(model)
         self.columnas = ['DIA', 'CONCEPTO', 'MONTO', 'ACUMULADO']
         for i, columna in enumerate(self.columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, text=i)
@@ -997,10 +1002,10 @@ class PorCobrar(Gtk.Window):
         self.label_codigo.set_text('')
         self.concepto = None
         if codigo:
-            for p in self.http.get_productos():
+            for p in self.dataLocal.get_productos():
                 if p['codigo'] == codigo:
                     if p['tipo'] != 'FONDO':
-                        print(('concepto', p))
+                        print('concepto', p)
                         Widgets.Alerta('Error de Consulta', 'error.png', 'El concepto "%s" no es un Fondo' % p['nombre'])
                         break
                     self.label_codigo.set_markup('<big><b>%s</b></big>' % p['nombre'])
@@ -1082,14 +1087,14 @@ class PorCobrar(Gtk.Window):
         a = os.path.abspath(reporte.archivo)
         if os.name == 'nt':
             com = 'cd "%s" & start reporte.xls' % a[:-12]
-            print(com)
+            print com
             os.system(com)
         else:
             os.system('xdg-open ' + a)
 
 
 
-class GenerarDeuda(Gtk.Window):
+class GenerarDeuda(gtk.Window):
 
     concepto = None
     tipo = None
@@ -1105,151 +1110,151 @@ class GenerarDeuda(Gtk.Window):
         self.set_title('Generar Deuda: ')
         self.set_size_request(400, 500)
 
-        vbox_main = Gtk.VBox(False, 0)
+        vbox_main = gtk.VBox(False, 0)
         self.add(vbox_main)
 
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox_main.pack_start(hbox, False, False, 5)
 
-        frame = Widgets.Frame('Información de Cŕedito')
+        frame = gtk.Frame('Información de Cŕedito')
         hbox.pack_start(frame, True, True, 10)
 
-        vbox = Gtk.VBox(True, 0)
+        vbox = gtk.VBox(True, 0)
         frame.add(vbox)
 
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox.pack_start(hbox, False, False, 5)
 
-        label = Gtk.Label('CLIENTE:')
+        label = gtk.Label('CLIENTE:')
         label.set_alignment(0, 0.5)
         hbox.pack_start(label, False, False, 10)
-        label = Gtk.Label(self.cliente['nombre'])
+        label = gtk.Label(self.cliente['nombre'])
         label.set_alignment(0, 0.5)
         hbox.pack_end(label, False, False, 10)
 
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox.pack_start(hbox, False, False, 5)
 
-        label = Gtk.Label('CONCEPTO:')
+        label = gtk.Label('CONCEPTO:')
         label.set_alignment(0, 0.5)
         hbox.pack_start(label, False, False, 10)
         self.entry_detalle = Widgets.Texto(12)
         hbox.pack_end(self.entry_detalle, False, False, 10)
-        label = Gtk.Label(self.concepto['nombre'])
+        label = gtk.Label(self.concepto['nombre'])
         label.set_alignment(0, 0.5)
         hbox.pack_end(label, False, False, 10)
 
-        hbox_main = Gtk.HBox(False, 0)
+        hbox_main = gtk.HBox(False, 0)
         vbox_main.pack_start(hbox_main, False, False, 0)
 
 
-        frame1 = Widgets.Frame('Plan de Pago')
+        frame1 = gtk.Frame('Plan de Pago')
         frame1.set_size_request(200, 180)
         hbox_main.pack_start(frame1, True, True, 10)
 
-        vbox = Gtk.VBox(True, 0)
+        vbox = gtk.VBox(True, 0)
         frame1.add(vbox)
 
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox.pack_start(hbox, False, False, 5)
 
-        label = Gtk.Label('INICIO:')
+        label = gtk.Label('INICIO:')
         label.set_alignment(0, 0.5)
         hbox.pack_start(label, False, False, 10)
         self.entry_fecha = Widgets.FechaSpin()
         self.entry_fecha.connect('changed', self.cambiar_dias)
         hbox.pack_end(self.entry_fecha, False, False, 10)
 
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox.pack_start(hbox, False, False, 5)
 
-        label = Gtk.Label('TOTAL:')
+        label = gtk.Label('TOTAL:')
         label.set_alignment(0, 0.5)
         hbox.pack_start(label, False, False, 10)
         self.entry_total = Widgets.Numero(10, null=False)
         self.entry_total.connect('activate', self.set_total)
         hbox.pack_end(self.entry_total, False, False, 10)
 
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox.pack_start(hbox, False, False, 5)
 
-        self.label_cuota = Gtk.Label('CUOTA 1:')
+        self.label_cuota = gtk.Label('CUOTA 1:')
         self.label_cuota.set_alignment(0, 0.5)
         hbox.pack_start(self.label_cuota, False, False, 10)
         self.entry_cuota = Widgets.Numero(10)
         hbox.pack_end(self.entry_cuota, False, False, 10)
         self.entry_cuota.connect('activate', self.add_cuota)
 
-        hbox = Gtk.HBox(False, 10)
+        hbox = gtk.HBox(False, 10)
         vbox.pack_start(hbox, False, False, 5)
 
-        label = Gtk.Label('SALDO:')
+        label = gtk.Label('SALDO:')
         label.set_alignment(0, 0.5)
         hbox.pack_start(label, False, False, 10)
-        self.label_saldo = Gtk.Label('')
+        self.label_saldo = gtk.Label('')
         label.set_alignment(0, 0.5)
         hbox.pack_end(self.label_saldo, False, False, 10)
 
 
 
-        frame1 = Widgets.Frame('Días para cobrar')
+        frame1 = gtk.Frame('Días para cobrar')
         frame1.set_size_request(110, 180)
         hbox_main.pack_start(frame1, False, False, 10)
 
-        vbox = Gtk.VBox(True, 0)
+        vbox = gtk.VBox(True, 0)
         frame1.add(vbox)
 
         self.check_dias = []
 
-        check_lunes = Gtk.CheckButton('Lunes')
+        check_lunes = gtk.CheckButton('Lunes')
         vbox.pack_start(check_lunes, False, False, 5)
         check_lunes.set_active(True)
         self.check_dias.append(check_lunes)
 
-        check_martes = Gtk.CheckButton('Martes')
+        check_martes = gtk.CheckButton('Martes')
         vbox.pack_start(check_martes, False, False, 5)
         check_martes.set_active(True)
         self.check_dias.append(check_martes)
 
-        check_miercoles = Gtk.CheckButton('Miércoles')
+        check_miercoles = gtk.CheckButton('Miércoles')
         vbox.pack_start(check_miercoles, False, False, 5)
         check_miercoles.set_active(True)
         self.check_dias.append(check_miercoles)
 
-        check_jueves = Gtk.CheckButton('Jueves')
+        check_jueves = gtk.CheckButton('Jueves')
         vbox.pack_start(check_jueves, False, False, 5)
         check_jueves.set_active(True)
         self.check_dias.append(check_jueves)
 
-        check_viernes = Gtk.CheckButton('Viernes')
+        check_viernes = gtk.CheckButton('Viernes')
         vbox.pack_start(check_viernes, False, False, 5)
         check_viernes.set_active(True)
         self.check_dias.append(check_viernes)
 
-        check_sabado = Gtk.CheckButton('Sábado')
+        check_sabado = gtk.CheckButton('Sábado')
         vbox.pack_start(check_sabado, False, False, 5)
         check_sabado.set_active(True)
         self.check_dias.append(check_sabado)
 
-        check_domingo = Gtk.CheckButton('Domingo')
+        check_domingo = gtk.CheckButton('Domingo')
         vbox.pack_start(check_domingo, False, False, 5)
         self.check_dias.append(check_domingo)
 
-        hbox = Gtk.HBox(True, 10)
+        hbox = gtk.HBox(True, 10)
         vbox_main.pack_start(hbox, True, True, 10)
 
-        vbox = Gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
         hbox.pack_start(vbox, True, True, 10)
 
-        sw = Gtk.ScrolledWindow()
+        sw = gtk.ScrolledWindow()
         vbox.pack_start(sw, True, True, 10)
         sw.set_size_request(560, 10)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        model = Gtk.ListStore(int, str, str, str)
+        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+        model = gtk.ListStore(int, str, str, str)
         self.treeview = Widgets.TreeView(model)
         self.columnas = ['CUOTA', 'FECHA', 'DIA', 'MONTO']
         for i, columna in enumerate(self.columnas):
-            cell_text = Gtk.CellRendererText()
+            cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
             tvcolumn.pack_start(cell_text, True)
             tvcolumn.set_attributes(cell_text, text=i)
@@ -1315,14 +1320,14 @@ class GenerarDeuda(Gtk.Window):
     def guardar(self):
         cronograma = []
         model = self.treeview.get_model()
-        print(('antes', self.concepto['nombre']))
+        print('antes', self.concepto['nombre'])
         for row in model:
             dia = datetime.datetime.strptime(row[1], '%d/%m/%Y').strftime('%Y-%m-%d')
             if len(model) > 1:
                 detalle = '%s %s (%s/%s)' % (self.concepto['nombre'], self.entry_detalle.get_text(), row[0], len(model))
             else:
                 detalle = '%s %s' % (self.concepto['nombre'], self.entry_detalle.get_text())
-            print(('detalle', detalle))
+            print('detalle', detalle)
             cronograma.append({
                 'cuota': row[0],
                 'dia': dia,
@@ -1333,7 +1338,7 @@ class GenerarDeuda(Gtk.Window):
             })
 
         self.concepto['nombre'] += ' ' + self.entry_detalle.get_text()
-        print(('concepto', self.concepto['nombre']))
+        print('concepto', self.concepto['nombre'])
 
         data = {
             'json': json.dumps({
@@ -1342,7 +1347,7 @@ class GenerarDeuda(Gtk.Window):
                 'concepto': self.concepto
             })
         }
-        print(('crear-cronograma', data))
+        print('crear-cronograma', data)
         respuesta = self.http.load('crear-cronograma', data)
         if respuesta:
             print('cronograma OK')
@@ -1370,41 +1375,53 @@ class GenerarDeuda(Gtk.Window):
                 row[2] = ''
 
 
-class EditarDeuda(Widgets.Dialog):
+class EditarDeuda(gtk.Dialog):
 
     def __init__(self, padre, deuda):
-        super(EditarDeuda, self).__init__('Editar Deuda')
+        super(EditarDeuda, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
         self.padre = padre
         self.http = padre.http
         self.deuda = deuda
-        main_hbox = Gtk.HBox(False, 0)
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_title('Editar Deuda')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+
+        main_hbox = gtk.HBox(False, 0)
 
         self.vbox.pack_start(main_hbox, False, False, 10)
 
-        frame2 = Widgets.Frame('Cliente')
+        frame2 = gtk.Frame('Cliente')
         frame2.set_size_request(200, 135)
         main_hbox.pack_start(frame2, True, True, 10)
 
-        hbox = Gtk.HBox(False, 0)
+        hbox = gtk.HBox(False, 0)
         frame2.add(hbox)
-        tabla = Gtk.Table(3, 3)
+        tabla = gtk.Table(3, 3)
         tabla.set_row_spacings(10)
         tabla.set_col_spacings(10)
         hbox.pack_start(tabla, False, False, 10)
 
-        label = Gtk.Label('TIPO:')
+        label = gtk.Label('TIPO:')
         label.set_alignment(0, 0.5)
         tabla.attach(label, 0, 1, 0, 1)
         self.entry_tipo_cli = Widgets.Texto(4)
         tabla.attach(self.entry_tipo_cli, 1, 2, 0, 1)
 
-        label = Gtk.Label('CODIGO:')
+        label = gtk.Label('CODIGO:')
         label.set_alignment(0, 0.5)
         tabla.attach(label, 0, 1, 1, 2)
         self.entry_cliente = Widgets.Texto(11)
         tabla.attach(self.entry_cliente, 1, 3, 1, 2)
 
-        label = Gtk.Label('DIA:')
+        label = gtk.Label('DIA:')
         label.set_alignment(0, 0.5)
         tabla.attach(label, 0, 1, 2, 3)
         self.entry_fecha = Widgets.Fecha()
@@ -1413,12 +1430,12 @@ class EditarDeuda(Widgets.Dialog):
         but_ok = Widgets.Button('aceptar.png', 'EDITAR')
         but_cancel = Widgets.Button('cancelar.png', 'CANCELAR')
 
-        self.add_action_widget(but_ok, Gtk.ResponseType.OK)
-        self.add_action_widget(but_cancel, Gtk.ResponseType.CANCEL)
+        self.add_action_widget(but_ok, gtk.RESPONSE_OK)
+        self.add_action_widget(but_cancel, gtk.RESPONSE_CANCEL)
 
     def iniciar(self):
         self.show_all()
-        if self.run() == Gtk.ResponseType.OK:
+        if self.run() == gtk.RESPONSE_OK:
             tipo = self.entry_tipo_cli.get_text()
             if tipo == '':
                 tipo = 'PAD'
@@ -1430,17 +1447,66 @@ class EditarDeuda(Widgets.Dialog):
                     'deuda': self.deuda
                 })
             }
-            print(('editar deuda ', data))
+            print('editar deuda ', data)
             self.http.load('editar-deuda', data)
         self.cerrar()
 
     def cerrar(self, *args):
         self.destroy()
 
+
+class ClienteDialogo(Widgets.Dialogo):
+
+    def __init__(self):
+        super(ClienteDialogo, self).__init__('Crear Nuevo Cliente')
+
+        frame = gtk.Frame()
+        frame.set_border_width(5)
+        frame.set_label('')
+
+        self.vbox.pack_start(frame, True, True, 0)
+
+        vbox = gtk.VBox(True, 0)
+        frame.add(vbox)
+
+        hbox = gtk.HBox(False, 5)
+        label = gtk.Label('Código:')
+        self.entry_codigo = Widgets.Texto(32)
+
+        hbox.pack_start(label, False, False, 15)
+        hbox.pack_start(self.entry_codigo, True, True, 15)
+
+        vbox.pack_start(hbox, False, False, 15)
+
+        hbox = gtk.HBox(False, 0)
+        label = gtk.Label('Nombre Corto:')
+        self.entry_corto = Widgets.Texto(256)
+
+        hbox.pack_start(label, False, False, 15)
+        hbox.pack_start(self.entry_corto, True, True, 15)
+
+        vbox.pack_start(hbox, False, False, 15)
+
+        hbox = gtk.HBox(False, 0)
+        label = gtk.Label('Nombre:')
+        self.entry_nombre = Widgets.Texto(256)
+
+        hbox.pack_start(label, False, False, 15)
+        hbox.pack_start(self.entry_nombre, True, True, 15)
+
+        vbox.pack_start(hbox, False, False, 15)
+
+        self.entry_corto.connect('key-release-event', self.repetir)
+
+    def repetir(self, *args):
+        self.entry_nombre.set_text(self.entry_corto.get_text())
+
+
 if __name__ == '__main__':
-    from Principal import Http
+    from Http import Http
     # http = Http([])
     # http.login('daniel', 'ontralog', 'clave')
-    c = GenerarDeuda()
+    c = ClienteDialogo()
+    c.iniciar()
 
-    Gtk.main()
+    gtk.main()
