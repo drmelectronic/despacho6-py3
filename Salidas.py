@@ -211,9 +211,6 @@ class Ventana(gtk.Window):
             self.cambiar_a_llegadas)
         self.llamada.connect('llamar', self.llamar_custom)
         self.llamada.connect('stop', self.sonido_stop)
-        if os.name == 'nt':
-            self.reloj.www.connect('mostrar', self.focus_entry)
-            self.datos_unidad.www.connect('mostrar', self.focus_entry)
 
     def nueva_ventana(self, *args):
         self.emit('nueva-ventana')
