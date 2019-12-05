@@ -2413,8 +2413,10 @@ class Login(gtk.Dialog):
         self.clave._focus_out_event(None, None)
 
     def get_credentials(self):
-        self.username.set_text(self.http.dataLocal.username)
-        self.password.set_text(self.http.dataLocal.password)
+        if self.http.dataLocal.username:
+            self.username.set_text(self.http.dataLocal.username)
+        if self.http.dataLocal.password:
+            self.password.set_text(self.http.dataLocal.password)
         if self.http.dataLocal.empresa:
             self.combo.hide()
             self.combo.set_id(self.http.dataLocal.empresa)
