@@ -1,140 +1,0 @@
-
-Ipython:S1481",Remove the unused local variable "cantidad".(²é“8şû˜è,
-Jpython:S1481"-Remove the unused local variable "selection".(É»áç8îßùñ,
-Opython:S1481"-Remove the unused local variable "respuesta".(¿™í·úÿÿÿÿ8şû˜è,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(Ê‡Ãşøÿÿÿÿ8şû˜è,
-†python:S1871"dEither merge this branch with the identical one on line "5608" or change one of the implementations.(å÷ÕÔûÿÿÿÿ8şû˜è,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(ÌˆÉÁıÿÿÿÿ8şû˜è,
-Jpython:S1481"-Remove the unused local variable "selection".(»¡ §8îßùñ,
-Opython:S1481"-Remove the unused local variable "respuesta".(¿™í·úÿÿÿÿ8şû˜è,
-Ipython:S1481",Remove the unused local variable "llegadas".(ú ËÌ8şû˜è,
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed.(®ª¨8şû˜è,
-Bpython:S1481"%Remove the unused local variable "i".(ìØ™ 8é‚„ë,
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 18 to the 15 allowed.(¾Şğº8îßùñ,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 27 to the 15 allowed.(ÌÅ×Ñúÿÿÿÿ8şû˜è,
-Fpython:S1481")Remove the unused local variable "fecha".(öÙİĞ8é‚„ë,
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 22 to the 15 allowed.(“°Éõ8îßùñ,
-Opython:S1481"-Remove the unused local variable "respuesta".(¿™í·úÿÿÿÿ8îßùñ,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(©ë–¿şÿÿÿÿ8şû˜è,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(ù“»8îßùñ,
-Epython:S1481"(Remove the unused local variable "data".(±ÏÂÒ8îßùñ,
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 25 to the 15 allowed.(Ş»™Ë8şû˜è,
-@python:S1763"#Remove the code after this "raise".(€³¢»8şû˜è,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(²ƒÆ©üÿÿÿÿ8şû˜è,
-Epython:S1481"(Remove the unused local variable "dias".(‰ŒËü8îßùñ,
-Kpython:S1656"/Remove or correct this useless self-assignment.(İùšP8şû˜è,
-Hpython:S1481"+Remove the unused local variable "minutos".(’š…8şû˜è,
-Ppython:S1481".Remove the unused local variable "dir_inicio".(øçÔµüÿÿÿÿ8şû˜è,
-Jpython:S1481"-Remove the unused local variable "selection".(»¡ §8îßùñ,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(¼ÉÇéşÿÿÿÿ8şû˜è,
-Lpython:S1481"*Remove the unused local variable "dialog".(Ä“½øÿÿÿÿ8şû˜è,
-Apython:S1763"$Remove the code after this "return".(ÙãŞŸ8şû˜è,
-Epython:S1481"(Remove the unused local variable "data".(±ÏÂÒ8îßùñ,
-;python:S125"Remove this commented out code.(ÌŸ¡ƒ8şû˜è,
-Ipython:S1481"'Remove the unused local variable "dia".(ãõêËùÿÿÿÿ8şû˜è,
-Opython:S1481"-Remove the unused local variable "conductor".(‘âµ¡ùÿÿÿÿ8şû˜è,
-epython:S100"IRename method "up" to match the regular expression ^[a-z_][a-z0-9_]{2,}$.(É´Ê‘8îßùñ,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 19 to the 15 allowed.(Ú¶…áøÿÿÿÿ8şû˜è,
-Epython:S1481"(Remove the unused local variable "data".(¦ÚÑ€8şû˜è,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(ú¬Ì—8şû˜è,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(£Âª’8îßùñ,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(Ë‘ó’8îßùñ,
-@python:S1763"#Remove the code after this "raise".(€³¢»8şû˜è,
-Mpython:S1481"+Remove the unused local variable "dialogo".(‘ı¬éşÿÿÿÿ8îßùñ,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(Èø¶³8şû˜è,
-ppython:S3776"TRefactor this function to reduce its Cognitive Complexity from 19 to the 15 allowed.(‚²º8şû˜è,
-@python:S1763"#Remove the code after this "raise".(€³¢»8şû˜è,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(æåº©ÿÿÿÿÿ8şû˜è,
-@python:S1763"#Remove the code after this "raise".(€³¢»8îßùñ,
-Gpython:S1481"%Remove the unused local variable "i".(£ıú¼şÿÿÿÿ8îßùñ,
-Gpython:S1481"*Remove the unused local variable "liq_id".(É¯˜¹8şû˜è,
-Wpython:PrintStatementUsage"-Replace print statement by built-in function.(ÍËĞ~8şû˜è,
-Ipython:S1481"'Remove the unused local variable "cod".(ØÜ¶¸üÿÿÿÿ8îßùñ,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(²ÆşŞøÿÿÿÿ8şû˜è,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(›Âé“8şû˜è,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 27 to the 15 allowed.(ÆÂÆïøÿÿÿÿ8şû˜è,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 39 to the 15 allowed.(‚·œÿÿÿÿÿ8şû˜è,
-@python:S125"Remove this commented out code.(›öÜºøÿÿÿÿ8şû˜è,
-Epython:S108")Either remove or fill this block of code.(ã‘Û¾8şû˜è,
-@python:S1763"#Remove the code after this "raise".(€³¢»8şû˜è,
-Opython:S1481"-Remove the unused local variable "respuesta".(¿™í·úÿÿÿÿ8şû˜è,
-Kpython:S1481")Remove the unused local variable "texto".(™éÙõùÿÿÿÿ8şû˜è,
-Qpython:S1066"/Merge this if statement with the enclosing one.(¸•€Úÿÿÿÿÿ8şû˜è,
-;python:S125"Remove this commented out code.(é˜Ş´8şû˜è,
-Opython:S1481"-Remove the unused local variable "respuesta".(¿™í·úÿÿÿÿ8şû˜è,
-Epython:S1481"(Remove the unused local variable "lado".(ßØ8şû˜è,
-Opython:S1481"-Remove the unused local variable "respuesta".(¿™í·úÿÿÿÿ8şû˜è,
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 23 to the 15 allowed.(ù¨Å8şû˜è,
-Npython:S1481",Remove the unused local variable "subtotal".(´ÊæÎøÿÿÿÿ8şû˜è,
-Epython:S1481"(Remove the unused local variable "hora".(î¾äÆ8şû˜è,
-Kpython:S1481")Remove the unused local variable "hasta".(ò¤Ç‹ûÿÿÿÿ8îßùñ,
-Fpython:S1481")Remove the unused local variable "monto".(­ÒÛÎ8îßùñ,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(¯”‚ü8şû˜è,
-Hpython:S1481",Remove the unused local variable "concepto".(Ç¨¸b8ë€áê,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 29 to the 15 allowed.(Ü°­Şûÿÿÿÿ8îßùñ,
-Ipython:S1481",Remove the unused local variable "amarillo".(ÿÕªÀ8şû˜è,
-Gpython:S1481"*Remove the unused local variable "liq_id".(É¯˜¹8îßùñ,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(Ò£Ó‚ùÿÿÿÿ8şû˜è,
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 82 to the 15 allowed.(óº8şû˜è,
-Epython:S108")Either remove or fill this block of code.(ã‘Û¾8îßùñ,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(“®ğ ûÿÿÿÿ8îßùñ,
-Epython:S108")Either remove or fill this block of code.(ã‘Û¾8îßùñ,
-Jpython:S1481"-Remove the unused local variable "selection".(ã¿ÿ»8îßùñ,
-Jpython:S1481"(Remove the unused local variable "data".(ÅØÏøÿÿÿÿ8şû˜è,
-Opython:S1481"-Remove the unused local variable "facturado".(³·¾şÿÿÿÿ8îßùñ,
-@python:S1763"#Remove the code after this "raise".(€³¢»8îßùñ,
-Jpython:S1481"(Remove the unused local variable "data".(•©Ø²ÿÿÿÿÿ8şû˜è,
-Lpython:S1481"*Remove the unused local variable "pedido".(ŞŒà³ıÿÿÿÿ8şû˜è,
-Opython:S1481"-Remove the unused local variable "respuesta".(¿™í·úÿÿÿÿ8şû˜è,
-@python:S1763"#Remove the code after this "raise".(€³¢»8îßùñ,
-Opython:S1481"-Remove the unused local variable "respuesta".(¿™í·úÿÿÿÿ8şû˜è,
-@python:S125"Remove this commented out code.(”½ÓÁùÿÿÿÿ8îßùñ,
-Ipython:S1481"'Remove the unused local variable "row".(¶ÌÛˆıÿÿÿÿ8îßùñ,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(œ«€ûÿÿÿÿ8şû˜è,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.( ¥åÙ8îßùñ,
-Bpython:S1481"%Remove the unused local variable "i".(ìØ™ 8îßùñ,
-Qpython:S1066"/Merge this if statement with the enclosing one.(ªÖÁùÿÿÿÿ8şû˜è,
-†python:S1871"dEither merge this branch with the identical one on line "5608" or change one of the implementations.(å÷ÕÔûÿÿÿÿ8şû˜è,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 36 to the 15 allowed.(ú©ü úÿÿÿÿ8îßùñ,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.( áëƒ8şû˜è,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(·µÍ¶8şû˜è,
-Mpython:S1481"0Remove the unused local variable "por_recaudar".(Ì÷Œ´8şû˜è,
-Mpython:S1481"+Remove the unused local variable "dialogo".(³€ÃŞüÿÿÿÿ8şû˜è,
-Bpython:S1481"%Remove the unused local variable "n".(ıß’å8şû˜è,
-Ipython:S1481",Remove the unused local variable "unidades".(ì¦½Ú8îßùñ,
-Gpython:S1481"%Remove the unused local variable "i".(£ıú¼şÿÿÿÿ8îßùñ,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(¿ğ¹í8îßùñ,
-Epython:S108")Either remove or fill this block of code.(ã‘Û¾8şû˜è,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 40 to the 15 allowed.(ÄË†ûÿÿÿÿ8şû˜è,
-Kpython:S1481")Remove the unused local variable "lleno".(÷€Ù›üÿÿÿÿ8şû˜è,
-Wpython:PrintStatementUsage"-Replace print statement by built-in function.(Ù¤Ğ[8îßùñ,
-@python:S1763"#Remove the code after this "raise".(€³¢»8şû˜è,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(§†ç¼øÿÿÿÿ8şû˜è,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed.(Èçèñıÿÿÿÿ8şû˜è,
-Fpython:S1481")Remove the unused local variable "lleno".(êÔæ8şû˜è,
-Mpython:S1481"+Remove the unused local variable "boletos".(°àÜ±úÿÿÿÿ8şû˜è,
-Gpython:S1481"%Remove the unused local variable "s".(öã´­øÿÿÿÿ8é‚„ë,
-Ipython:S1481",Remove the unused local variable "cobrador".(åÖë8şû˜è,
-Fpython:S1481")Remove the unused local variable "serie".(íÿÏ€8şû˜è,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(ñÊ¥ùÿÿÿÿ8îßùñ,
-Apython:S1763"$Remove the code after this "return".(ÙãŞŸ8şû˜è,
-@python:S1763"#Remove the code after this "raise".(€³¢»8şû˜è,
-Fpython:S1481")Remove the unused local variable "texto".(ìë÷¦8şû˜è,
-Opython:S1481"-Remove the unused local variable "respuesta".(¿™í·úÿÿÿÿ8şû˜è,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(°¼å¤ûÿÿÿÿ8½åŞı¦,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(Ö¿‹ùÿÿÿÿ8şû˜è,
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 17 to the 15 allowed.(¦†¶ä8îßùñ,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(›Î·ûÿÿÿÿ8şû˜è,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(üñŒ¬úÿÿÿÿ8îßùñ,
-Jpython:S1481"(Remove the unused local variable "neto".(íĞµïÿÿÿÿÿ8şû˜è,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(µôŠÈ8îßùñ,
-Fpython:S1481")Remove the unused local variable "serie".(Š±¶†8şû˜è,
-Lpython:S1066"/Merge this if statement with the enclosing one.(ê©Õ¶8îßùñ,
-@python:S1763"#Remove the code after this "raise".(€³¢»8şû˜è,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(Ë‘üÿÿÿÿ8şû˜è,
-@python:S125"Remove this commented out code.(Â¨†Òøÿÿÿÿ8şû˜è,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 43 to the 15 allowed.(Çš¤Ïüÿÿÿÿ8şû˜è,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed.(–òÌ şÿÿÿÿ8îßùñ,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(Å¿ş 8şû˜è,
-@python:S125"Remove this commented out code.(€¿„ƒøÿÿÿÿ8îßùñ,
-;python:S125"Remove this commented out code.(¯•éÛ8şû˜è,

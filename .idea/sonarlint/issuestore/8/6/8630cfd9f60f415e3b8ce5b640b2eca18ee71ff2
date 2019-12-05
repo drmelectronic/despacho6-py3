@@ -1,19 +1,0 @@
-
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 28 to the 15 allowed.(şˆÎí8ë™íÓ¢,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(ÖŞ»ıùÿÿÿÿ8ë™íÓ¢,
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 17 to the 15 allowed.(¸İ‡‘8ë™íÓ¢,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(¹“Øÿ8ë™íÓ¢,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(ù®ØÕ8ë™íÓ¢,
-Wpython:PrintStatementUsage"-Replace print statement by built-in function.(›³R8ë™íÓ¢,
-;python:S125"Remove this commented out code.(úı©¾8ë™íÓ¢,
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 19 to the 15 allowed.(¯Œåò8ë™íÓ¢,
-Wpython:PrintStatementUsage"-Replace print statement by built-in function.(ä…·z8ë™íÓ¢,
-Ppython:S1313"3Make this IP "104.197.24.168" address configurable.(ùö¯ı8ë™íÓ¢,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(¾¬„“üÿÿÿÿ8ë™íÓ¢,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(ıïûå8ë™íÓ¢,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(¾„ıñÿÿÿÿÿ8ë™íÓ¢,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(¡Ç¤şÿÿÿÿ8ë™íÓ¢,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(Ìéá˜úÿÿÿÿ8ë™íÓ¢,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(Â–¶°8ë™íÓ¢,
-rpython:S116"VRename this field "ticketeraSunat" to match the regular expression ^[_a-z][_a-z0-9]*$.(£—¨Ë8ë™íÓ¢,
-Epython:S108")Either remove or fill this block of code.(ã‘Û¾8ë™íÓ¢,

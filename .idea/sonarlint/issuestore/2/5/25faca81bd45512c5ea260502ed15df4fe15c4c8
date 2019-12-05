@@ -1,68 +1,0 @@
-
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 58 to the 15 allowed.(‘ø¨¾8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(‡Ù–·şÿÿÿÿ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(­„´Ôøÿÿÿÿ8ÇÅÀ•,
-lpython:S116"KRename this field "A4y" to match the regular expression ^[_a-z][_a-z0-9]*$.(¨ñşòÿÿÿÿÿ8ÇÅÀ•,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 29 to the 15 allowed.(İÈ»âúÿÿÿÿ8ÇÅÀ•,
-tpython:S117"XRename this local variable "emphOFF" to match the regular expression ^[_a-z][a-z0-9_]*$.(à‚§ƒ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(…¼®¾ıÿÿÿÿ8ÇÅÀ•,
-;python:S125"Remove this commented out code.(¾™Ùô8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(Õ³Ü8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(èÏ†‘8ÇÅÀ•,
-vpython:S117"URename this local variable "hJob" to match the regular expression ^[_a-z][a-z0-9_]*$.(Æ¹ğ´øÿÿÿÿ8ÇÅÀ•,
-~python:S117"]Rename this local variable "dubStrikeOFF" to match the regular expression ^[_a-z][a-z0-9_]*$.(“ªÚøÿÿÿÿ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(­„´Ôøÿÿÿÿ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(›—å”ıÿÿÿÿ8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(«»úÀ8ÇÅÀ•,
-gpython:S116"KRename this field "A4x" to match the regular expression ^[_a-z][_a-z0-9]*$.(åôƒ‹8ÇÅÀ•,
-Jpython:S1481"(Remove the unused local variable "bold".(°ºáıÿÿÿÿ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(ÎÂİÊûÿÿÿÿ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(ŞÏÎ÷üÿÿÿÿ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(öÜ¸ıÿÿÿÿ8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(Ş‰òñ8ÇÅÀ•,
-@python:S125"Remove this commented out code.(ğ¢åéÿÿÿÿÿ8ÇÅÀ•,
-@python:S125"Remove this commented out code.(¡äâáøÿÿÿÿ8ÇÅÀ•,
-vpython:S117"URename this local variable "hJob" to match the regular expression ^[_a-z][a-z0-9_]*$.(›êë‚ûÿÿÿÿ8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(ıùø8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(ú¿Ÿş8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(èÂÌ„8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(†ñšù8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(ğœ”şÿÿÿÿ8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(ú¿Ÿş8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(Õ³Ü8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(¹ñ¨¶øÿÿÿÿ8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(ÅÚ£ç8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(Ïìï‹øÿÿÿÿ8ÇÅÀ•,
-@python:S125"Remove this commented out code.(éëºÃüÿÿÿÿ8ÇÅÀ•,
-Wpython:PrintStatementUsage"-Replace print statement by built-in function.(¢ê©N8ÇÅÀ•,
-tpython:S117"XRename this local variable "emphOFF" to match the regular expression ^[_a-z][a-z0-9_]*$.(à‚§ƒ8ÇÅÀ•,
-vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 23 to the 15 allowed.(öÕíâüÿÿÿÿ8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(ãĞÌÄ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(ÌˆÉÁıÿÿÿÿ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(½È²Åûÿÿÿÿ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(çÊ·†úÿÿÿÿ8ÇÅÀ•,
-Hpython:S1481"+Remove the unused local variable "boldOFF".(Ûöúâ8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(‘ÔÀÊ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(„«æĞıÿÿÿÿ8ÇÅÀ•,
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 20 to the 15 allowed.(°å¾8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(±à¶¨8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(»ˆ”şıÿÿÿÿ8ÇÅÀ•,
-Jpython:S1481"(Remove the unused local variable "hJob".(Æ¹ğ´øÿÿÿÿ8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(“›ÁĞ8ÇÅÀ•,
-Jpython:S1481"(Remove the unused local variable "hJob".(›êë‚ûÿÿÿÿ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(Ô¢­Æüÿÿÿÿ8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(‚ñù¯8ÇÅÀ•,
-;python:S125"Remove this commented out code.(êï÷—8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(›Ã×ì8ÇÅÀ•,
-{python:S117"ZRename this local variable "dubStrike" to match the regular expression ^[_a-z][a-z0-9_]*$.(áêúÿÿÿÿ8ÇÅÀ•,
-tpython:S117"XRename this local variable "boldOFF" to match the regular expression ^[_a-z][a-z0-9_]*$.(Ûöúâ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(´İÌøûÿÿÿÿ8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(±¡ë”8ÇÅÀ•,
-qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 64 to the 15 allowed.(©»î8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(ÛšŒúÿÿÿÿ8ÇÅÀ•,
-@python:S125"Remove this commented out code.(éëºÃüÿÿÿÿ8ÇÅÀ•,
-zpython:S117"YRename this local variable "hPrinter" to match the regular expression ^[_a-z][a-z0-9_]*$.(Ä‘¡Ëûÿÿÿÿ8ÇÅÀ•,
-Xpython:PrintStatementUsage"-Replace print statement by built-in function.(â©ÍØ8ÇÅÀ•,
-Wpython:PrintStatementUsage"-Replace print statement by built-in function.(û–²f8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(¡³Å¹øÿÿÿÿ8ÇÅÀ•,
-]python:PrintStatementUsage"-Replace print statement by built-in function.(‘ÏÛ´şÿÿÿÿ8ÇÅÀ•,
