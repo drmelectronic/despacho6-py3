@@ -81,20 +81,25 @@ class Aplicacion:
         dialogo.cerrar()
 
     def cerrar(self, ventana):
+        print('ventanas', len(self.ventanas))
         self.ventanas.remove(ventana)
         del ventana
+        print('ventanas', len(self.ventanas))
         if len(self.ventanas) == 0:
             print('cerrar ventana')
-            self.http.reloj.infinito = False
+            self.http.reloj.cerrar()
+            self.http.sonido.cerrar()
             gtk.main_quit()
 
 
 if __name__ == '__main__':
     s = Splash()
-    try:
-        gtk.main()
-    except BaseException:
-        s.a.http.reloj.cerrar()
+    gtk.main()
+    print('EXIT')
+    # try:
+    #     gtk.main()
+    # except BaseException:
+    #     s.a.http.reloj.cerrar()
         # gtk.main_quit()
-    if os.name == 'nt':
-        os.system('taskkill /im TCONTUR5.exe /f')
+    # if os.name == 'nt':
+    #     os.system('taskkill /im TCONTUR6.exe /f')

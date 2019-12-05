@@ -141,7 +141,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 
 pdfmetrics.registerFont(TTFont('Arial', 'Arial.ttf'))
-pdfmetrics.registerFont(TTFont('ArialBlack', 'Arial_Black.ttf'))
+# pdfmetrics.registerFont(TTFont('ArialBlack', 'Arial_Black.ttf'))
 
 class Impresion:
     normal = 'Courier'

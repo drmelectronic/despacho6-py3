@@ -23,9 +23,8 @@ import time
 import Widgets
 
 
-
-
 class Hilo(threading.Thread):
+    infinito = True
 
     def __init__(self):
         super(Hilo, self).__init__()
@@ -74,7 +73,7 @@ class Hilo(threading.Thread):
         return output
 
     def run(self):
-        while True:
+        while self.infinito:
             self.event.wait()
             if len(self.lista) == 0:
                 self.event.clear()
@@ -167,6 +166,12 @@ class Hilo(threading.Thread):
             #pygame.mixer.music.play()
             pass
         time.sleep(t + 0.05)
+
+    def cerrar(self):
+        self.infinito = False
+        self.event.set()
+        self.join()
+        print('################# Sonido Finalizado')
 
 if __name__ == '__main__':
     print 'inicio'

@@ -2440,7 +2440,6 @@ class Login(gtk.Dialog):
             print 'LOGIN widget'
             return True
         else:
-            self.http.reloj.cerrar()
             print 'LOGIN False'
             return False
 

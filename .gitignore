@@ -63,3 +63,6 @@ mtc.py
 *.dll
 .idea/
 index.html
+etc/
+share/
+lib/

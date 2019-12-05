@@ -26,6 +26,6 @@ class Reloj(gtk.EventBox):
             time.sleep(1)
 
     def cerrar(self):
-        print('################# Finalizado')
         self.infinito = False
         self.hilo.join()
+        print('################# Reloj Finalizado')
