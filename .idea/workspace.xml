@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="aa5c3d0d-091e-4287-80e4-6b134f8d8211" name="Default" comment="eliminar archivos innecesarios">
+    <list default="true" id="aa5c3d0d-091e-4287-80e4-6b134f8d8211" name="Default" comment="gitignore">
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DataLocal.py" beforeDir="false" afterPath="$PROJECT_DIR$/DataLocal.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -525,7 +524,7 @@
       <workItem from="1575468237316" duration="18137000" />
       <workItem from="1575554875465" duration="786000" />
       <workItem from="1575558500571" duration="3374000" />
-      <workItem from="1575563581901" duration="510000" />
+      <workItem from="1575563581901" duration="600000" />
     </task>
     <task id="LOCAL-00001" summary="Version 3.6">
       <created>1511798359554</created>
@@ -625,7 +624,14 @@
       <option name="project" value="LOCAL" />
       <updated>1575563998552</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="gitignore">
+      <created>1575564117661</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1575564117662</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -674,7 +680,8 @@
     <MESSAGE value="Version 6.00&#10;DESPACHO &amp;" />
     <MESSAGE value="Version 6.00&#10;DESPACHO 6" />
     <MESSAGE value="eliminar archivos innecesarios" />
-    <option name="LAST_COMMIT_MESSAGE" value="eliminar archivos innecesarios" />
+    <MESSAGE value="gitignore" />
+    <option name="LAST_COMMIT_MESSAGE" value="gitignore" />
     <option name="GROUP_MULTIFILE_MERGE_BY_DIRECTORY" value="true" />
   </component>
   <component name="WindowStateProjectService">
@@ -686,11 +693,11 @@
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state x="1451" y="223" width="256" height="583" key="#xdebugger.evaluate/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575560959108" />
-    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2" timestamp="1575563998239">
+    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2" timestamp="1575564117424">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state x="2492" y="127" width="766" height="823" key="CommitChangelistDialog2/43.27.1877.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1575328712600" />
-    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575563998239" />
+    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575564117424" />
     <state width="1835" height="357" key="GridCell.Tab.0.bottom" timestamp="1575563862946">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
@@ -731,10 +738,10 @@
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state x="687" y="272" width="921" height="560" key="MultipleFileMergeDialog/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561838617" />
-    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1575564001189">
+    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1575564118723">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
-    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575564001189" />
+    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575564118723" />
     <state x="768" y="299" width="421" height="526" key="com.intellij.openapi.vcs.changes.SpecificFilesViewDialog" timestamp="1575558588867">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
