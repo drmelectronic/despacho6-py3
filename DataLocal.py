@@ -52,7 +52,7 @@ class DataLocal(object):
 
     def load_config(self):
         try:
-            a = os.path.abspath('outs/config.txt')
+            a = os.path.abspath('outs/config.bkp')
             f = open(a, 'r')
             data = f.read()
             f.close()

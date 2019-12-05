@@ -1,31 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="aa5c3d0d-091e-4287-80e4-6b134f8d8211" name="Default" comment="Version 6.00&#10;DESPACHO 6">
+    <list default="true" id="aa5c3d0d-091e-4287-80e4-6b134f8d8211" name="Default" comment="eliminar archivos innecesarios">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Chrome.py" beforeDir="false" afterPath="$PROJECT_DIR$/Chrome.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Impresion-old.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/LICENSE.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/TCONTUR.desktop" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/antlr.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/cefclient" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/cefpython_py27.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/chrome.pak" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dependencies.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/devtools_resources.pak" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/edit.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ejecutar.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fonts.zip" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libusb1.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/licencia.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pygtk_.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/six.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/testUSB1.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb1.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vcp_terminal.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/webbrowser2.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/wxpython.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataLocal.py" beforeDir="false" afterPath="$PROJECT_DIR$/DataLocal.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -546,7 +525,7 @@
       <workItem from="1575468237316" duration="18137000" />
       <workItem from="1575554875465" duration="786000" />
       <workItem from="1575558500571" duration="3374000" />
-      <workItem from="1575563581901" duration="182000" />
+      <workItem from="1575563581901" duration="510000" />
     </task>
     <task id="LOCAL-00001" summary="Version 3.6">
       <created>1511798359554</created>
@@ -632,7 +611,21 @@
       <option name="project" value="LOCAL" />
       <updated>1575561453745</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="eliminar archivos innecesarios">
+      <created>1575563911507</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1575563911507</updated>
+    </task>
+    <task id="LOCAL-00014" summary="eliminar archivos innecesarios">
+      <created>1575563998552</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1575563998552</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -680,7 +673,8 @@
     <MESSAGE value="Version 5.87&#10;fondos multiples" />
     <MESSAGE value="Version 6.00&#10;DESPACHO &amp;" />
     <MESSAGE value="Version 6.00&#10;DESPACHO 6" />
-    <option name="LAST_COMMIT_MESSAGE" value="Version 6.00&#10;DESPACHO 6" />
+    <MESSAGE value="eliminar archivos innecesarios" />
+    <option name="LAST_COMMIT_MESSAGE" value="eliminar archivos innecesarios" />
     <option name="GROUP_MULTIFILE_MERGE_BY_DIRECTORY" value="true" />
   </component>
   <component name="WindowStateProjectService">
@@ -692,11 +686,11 @@
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state x="1451" y="223" width="256" height="583" key="#xdebugger.evaluate/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575560959108" />
-    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2" timestamp="1575563910498">
+    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2" timestamp="1575563998239">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state x="2492" y="127" width="766" height="823" key="CommitChangelistDialog2/43.27.1877.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1575328712600" />
-    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575563910498" />
+    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575563998239" />
     <state width="1835" height="357" key="GridCell.Tab.0.bottom" timestamp="1575563862946">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
@@ -737,10 +731,10 @@
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state x="687" y="272" width="921" height="560" key="MultipleFileMergeDialog/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561838617" />
-    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1575563913815">
+    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1575564001189">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
-    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575563913815" />
+    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575564001189" />
     <state x="768" y="299" width="421" height="526" key="com.intellij.openapi.vcs.changes.SpecificFilesViewDialog" timestamp="1575558588867">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
@@ -764,12 +758,12 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="python-line">
           <url>file://$PROJECT_DIR$/Modulos.py</url>
-          <line>7604</line>
+          <line>7603</line>
           <option name="timeStamp" value="22" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/Modulos.py</url>
-          <line>3417</line>
+          <line>3416</line>
           <option name="timeStamp" value="67" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -784,42 +778,42 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/Modulos.py</url>
-          <line>5314</line>
+          <line>5313</line>
           <option name="timeStamp" value="80" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/Modulos.py</url>
-          <line>5748</line>
+          <line>5747</line>
           <option name="timeStamp" value="81" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/Modulos.py</url>
-          <line>9268</line>
+          <line>9267</line>
           <option name="timeStamp" value="84" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/Modulos.py</url>
-          <line>9187</line>
+          <line>9186</line>
           <option name="timeStamp" value="85" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/Modulos.py</url>
-          <line>9355</line>
+          <line>9354</line>
           <option name="timeStamp" value="88" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/Modulos.py</url>
-          <line>2046</line>
+          <line>2045</line>
           <option name="timeStamp" value="137" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/Principal.py</url>
-          <line>89</line>
+          <line>88</line>
           <option name="timeStamp" value="194" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/Modulos.py</url>
-          <line>10001</line>
+          <line>10000</line>
           <option name="timeStamp" value="195" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -839,7 +833,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/Http.py</url>
-          <line>78</line>
+          <line>77</line>
           <option name="timeStamp" value="209" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
