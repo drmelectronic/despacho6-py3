@@ -11,7 +11,6 @@ import os
 import time
 import datetime
 from operator import itemgetter
-import Chrome
 from decimal import Decimal, ROUND_UP, ROUND_DOWN
 import json
 

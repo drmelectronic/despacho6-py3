@@ -1,9 +1,0 @@
-[Desktop Entry]
-Version=5.2
-Name=TCONTUR
-Comment=Sistema de Gestión Transporte Urbano
-Exec=sh /opt/Despacho/ejecutar.sh
-Terminal=false
-Type=Application
-Icon=/opt/Despacho/images/icono.png
-Name[es]=TCONTUR

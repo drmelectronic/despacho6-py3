@@ -14,7 +14,7 @@ import Reloj
 
 class Http(object):
 
-    local = 1
+    local = 0
     version = 6.00
     dia = 'Actualización martes 29 de octubre de 2019'
 
@@ -72,7 +72,6 @@ class Http(object):
     def conectar(self, empresa):
         if os.name == 'nt':
             self.local = 0
-        print 'LOCAL', self.local
         if self.local:
             self.conn = urllib3.HTTPConnectionPool(self.server, timeout=30)
         else:
@@ -82,6 +81,7 @@ class Http(object):
             self.titulo = 'Sistema de Despacho TCONTUR v%s' % self.version
             self.test_server()
             self.conn = urllib3.HTTPSConnectionPool(self.server, timeout=30)
+        print 'SERVER', self.server
         ticketera_data = self.dataLocal.get_config('ticketera')
         if ticketera_data:
             self.ticketera = Impresion.ESCPOS(ticketera_data)

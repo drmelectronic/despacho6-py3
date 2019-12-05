@@ -4,7 +4,6 @@
 import gtk
 import Salidas
 import Widgets
-import Chrome
 import gobject
 import os
 import DataLocal
