@@ -1,0 +1,27 @@
+
+4python:S125"Remove this commented out code.(–šŠ¶
+npython:S117"YRename this local variable "windowID" to match the regular expression ^[_a-z][a-z0-9_]*$.(û›á³
+qpython:S1542"[Rename function "GetApplicationPath" to match the regular expression ^[a-z_][a-z0-9_]{2,}$.(îƒ¨Å
+Bpython:S1481",Remove the unused local variable "windowID".(ó‡æ¶
+Qpython:PrintStatementUsage"-Replace print statement by built-in function.(áª°ó
+9python:S125"Remove this commented out code.(±Ñæúşÿÿÿÿ
+Vpython:PrintStatementUsage"-Replace print statement by built-in function.(²ƒÆ©üÿÿÿÿ
+Vpython:PrintStatementUsage"-Replace print statement by built-in function.(²ƒÆ©üÿÿÿÿ
+kpython:S117"VRename this local variable "hexID" to match the regular expression ^[_a-z][a-z0-9_]*$.(‡ŠÚş
+jpython:S100"PRename method "OnFocusIn" to match the regular expression ^[a-z_][a-z0-9_]{2,}$.(õµ¹›ıÿÿÿÿ
+Qpython:PrintStatementUsage"-Replace print statement by built-in function.(ŠÉ—
+cpython:S100"NRename method "OnTimer" to match the regular expression ^[a-z_][a-z0-9_]{2,}$.(ªö…Ø
+cpython:S100"NRename method "OnTimer" to match the regular expression ^[a-z_][a-z0-9_]{2,}$.(ªö…Ø
+Vpython:PrintStatementUsage"-Replace print statement by built-in function.(ŞãïŒşÿÿÿÿ
+npython:S117"YRename this local variable "windowID" to match the regular expression ^[_a-z][a-z0-9_]*$.(ó‡æ¶
+ppython:S117"[Rename this local variable "windowInfo" to match the regular expression ^[_a-z][a-z0-9_]*$.(÷§Œ
+4python:S125"Remove this commented out code.(§ëÜ”
+lpython:S117"WRename this parameter "traceObject" to match the regular expression ^[_a-z][a-z0-9_]*$.(áæ¾
+bpython:S100"MRename method "OnSize" to match the regular expression ^[a-z_][a-z0-9_]{2,}$.(¨×êâ
+:python:S1763"$Remove the code after this "return".(ÙãŞŸ
+jpython:S117"URename this parameter "sizeAlloc" to match the regular expression ^[_a-z][a-z0-9_]*$.(¨×êâ
+Vpython:PrintStatementUsage"-Replace print statement by built-in function.(²ƒÆ©üÿÿÿÿ
+jpython:S100"PRename method "OnFocusIn" to match the regular expression ^[a-z_][a-z0-9_]{2,}$.(õµ¹›ıÿÿÿÿ
+Vpython:PrintStatementUsage"-Replace print statement by built-in function.(ÚÎºÆøÿÿÿÿ
+ipython:S1542"SRename function "ExceptHook" to match the regular expression ^[a-z_][a-z0-9_]{2,}$.(áæ¾
+4python:S125"Remove this commented out code.(£ËÈ¦

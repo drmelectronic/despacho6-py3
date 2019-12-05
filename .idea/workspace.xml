@@ -1,63 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="aa5c3d0d-091e-4287-80e4-6b134f8d8211" name="Default" comment="Version 6.00&#10;DESPACHO &amp;">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="aa5c3d0d-091e-4287-80e4-6b134f8d8211" name="Default" comment="Version 6.00&#10;DESPACHO 6">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DataLocal.py" beforeDir="false" afterPath="$PROJECT_DIR$/DataLocal.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Http.py" beforeDir="false" afterPath="$PROJECT_DIR$/Http.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Modulos.py" beforeDir="false" afterPath="$PROJECT_DIR$/Modulos.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Principal.py" beforeDir="false" afterPath="$PROJECT_DIR$/Principal.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Widgets.py" beforeDir="false" afterPath="$PROJECT_DIR$/Widgets.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/escpos/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/escpos/constants.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/escpos/escpos.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/escpos/exceptions.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/escpos/printer.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/outs/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/outs/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/parallel/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/parallel/parallelppdev.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/parallel/parallelwin32.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/parport/LICENSE" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/parport/README" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/parport/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/parport/src/parport.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/base.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/constants.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/exceptions.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/image/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/image/base.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/image/pil.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/image/pure.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/image/svg.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/main.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/tests.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/qrcode/util.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb/_debug.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb/_interop.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb/backend/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb/backend/libusb0.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb/backend/libusb1.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb/backend/openusb.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb/control.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb/core.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb/legacy.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/usb/util.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/biffh.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/book.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/compdoc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/examples/namesdemo.xls" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/examples/xlrdnameAPIdemo.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/formatting.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/formula.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/info.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/sheet.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/timemachine.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/xldate.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xlrd/xlsx.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -93,7 +38,7 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
-    <option name="UPDATE_TYPE" value="MERGE" />
+    <option name="UPDATE_TYPE" value="REBASE" />
   </component>
   <component name="ProjectId" id="1OU9pvh8Fn89gxwNT2uut4SfuOh" />
   <component name="ProjectLevelVcsManager">
@@ -314,11 +259,11 @@
       <method v="2" />
     </configuration>
     <list>
+      <item itemvalue="Python.CajaCentralizada" />
       <item itemvalue="Python.Chrome" />
       <item itemvalue="Python.Cobranza" />
       <item itemvalue="Python.Principal" />
       <item itemvalue="Python.Widgets" />
-      <item itemvalue="Python.CajaCentralizada" />
     </list>
     <recent_temporary>
       <list>
@@ -577,7 +522,7 @@
       <workItem from="1575381339898" duration="18810000" />
       <workItem from="1575468237316" duration="18137000" />
       <workItem from="1575554875465" duration="786000" />
-      <workItem from="1575558500571" duration="2878000" />
+      <workItem from="1575558500571" duration="3374000" />
     </task>
     <task id="LOCAL-00001" summary="Version 3.6">
       <created>1511798359554</created>
@@ -649,7 +594,21 @@
       <option name="project" value="LOCAL" />
       <updated>1575555067109</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="Version 6.00&#10;DESPACHO 6">
+      <created>1575561396736</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1575561396736</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Version 6.00&#10;DESPACHO 6">
+      <created>1575561453745</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1575561453745</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -696,7 +655,9 @@
     <MESSAGE value="Version 5.83&#10;Sonido 100" />
     <MESSAGE value="Version 5.87&#10;fondos multiples" />
     <MESSAGE value="Version 6.00&#10;DESPACHO &amp;" />
-    <option name="LAST_COMMIT_MESSAGE" value="Version 6.00&#10;DESPACHO &amp;" />
+    <MESSAGE value="Version 6.00&#10;DESPACHO 6" />
+    <option name="LAST_COMMIT_MESSAGE" value="Version 6.00&#10;DESPACHO 6" />
+    <option name="GROUP_MULTIFILE_MERGE_BY_DIRECTORY" value="true" />
   </component>
   <component name="WindowStateProjectService">
     <state x="439" y="210" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1575558984514">
@@ -707,31 +668,31 @@
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state x="1451" y="223" width="256" height="583" key="#xdebugger.evaluate/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575560959108" />
-    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2" timestamp="1575561395811">
+    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2" timestamp="1575561453579">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state x="2492" y="127" width="766" height="823" key="CommitChangelistDialog2/43.27.1877.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1575328712600" />
-    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561395811" />
-    <state width="1835" height="357" key="GridCell.Tab.0.bottom" timestamp="1575561368642">
+    <state x="602" y="151" width="764" height="823" key="CommitChangelistDialog2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561453579" />
+    <state width="1835" height="357" key="GridCell.Tab.0.bottom" timestamp="1575561868071">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state width="1878" height="327" key="GridCell.Tab.0.bottom/43.27.1877.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1575330148335" />
-    <state width="1835" height="357" key="GridCell.Tab.0.bottom/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561368642" />
-    <state width="1835" height="357" key="GridCell.Tab.0.center" timestamp="1575561368642">
+    <state width="1835" height="357" key="GridCell.Tab.0.bottom/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561868071" />
+    <state width="1835" height="357" key="GridCell.Tab.0.center" timestamp="1575561868071">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state width="1878" height="327" key="GridCell.Tab.0.center/43.27.1877.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1575330148335" />
-    <state width="1835" height="357" key="GridCell.Tab.0.center/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561368642" />
-    <state width="1835" height="357" key="GridCell.Tab.0.left" timestamp="1575561368642">
+    <state width="1835" height="357" key="GridCell.Tab.0.center/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561868071" />
+    <state width="1835" height="357" key="GridCell.Tab.0.left" timestamp="1575561868071">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state width="1878" height="327" key="GridCell.Tab.0.left/43.27.1877.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1575330148335" />
-    <state width="1835" height="357" key="GridCell.Tab.0.left/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561368642" />
-    <state width="1835" height="357" key="GridCell.Tab.0.right" timestamp="1575561368642">
+    <state width="1835" height="357" key="GridCell.Tab.0.left/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561868071" />
+    <state width="1835" height="357" key="GridCell.Tab.0.right" timestamp="1575561868071">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state width="1878" height="327" key="GridCell.Tab.0.right/43.27.1877.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1575330148335" />
-    <state width="1835" height="357" key="GridCell.Tab.0.right/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561368642" />
+    <state width="1835" height="357" key="GridCell.Tab.0.right/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561868071" />
     <state width="1835" height="195" key="GridCell.Tab.1.bottom" timestamp="1575560962780">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
@@ -748,10 +709,14 @@
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
     <state width="1835" height="195" key="GridCell.Tab.1.right/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575560962780" />
-    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1575561399218">
+    <state x="687" y="272" width="921" height="560" key="MultipleFileMergeDialog" timestamp="1575561838617">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>
-    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561399218" />
+    <state x="687" y="272" width="921" height="560" key="MultipleFileMergeDialog/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561838617" />
+    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1575561457905">
+      <screen x="43" y="27" width="1877" height="1053" />
+    </state>
+    <state x="576" y="288" width="800" height="528" key="Vcs.Push.Dialog.v2/43.27.1877.1053/1920.0.1920.1080@43.27.1877.1053" timestamp="1575561457905" />
     <state x="768" y="299" width="421" height="526" key="com.intellij.openapi.vcs.changes.SpecificFilesViewDialog" timestamp="1575558588867">
       <screen x="43" y="27" width="1877" height="1053" />
     </state>

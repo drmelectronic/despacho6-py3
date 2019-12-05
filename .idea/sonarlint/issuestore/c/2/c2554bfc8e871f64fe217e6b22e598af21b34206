@@ -1,0 +1,56 @@
+
+@python:S125"Remove this commented out code.(›ÈÊÈıÿÿÿÿ8äşøó”,
+mpython:S101"RRename class "Alerta_Entero" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(şĞŒl8äşøó”,
+]python:PrintStatementUsage"-Replace print statement by built-in function.(•ñÕäûÿÿÿÿ8äşøó”,
+xpython:S101"WRename class "Alerta_FechaNumero" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(½–Šıÿÿÿÿ8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(Ù”¿Á8äşøó”,
+mpython:S101"QRename class "Excel_Dialog" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(İ•„“8äşøó”,
+vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 28 to the 15 allowed.(ü«‡ÿÿÿÿÿ8äşøó”,
+python:S1871"dEither merge this branch with the identical one on line "2458" or change one of the implementations.(ºÅ³Ù8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(—Ô–¦8äşøó”,
+ppython:S101"TRename class "Alerta_TreeView" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(Ï®µ½8äşøó”,
+]python:PrintStatementUsage"-Replace print statement by built-in function.(Ö³ôÅûÿÿÿÿ8äşøó”,
+]python:PrintStatementUsage"-Replace print statement by built-in function.(ÌˆÉÁıÿÿÿÿ8äşøó”,
+]python:PrintStatementUsage"-Replace print statement by built-in function.(°¤½úÿÿÿÿ8äşøó”,
+npython:S101"RRename class "Alerta_Numero" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(…½ñ¸8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(ù±Áš8äşøó”,
+vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed.(ü«‡ÿÿÿÿÿ8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(—Ô–¦8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(—Ô–¦8äşøó”,
+upython:S100"TRename method "convertNumber" to match the regular expression ^[a-z_][a-z0-9_]{2,}$.(¬˜ë‘üÿÿÿÿ8äşøó”,
+lpython:S107"KMethod "__init__" has 8 parameters, which is greater than the 7 authorized.(ÕÙİ¦ùÿÿÿÿ8äşøó”,
+wpython:S101"VRename class "Alerta_SINO_Clave" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(ŒçÀüùÿÿÿÿ8äşøó”,
+Wpython:PrintStatementUsage"-Replace print statement by built-in function.(ù§œ8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(Ôü§÷8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(—Ô–¦8äşøó”,
+rpython:S101"QRename class "Alerta_Texto" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(ÜÍüÿÿÿÿ8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(—Ô–¦8äşøó”,
+mpython:S101"QRename class "Alerta_Combo" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(–¥œ¦8äşøó”,
+…python:S1871"cEither merge this branch with the identical one on line "552" or change one of the implementations.(³ ¥´şÿÿÿÿ8äşøó”,
+python:S1871"dEither merge this branch with the identical one on line "2357" or change one of the implementations.(ò…‚8äşøó”,
+]python:PrintStatementUsage"-Replace print statement by built-in function.(èÁ¨™úÿÿÿÿ8äşøó”,
+kpython:S101"ORename class "Alerta_Dia" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(ÿû©Š8äşøó”,
+€python:S1871"cEither merge this branch with the identical one on line "504" or change one of the implementations.(³ğ£˜8äşøó”,
+qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 48 to the 15 allowed.(·Êô®8äşøó”,
+python:S1871"dEither merge this branch with the identical one on line "2419" or change one of the implementations.(ÔÓÌí8äşøó”,
+python:S1871"dEither merge this branch with the identical one on line "2458" or change one of the implementations.(ºÅ³Ù8äşøó”,
+python:S1871"dEither merge this branch with the identical one on line "2458" or change one of the implementations.(ºÅ³Ù8äşøó”,
+vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 37 to the 15 allowed.(¤í¨½ùÿÿÿÿ8¤ƒĞú™,
+€python:S1871"cEither merge this branch with the identical one on line "561" or change one of the implementations.(Ë¯¥8äşøó”,
+{python:S101"ZRename class "Alerta_Anular_Numeros" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(¸¡Şúÿÿÿÿ8äşøó”,
+qpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 17 to the 15 allowed.(«®¤À8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(•ğ×ˆ8äşøó”,
+@python:S125"Remove this commented out code.(§¥Ş’úÿÿÿÿ8äşøó”,
+vpython:S3776"TRefactor this function to reduce its Cognitive Complexity from 45 to the 15 allowed.(ı†§İúÿÿÿÿ8äşøó”,
+ppython:S101"TRename class "Alerta_Dia_Hora" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(Ò¥êÌ8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(—Ô–¦8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(—Ô–¦8äşøó”,
+]python:PrintStatementUsage"-Replace print statement by built-in function.(µ—§Ëøÿÿÿÿ8äşøó”,
+€python:S1871"cEither merge this branch with the identical one on line "982" or change one of the implementations.(§øŠ¸8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(ü³ç¨8äşøó”,
+Xpython:PrintStatementUsage"-Replace print statement by built-in function.(—Ô–¦8äşøó”,
+qpython:S101"PRename class "Alerta_SINO" to match the regular expression ^[A-Z_][a-zA-Z0-9]+$.(ğÄüÉùÿÿÿÿ8äşøó”,
+python:S1871"dEither merge this branch with the identical one on line "2424" or change one of the implementations.(ÔÓÌí8äşøó”,
+†python:S1871"dEither merge this branch with the identical one on line "2348" or change one of the implementations.(¿Ÿ®Ìşÿÿÿÿ8äşøó”,
+]python:PrintStatementUsage"-Replace print statement by built-in function.(Ùµš¸üÿÿÿÿ8äşøó”,
+€python:S1871"cEither merge this branch with the identical one on line "509" or change one of the implementations.(³ğ£˜8äşøó”,

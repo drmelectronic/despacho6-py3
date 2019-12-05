@@ -1,0 +1,14 @@
+
+Epython:S1066"/Merge this if statement with the enclosing one.(Ê‹«û
+opython:S3776"TRefactor this function to reduce its Cognitive Complexity from 96 to the 15 allowed.(£Àûÿÿÿÿ
+`python:S107"KMethod "__init__" has 8 parameters, which is greater than the 7 authorized.(¾ı ›
+opython:S3776"TRefactor this function to reduce its Cognitive Complexity from 59 to the 15 allowed.(‡¨Ù¢ûÿÿÿÿ
+~python:S1871"cEither merge this branch with the identical one on line "510" or change one of the implementations.(¦æÌÒüÿÿÿÿ
+Dpython:S1066"/Merge this if statement with the enclosing one.(ùÕ¤
+Epython:S1066"/Merge this if statement with the enclosing one.(ëÚ«©
+9python:S1763"#Remove the code after this "raise".(€³¢»
+Vpython:PrintStatementUsage"-Replace print statement by built-in function.(¾°ı‡ûÿÿÿÿ
+Qpython:PrintStatementUsage"-Replace print statement by built-in function.(±»Ç­
+Vpython:PrintStatementUsage"-Replace print statement by built-in function.(²ƒÆ©üÿÿÿÿ
+Vpython:PrintStatementUsage"-Replace print statement by built-in function.(™éÅ®úÿÿÿÿ
+Qpython:PrintStatementUsage"-Replace print statement by built-in function.(Èø¶³
