@@ -2324,7 +2324,7 @@ class PlaceholderEntry(gtk.Entry):
         self.connect('focus-in-event', self._focus_in_event)
         self.connect('focus-out-event', self._focus_out_event)
         self.set_visibility(self.visible)
-        self.set_size_request(130, 30)
+        self.set_size_request(208, 36)
 
         style = self.get_style().copy()
         style.bg[gtk.STATE_NORMAL] = gtk.gdk.color_parse('#FFFFFF')

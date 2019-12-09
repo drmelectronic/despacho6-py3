@@ -94,7 +94,7 @@ class Login(gtk.Window):
         self.set_decorated(False)
         # self.set_resizable(False)
         path = os.path.join('images', 'splash.png')
-        pixbuf = gtk.gdk.pixbuf_new_from_file("images/splash.png")
+        pixbuf = gtk.gdk.pixbuf_new_from_file("images/splash-oscuro.png")
         pixmap, mask = pixbuf.render_pixmap_and_mask()
         width, height = pixmap.get_size()
         del pixbuf
@@ -112,30 +112,30 @@ class Login(gtk.Window):
         # hbox.pack_start(image, False, False, 20)
 
         vbox_main = gtk.VBox(False, 0)
-        hbox.pack_end(vbox_main, False, True, 30)
+        hbox.pack_end(vbox_main, False, True, 0)
 
-        vbox = gtk.VBox(False, 60)
-        vbox_main.pack_end(vbox, False, True, 50)  # margen inferior
-
-        self.combo = Widgets.ComboBox()
-        self.combo.set_lista(self.http.dataLocal.get_empresas())
-
-        hbox = gtk.HBox(False, 0)
-        vbox.pack_start(hbox, True, False, 0)
-        hbox.pack_start(self.combo, True, False, 0)
+        vbox = gtk.VBox(False, 54)
+        vbox_main.pack_end(vbox, False, True, 48)  # margen inferior
 
         hbox = gtk.HBox(True, 0)
         vbox.pack_end(hbox, False, False, 0)
 
         action_area = gtk.HBox(False, 0)
-        hbox.pack_end(action_area, False, False, 50)
+        hbox.pack_end(action_area, False, True, 30)
 
-        self.but_salir = Widgets.Button('cancelar.png', None)
+        self.but_salir = gtk.EventBox()
+        imagen = gtk.Image()
+        imagen.set_from_file('images/salir.png')
+        self.but_salir.add(imagen)
         action_area.pack_end(self.but_salir, False, False, 0)
-        self.but_salir.connect('clicked', self.salir)
-        self.but_aceptar = Widgets.Button('checkmark.png', "_Ingresar")
-        action_area.pack_end(self.but_aceptar, False, False, 0)
-        self.but_aceptar.connect('clicked', self.comprobar)
+        self.but_salir.connect('button_press_event', self.salir)
+
+        self.but_login = gtk.EventBox()
+        imagen = gtk.Image()
+        imagen.set_from_file('images/login.png')
+        self.but_login.add(imagen)
+        action_area.pack_end(self.but_login, False, False, 0)
+        self.but_login.connect('button_press_event', self.comprobar)
 
         self.clave = Widgets.PlaceholderEntry()
         self.clave.placeholder = 'Clave Personal'
@@ -143,7 +143,7 @@ class Login(gtk.Window):
 
         hbox = gtk.HBox(False, 0)
         vbox.pack_end(hbox, True, False, 0)
-        hbox.pack_end(self.clave, True, False, 100)
+        hbox.pack_end(self.clave, True, False, 76)
 
         self.password = Widgets.PlaceholderEntry()
         self.password.placeholder = 'Password Perfil'
@@ -162,8 +162,16 @@ class Login(gtk.Window):
         hbox.pack_start(self.username, True, False, 0)
         self.username.connect('activate', lambda w: self.set_focus(self.password))
 
-
         self.clave.connect('activate', self.comprobar)
+
+
+        self.combo = Widgets.ComboBox()
+        self.combo.set_lista(self.http.dataLocal.get_empresas())
+
+        hbox = gtk.HBox(False, 0)
+        vbox_main.pack_end(hbox, True, False, 0)
+        hbox.pack_end(self.combo, True, False, 0)
+
         self.set_focus(self.username)
         self.mac = str(getnode())
         self.secret_key = 'S3CRE1K3Y'
