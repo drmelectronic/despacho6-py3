@@ -14,19 +14,12 @@ import Reloj
 
 class Http(object):
 
-    local = 1
+    local = 0
     version = 6.01
     dia = 'Actualización lunes 9 de diciembre de 2019'
 
     __instance = None
     dataLocal = None
-    # exclusiones = [
-    #     'Error Digitación',
-    #     'Sin Personal',
-    #     'Combustible',
-    #     'Taller',
-    #     'Almuerzo'
-    # ]
     usuario = None
     conn = None
     ventanas = []

@@ -114,7 +114,7 @@ class Ventana(gtk.Window):
         self.notebook2 = Widgets.Notebook()
         self.notebook2.set_tab_pos(gtk.POS_TOP)
         vbox3.pack_start(self.notebook2, True, True, 0)
-        self.disponibles = Modulos.Disponibles(self.http)
+        self.disponibles = Modulos.Disponibles()
         self.notebook2.insert_page(self.disponibles, self.disponibles.label)
         self.excluidos = Modulos.Excluidos(self.http)
         self.notebook2.insert_page(self.excluidos, self.excluidos.label)

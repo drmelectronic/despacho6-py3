@@ -118,7 +118,7 @@ class Disponibles(gtk.ScrolledWindow):
         'unidad-excluida': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
     }
 
-    def __init__(self, http):
+    def __init__(self):
         super(Disponibles, self).__init__()
         self.label = gtk.Label()
         self.inicio = None
@@ -133,7 +133,8 @@ class Disponibles(gtk.ScrolledWindow):
             self.set_size_request(320, 500)
         self.model = gtk.ListStore(int, int, str, int, int, int, str, str, str, gobject.TYPE_PYOBJECT)
         columnas = ['#', 'P', 'H.SAL', 'F', 'VR', 'VA', 'H.ING', 'TI']
-        self.http = http
+        self.http = Http()
+        self.dataLocal = DataLocal()
         self.treeview = Widgets.TreeView(self.model)
         self.treeview.set_enable_search(False)
         self.treeview.connect('cursor-changed', self.fila_seleccionada)
@@ -212,7 +213,7 @@ class Disponibles(gtk.ScrolledWindow):
     def excluir(self):
         unidad = self.get_selected()
         if unidad:
-            dialogo = Widgets.Alerta_Texto('Motivo de Exclusión', self.http.exclusiones)
+            dialogo = Widgets.Alerta_Texto('Motivo de Exclusión', self.dataLocal.exclusiones)
             string = dialogo.iniciar()
             if string:
                 datos = {

@@ -260,7 +260,7 @@ class Geocerca(model_base):
         super(Geocerca, self).__init__(js)
 
     def set_hora(self, hora, tiempos):
-        tiempos = self.http.filtrar(tiempos, {'geocerca': self.id})
+        tiempos = self.dataLocal.filtrar(tiempos, {'geocerca': self.id})
 
         for t in tiempos:
             if t.contiene(hora):
@@ -757,8 +757,8 @@ class Unidad(model_base):
 
     def calcular_controles(self):
         query = self.dataLocal.get_geocercas()
-        geocercas = self.http.filtrar(query, {'activo': True, 'ruta': self.ruta, 'lado': self.lado})
-        self.http.ordenar(geocercas, [('orden', 1)])
+        geocercas = self.dataLocal.filtrar(query, {'activo': True, 'ruta': self.ruta, 'lado': self.lado})
+        self.dataLocal.ordenar(geocercas, [('orden', 1)])
 
         query = self.dataLocal.get_plantillas()
         plantilla = None
@@ -770,10 +770,10 @@ class Unidad(model_base):
         if plantilla is None:
             raise TconturError('No hay plantilla para el día de hoy')
         query = self.dataLocal.get_tiempos()
-        tiempos = self.http.filtrar(query, {'plantilla': plantilla.id})
-        self.http.ordenar(tiempos, [('inicio', 1)])
+        tiempos = self.dataLocal.filtrar(query, {'plantilla': plantilla.id})
+        self.dataLocal.ordenar(tiempos, [('inicio', 1)])
 
-        self.http.ordenar(geocercas, [('orden', 1)])
+        self.dataLocal.ordenar(geocercas, [('orden', 1)])
         inicio = self.inicio
         for g in geocercas:
             inicio = g.set_hora(inicio, tiempos)

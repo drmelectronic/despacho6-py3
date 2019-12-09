@@ -28,6 +28,13 @@ class DataLocal(object):
             'sin_dns': 'django-4eyifataca-uc.a.run.app'
         }
     ]
+    exclusiones = [
+        'Error Digitación',
+        'Sin Personal',
+        'Combustible',
+        'Taller',
+        'Almuerzo'
+    ]
 
     def __new__(cls):
         if DataLocal.__instance is None:
