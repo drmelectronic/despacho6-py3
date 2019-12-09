@@ -7,6 +7,13 @@ import threading
 from decimal import Decimal
 import webbrowser
 from Http import Http
+from copy import deepcopy
+
+IGV = 18
+
+
+class TconturError(Exception):
+    pass
 
 
 class model_base(object):
@@ -51,7 +58,7 @@ class model_base(object):
                 print('tipos', self.tipos)
                 print('objeto', objeto)
                 print('no hay', k)
-                raise
+                raise TconturError('No hay %s' % k)
         self.validate()
 
     def get_dict(self):
@@ -100,6 +107,9 @@ class model_base(object):
             return 'En Espera'
         elif self.estado == 'X':
             return 'Excluido'
+
+    def get_precio(self):
+        return "%.2f" % (self.precio / 100.)
 
 
 class Ruta(model_base):
@@ -1155,10 +1165,142 @@ class Producto(model_base):
             'servicio': bool,
             'codigo': unicode,
             'nombre': unicode,
+            'cliente': unicode,
             'precio': long,
-            'igv': bool
+            'igv': bool,
+            'moneda': bool,
+            'variable': bool,
+            'stock': long,
+            'fracciones': bool,
+            'fondo': bool,
+            'gasto': bool
         }
         super(Producto, self).__init__(js)
+
+    def get_igv_str(self):
+        if self.igv is None:
+            return 'INAFECTO IGV'
+        elif self.igv is True:
+            return 'INCLUYE IGV'
+        else:
+            return 'NO INC. IGV'
+
+    def get_igv(self):
+        if self.igv is None:
+            return 0
+        elif self.igv:  # incluye
+            return -IGV
+        else:  # no incluye
+            return +IGV
+
+
+class Item(model_base):
+
+    def __init__(self, js=None):
+        self.tipos = {
+            'id': long,
+            'recibo': long,
+            'producto': bool,
+            'cantidad': long,
+            'precio': long,
+            'igv': long,
+            'moneda': bool
+        }
+        super(Item, self).__init__(js)
+        self.pagar = 0
+        self._producto = None
+
+    def set_producto(self, producto):
+        self._producto = producto
+        self.producto = producto.id
+        self.cantidad = 0
+        self.precio = producto.precio
+        self.igv = producto.get_igv()
+        self.moneda = producto.moneda
+
+    def get_producto(self):
+        if self._producto is None:
+            self._producto = self.http.get_producto(self.producto)
+        return self._producto
+
+    def get_total(self):
+        if self._producto.gasto:
+            return 0
+        if self.igv == 0:                               # sin IGV
+            return round(self.precio * self.cantidad / 1000)
+        elif self.igv < 0:                              # incluye
+            return round(self.precio * self.cantidad / 1000)
+        else:                                           # no incluye
+            return round(self.precio * self.cantidad * (100 + IGV) / 1000)
+
+    def get_igv(self):
+        if self._producto.gasto:
+            return 0
+        if self.igv == 0:
+            return 0
+        elif self.igv < 0:
+            return round(self.cantidad * self.precio * (-IGV) / (100 - IGV) / 1000)
+        else:
+            return round(self.cantidad * self.precio * IGV / 100000)
+
+    def get_base(self):
+        if self._producto.gasto:
+            return 0
+        if self.igv == 0:
+            return 0
+        elif self.igv < 0:
+            return self.get_total() - self.get_igv()
+        else:
+            return round(self.precio * self.cantidad) / 1000
+
+    def get_inafecta(self):
+        if self._producto.gasto:
+            return round(self.precio * self.cantidad) / 1000
+        if self.igv == 0:
+            return self.get_total()
+        elif self.igv < 0:
+            return 0
+        else:
+            return 0
+
+    def fijar_precio(self, precio):
+        if self._producto.variable:
+            self.precio = float(precio) * 100
+            self.cantidad = 1000
+
+    def cotizar_precio(self, monto):
+        self.cantidad = (float(monto) * 100000 / self.precio)
+
+    def cotizar_cantidad(self, cantidad):
+        self.cantidad = float(cantidad) * 1000
+
+    def get_fila_cobranza(self):
+        return [
+            self.orden,
+            self._producto.codigo,
+            self._producto.nombre,
+            self.get_cantidad(),
+            self.get_precio(),
+            currency(self.get_base() + self.get_inafecta()),
+            currency(self.get_igv()),
+            currency(self.get_total()),
+            self
+        ]
+
+    def get_cantidad(self):
+        return "%.3f" % (self.cantidad / 1000.)
+
+    def como_retiro(self):
+        self.pagar = - self.pagar
+
+    def get_json_item(self):
+        return {
+            'producto': self._producto.get_dict(),
+            'cantidad': self.cantidad,
+            'precio': self.precio,
+            'igv': self.igv,
+            'moneda': self.moneda
+        }
 
 
 class TipoDocumento(model_base):
@@ -1174,6 +1316,7 @@ class TipoDocumento(model_base):
 
 
 class Recibo(model_base):
+    columnas = ('SERIE', 'NUMERO', 'HORA', 'CLIENTE', 'MONTO', 'TIPO')
 
     def __init__(self, js):
         self.tipos = {
@@ -1185,23 +1328,27 @@ class Recibo(model_base):
             'cliente': long,
             'usuario': long,
             'caja': long,
-            'anulado': long
+            'anulado': long,
+            'efectivo': bool,
+            'total': long
         }
         super(Recibo, self).__init__(js)
 
+    def get_hora(self):
+        return self.get_datetime(self.hora)
 
-class Item(model_base):
+    def get_efectivo(self):
+        if self.efectivo:
+            return 'EFECTIVO'
+        else:
+            return 'CRÉDITO'
 
-    def __init__(self, js):
-        self.tipos = {
-            'id': long,
-            'recibo': long,
-            'producto': long,
-            'cantidad': long,
-            'precio': long,
-            'igv': bool
-        }
-        super(Item, self).__init__(js)
+    def get_fila(self):
+        return [self.serie, self.numero, self.get_hora().strftime('%Y-%m-%d %H:%M:%S'),
+                self.cliente, self.get_total(), self.get_efectivo(), self]
+
+    def get_total(self):
+        return "%.2f" % (self.total / 100.)
 
 
 class Cliente(model_base):
@@ -1228,6 +1375,28 @@ class Deuda(model_base):
             'nombre': long,
         }
         super(Cliente, self).__init__(js)
+
+
+class Caja(model_base):
+
+    def __init__(self, js):
+        self.tipos = {
+            'id': long,
+            'usuario': long,
+            'inicio': unicode,
+            'fin': unicode,
+            'total': long,
+        }
+        super(Caja, self).__init__(js)
+
+    def get_inicio(self):
+        return self.get_datetime(self.inicio)
+
+    def get_fin(self):
+        return self.get_datetime(self.inicio)
+
+    def get_total(self):
+        return "%.2f" % (self.total / 100.)
 
 
 class Configuracion:
@@ -1322,3 +1491,11 @@ FERIADOS = [
     (2020, 12, 8),
     (2020, 12, 25),
 ]
+
+
+def currency(entero):
+    return "%.2f" % (entero / 100.)
+
+
+def quantity(entero):
+    return "%.3f" % (entero / 1000.)

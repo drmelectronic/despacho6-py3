@@ -110,6 +110,8 @@ class DataLocal(object):
         self.empresa = usuario.get_empresa()
 
     def load_data_file(self):
+        # self.dataDump = {}
+        # return
         try:
             a = os.path.abspath('outs/data.bkp')
             f = open(a, 'r')
@@ -121,6 +123,14 @@ class DataLocal(object):
         else:
             self.dataDump = js
         self.load_data_server()
+
+    def save_data_file(self):
+        # return
+        print('DATA SAVED')
+        a = os.path.abspath('outs/data.bkp')
+        f = open(a, 'w')
+        f.write(json.dumps(self.dataDump))
+        f.close()
 
     def load_data_server(self):
         keys = self.dataDump.keys()
@@ -139,15 +149,13 @@ class DataLocal(object):
                             self.save_data_file()
                             print('NUEVA VERSION DE ' + k)
                             break
+                        except models.TconturError:
+                            del self.dataDump[k]
+                            del self.dataServer[k]
+                            print('NUEVA VERSION DE ' + k)
+                            break
                     else:
                         self.dataServer[k].append(d)
-
-    def save_data_file(self):
-        print('DATA SAVED')
-        a = os.path.abspath('outs/data.bkp')
-        f = open(a, 'w')
-        f.write(json.dumps(self.dataDump))
-        f.close()
 
     def limpiar_data(self):
         self.dataServer = {}
@@ -296,7 +304,7 @@ class DataLocal(object):
     # ADD METHODS
 
     def add_dato(self, key, value):
-        objeto = models.MODELOS[key](self, value)
+        objeto = models.MODELOS[key](value)
         self.dataServer[key].append(objeto)
         if key in self.dataDump:
             del self.dataDump[key]

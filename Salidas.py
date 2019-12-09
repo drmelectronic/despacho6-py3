@@ -211,6 +211,7 @@ class Ventana(gtk.Window):
             self.cambiar_a_llegadas)
         self.llamada.connect('llamar', self.llamar_custom)
         self.llamada.connect('stop', self.sonido_stop)
+        self.ticketera.connect('clicked', self.abrir_configuracion)
 
     def nueva_ventana(self, *args):
         self.emit('nueva-ventana')
@@ -802,7 +803,12 @@ Ctrl + E = Cola de Espera"""
     def backups(self):
         data = self.http.load('backups', {'dato': 1})
         if data:
-            dialogo = Widgets.Alerta_Combo('Lista de Backup', 'backup.png', 'Escoja el backup que desea descargar:', data, liststore=(str, str))
+            dialogo = Widgets.Alerta_Combo(
+                'Lista de Backup',
+                'backup.png',
+                'Escoja el backup que desea descargar:',
+                data,
+                liststore=(str, str))
             url = dialogo.iniciar()
             if url:
                 print 'Backup'
@@ -827,4 +833,17 @@ Ctrl + E = Cola de Espera"""
         self.selector.connect('forzar-actualizar', self.forzar_actualizar)
 
     def modulo_cobranza(self, *args):
-        Cobranza.Cobranza()
+        respuesta = self.http.load('usar-caja')
+        if respuesta:
+            Cobranza.Cobranza(respuesta['caja'])
+        else:
+            dialog = Widgets.Alerta_SINO('Abrir Caja', 'caja_central.png', 'Confirme si desea abrir su caja.')
+            respuesta = dialog.iniciar()
+            dialog.cerrar()
+            if respuesta:
+                respuesta = self.http.load('abrir-caja')
+                if respuesta:
+                    Cobranza.Cobranza(respuesta['caja'])
+
+    def abrir_configuracion(self, *args):
+        Modulos.Configuracion()

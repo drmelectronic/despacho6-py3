@@ -14,7 +14,7 @@ import Reloj
 
 class Http(object):
 
-    local = 0
+    local = 1
     version = 6.00
     dia = 'Actualización martes 29 de octubre de 2019'
 
@@ -62,12 +62,13 @@ class Http(object):
                 print('TEST SERVER FAIL', self.dataLocal.server, 'USE', self.dataLocal.sin_dns)
                 self.server = self.dataLocal.sin_dns
 
-    def construir(self, ventanas):
-        self.ventanas = ventanas
+    def construir(self):
         self.sonido = Sonido.Hilo()
         self.sonido.start()
         self.reloj = Reloj.Reloj()
-        self.dataLocal = DataLocal.DataLocal()
+
+    def set_ventanas(self, ventanas):
+        self.ventanas = ventanas
 
     def conectar(self, empresa):
         if os.name == 'nt':

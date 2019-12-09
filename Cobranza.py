@@ -20,24 +20,38 @@ class Cobranza(gtk.Window):
     moneda = None
     movimiento = None
 
-    def __init__(self):
+    def __init__(self, caja):
         super(Cobranza, self).__init__()
 
+        self.caja = models.Caja(caja)
         acgroup = gtk.AccelGroup()
         self.add_accel_group(acgroup)
 
         mb = gtk.MenuBar()
 
         menu1 = gtk.Menu()
-
-        file = gtk.MenuItem("_Reportes")
+        file = gtk.MenuItem("_Mi Caja")
         file.set_submenu(menu1)
         mb.append(file)
 
+        reporte_caja = gtk.ImageMenuItem('Reporte de Caja', acgroup)
+        reporte_caja.add_accelerator("activate", acgroup, ord('R'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
+        reporte_caja.connect('activate', self.reporte_caja)
+        menu1.append(reporte_caja)
+
+        cerrar_caja = gtk.ImageMenuItem('Cerrar Mi Caja', acgroup)
+        cerrar_caja.connect('activate', self.cerrar_caja)
+        menu1.append(cerrar_caja)
+
+        menu2 = gtk.Menu()
+        file = gtk.MenuItem("_Reportes")
+        file.set_submenu(menu2)
+        mb.append(file)
+
         por_cobrar = gtk.ImageMenuItem('Por Cobrar', acgroup)
-        por_cobrar.add_accelerator("activate", acgroup, ord('R'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
+        por_cobrar.add_accelerator("activate", acgroup, ord('C'), gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
         por_cobrar.connect('activate', self.por_cobrar)
-        menu1.append(por_cobrar)
+        menu2.append(por_cobrar)
 
         self.http = Http()
         self.dataLocal = self.http.dataLocal
@@ -188,9 +202,9 @@ class Cobranza(gtk.Window):
         hbox.pack_start(sw, True, True, 10)
         sw.set_size_request(560, 10)
         sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
-        model = gtk.ListStore(str, str, str, str, str, str, str, gobject.TYPE_PYOBJECT)
+        model = gtk.ListStore(str, str, str, str, str, str, str, str, gobject.TYPE_PYOBJECT)
         self.treeview = Widgets.TreeView(model)
-        self.columnas = ['Nº', 'REF', 'DETALLE', 'CANT.', 'P.UNIT.', 'IGV', 'PAGAR']
+        self.columnas = ['Nº', 'REF', 'DETALLE', 'CANT.', 'P.UNIT.', 'SUBTOTAL', 'IGV', 'TOTAL']
         for i, columna in enumerate(self.columnas):
             cell_text = gtk.CellRendererText()
             tvcolumn = Widgets.TreeViewColumn(columna)
@@ -238,11 +252,10 @@ class Cobranza(gtk.Window):
             self.moneda = None
             self.moneda_str = ''
 
-
     def set_productos(self):
         liststore = gtk.ListStore(str)
         for p in self.dataLocal.get_productos():
-            liststore.append([p['codigo']])
+            liststore.append([p.codigo])
         completion = gtk.EntryCompletion()
         completion.set_model(liststore)
         completion.set_text_column(0)
@@ -265,11 +278,11 @@ class Cobranza(gtk.Window):
 
     def limpiar_form(self):
         # self.entry_tipo_cli.set_text('')
-        self.label_tipo_cliente.set_text('Escoja un tipo')
+        # self.label_tipo_cliente.set_text('Escoja un tipo')
         self.entry_serie.set_text('')
         self.label_serie.set_text('Escoja una serie')
         # self.entry_tipo_cli.set_text('')
-        self.label_tipo_cliente.set_text('Escoja un tipo')
+        # self.label_tipo_cliente.set_text('Escoja un tipo')
         self.entry_cliente.set_text('')
         self.label_cliente.set_text('Escoja un código')
         self.documento = None
@@ -304,6 +317,9 @@ class Cobranza(gtk.Window):
             doc = 'BOLETA'
         else:
             return Widgets.Alerta('Error de Formulario', 'error.png', 'Tipo de Documento inválido')
+
+        if serie == u'':
+            return Widgets.Alerta('Error de Formulario', 'error.png', 'Serie inválida')
 
         documentos = self.dataLocal.get_tipos_documento()
         print documentos
@@ -375,9 +391,9 @@ class Cobranza(gtk.Window):
             self.entry_tipo_doc.grab_focus()
             return
         # tipo = self.entry_tipo_cli.get_text()
-        codigo = self.entry_cliente.get_text()
+        codigo = unicode(self.entry_cliente.get_text().upper())
 
-        if codigo == '':
+        if codigo == u'':
             Widgets.Alerta('Error de Formulario', 'error.png', 'Código de Cliente Vacío')
             self.entry_cliente.grab_focus()
             return
@@ -389,13 +405,14 @@ class Cobranza(gtk.Window):
             if c.codigo == codigo:
                 self.cliente = c
                 break
+            print('no coincide', c.codigo, codigo)
 
         if self.cliente is None:
             data = {'codigo': codigo}
             respuesta = self.http.load('buscar-cliente', data)
             if respuesta:
                 self.cliente = respuesta['cliente']
-                self.dataLocal.add_dato('clientes', self.cliente)
+                self.dataLocal.add_cliente(self.cliente)
             else:
                 dialog = ClienteDialogo()
                 dialog.entry_codigo.set_text(codigo)
@@ -452,30 +469,29 @@ class Cobranza(gtk.Window):
 
             self.entry_search.grab_focus()
 
-
     def buscar_codigo(self, *args):
-        codigo = self.entry_search.get_text()
+        codigo = unicode(self.entry_search.get_text().upper())
         if codigo:
-            for prod in self.dataLocal.get_productos():
-                p = prod.copy()
-                print(p['codigo'], p['nombre'])
-                if p['codigo'] == codigo:
+            print('buscar producto', codigo, (len(self.dataLocal.get_productos())))
+            for p in self.dataLocal.get_productos():
+                print('buscando prod', p.codigo, p.nombre)
+                if p.codigo == codigo:
                     if self.movimiento == 'D':
                         self.generar_deuda(p)
                         return
-                    if p['cliente'] is True:  # Unidad
-                        if self.cliente['tipo'] != 'Unidad':
+                    if p.cliente is True:  # Unidad
+                        if self.cliente.tipo != 'U':
                             Widgets.Alerta('Concepto Inválido', 'road-closure.png', 'El concepto sólo está permitido para Unidades')
                             self.entry_search.set_text('')
                             self.entry_search.grab_focus()
                             return
-                    elif p['cliente'] is False:  # Trabajador
-                        if self.cliente['tipo'] != 'Trabajador':
+                    elif p.cliente is False:  # Trabajador
+                        if self.cliente.tipo != 'T':
                             Widgets.Alerta('Concepto Inválido', 'road-closure.png', 'El concepto sólo está permitido para Trabajadores')
                             self.entry_search.set_text('')
                             self.entry_search.grab_focus()
                             return
-                    if p['moneda'] != self.moneda:
+                    if p.moneda != self.moneda:
                         if self.moneda is None:
                             Widgets.Alerta('Formulario Incompleto', 'road-closure.png', 'Escoja una Serie Válida')
                             self.entry_serie.grab_focus()
@@ -486,98 +502,107 @@ class Cobranza(gtk.Window):
                         self.entry_search.grab_focus()
                         return False
 
-                    if p['variable']:
+                    item = models.Item()
+                    item.set_producto(p)
+                    if p.variable or p.gasto:
                         if self.movimiento == 'A':
-                            dialogo = Widgets.Alerta_Numero('Pagar', 'money.png',
-                                                            'Escriba la cantidad a cobrar\n<b>%s</b>' % p['nombre'],
-                                                            10, True)
+                            operacion = 'cobrar'
                         else:
-                            dialogo = Widgets.Alerta_Numero('Pagar', 'money.png',
-                                                            'Escriba la cantidad a retirar\n<b>%s</b>' % p['nombre'],
-                                                            10, True)
-                        print('venta', p['venta'])
-                        dialogo.entry.set_text(Widgets.currency(p['venta']))
+                            operacion = 'retirar'
+                        dialogo = Widgets.Alerta_Numero(
+                            'Pagar',
+                            'money.png',
+                            'Escriba la cantidad a %s\n<b>%s</b>' % (operacion, p.nombre),
+                            10,
+                            True)
+                        print('venta', p.precio)
+                        dialogo.entry.set_text(p.get_precio())
                         monto = dialogo.iniciar()
                         dialogo.cerrar()
                         if monto:
-                            p['pagar'] = int(float(monto) * 100)
-                            p['precio'] = int(float(monto) * 1000)
+                            item.fijar_precio(monto)
                         else:
-                            p['pagar'] = 0
-                        p['cantidad'] = 1000
+                            item.fijar_precio(0)
                     else:
-                        if self.movimiento == 'A':
-                            dialogo = Widgets.Alerta_Numero('Pagar', 'money.png',
-                                                            'Escriba la cantidad de unidades a vender\n<b>CONCEPTO: %s\nPRECIO UNIT.: %s %s</b>' % (p['nombre'], self.moneda_str, Widgets.currency(p['precio'])),
-                                                            10, True)
+                        if p.fracciones:
+                            ingresar = 'el monto total a'
+                            default = ''
                         else:
-                            dialogo = Widgets.Alerta_Numero('Pagar', 'money.png',
-                                                            'Escriba la cantidad de unidades a retirar\n<b>CONCEPTO: %s\nPRECIO UNIT.: %s %s</b>' % (p['nombre'], self.moneda_str, Widgets.currency(p['precio'])),
-                                                            10, True)
-                        dialogo.entry.set_text('1')
+                            ingresar = 'la cantidad de unidades'
+                            default = '1'
+                        if self.movimiento == 'A':
+                            operacion = 'vender'
+                        else:
+                            operacion = 'comprar'
+                        dialogo = Widgets.Alerta_Numero(
+                            'Pagar',
+                            'money.png',
+                            'Escriba %s a %s\n<b>CONCEPTO: %s\nPRECIO UNIT.: %s %s</b>' %
+                            (ingresar, operacion, p.nombre, self.moneda_str, p.get_precio()),
+                            10,
+                            True)
+                        dialogo.entry.set_text(default)
                         cantidad = dialogo.iniciar()
                         dialogo.cerrar()
-                        p['cantidad'] = 1
-                        if cantidad:
-                            p['pagar'] = p['precio'] * float(cantidad)
-                            p['cantidad'] = float(cantidad) * 1000
-                            p['precio'] = p['precio'] * 10
+                        if cantidad == '':
+                            cantidad = 0
+                        if p.fracciones:
+                            item.cotizar_precio(cantidad)
                         else:
-                            p['pagar'] = 0
-                    if p['pagar']:
-                        p['referencia'] = p['tipo'][0] + codigo.zfill(5)
-                        p['detalle'] = p['nombre']
+                            item.cotizar_cantidad(cantidad)
+                    if item.cantidad:
+                        # p['referencia'] = p['tipo'][0] + codigo.zfill(5)
+                        # p['detalle'] = p['nombre']
                         if self.movimiento != 'A':
-                            p['pagar'] = - p['pagar']
-                        self.add_concepto(p)
-                        print(p)
+                            item.retirar()
+                        self.add_concepto(item)
+                        print(item)
                     break
             self.entry_search.set_text('')
             self.entry_search.grab_focus()
+            print('nose encontraron coincidencias')
+
         else:
             self.pagar()
+
+    def get_modelo(self, i):
+        model = self.treeview.get_model()
+        return model[i][len(self.columnas)]
 
     def add_concepto(self, concepto):
         model = self.treeview.get_model()
         print('concepto', concepto)
-        if concepto['moneda'] != self.moneda:
+        if concepto.moneda != self.moneda:
             Widgets.Alerta('Error', 'error.png', 'La concepto a pagar debe estar en %s' % self.moneda_str)
             return False
-        fila = [
-            len(model) + 1,
-            concepto['referencia'],
-            concepto['detalle'],
-            Widgets.quantity(concepto['cantidad']),
-            Widgets.quantity(concepto['precio']),
-            'SI' if concepto['afecto'] else '',
-            Widgets.currency(concepto['pagar']),
-            dict(concepto)
-        ]
-        model.append(fila)
+        concepto.orden = len(model) + 1
+        model.append(concepto.get_fila_cobranza())
         total = 0
-        for row in model:
-            total += row[len(self.columnas)]['pagar']
+        for i, row in enumerate(model):
+            total += self.get_modelo(i).get_total()
+
         for i, d in enumerate(self.deudas):
             print(d)
             if d['id'] == concepto['id']:
                 self.deudas.pop(i)
                 break
+
         self.but_pagar.set_text('<b><big><span foreground="#2196f3">PAGAR\n%s %s</span></big></b>' %
-                                (self.moneda_str, Widgets.currency(total)))
+                                (self.moneda_str, models.currency(total)))
         return True
 
     def pagar(self, *args):
         model = self.treeview.get_model()
         total = 0
-        for row in model:
-            total += row[len(self.columnas)]['pagar']
+        for i, row in enumerate(model):
+            total += self.get_modelo(i).get_total()
         # if total <= 0:
         #     Widgets.Alerta('Error de Digitación', 'error.png', 'Debe pagar un monto positivo')
         #     return
         if self.movimiento is None:
             Widgets.Alerta('Error de Digitación', 'error.png', 'Debe definir un tipo de Movimiento')
             return
-        dialogo = Widgets.Alerta_SINO('Pagar', 'cash-register.png', 'Confirme que va a cobrar\n<b><big><span foreground="#2196f3">%s %s</span></big></b>' % (self.moneda_str, Widgets.currency(total)))
+        dialogo = Widgets.Alerta_SINO('Pagar', 'cash-register.png', 'Confirme que va a cobrar\n<b><big><span foreground="#2196f3">%s %s</span></big></b>' % (self.moneda_str, models.currency(total)))
         dialogo.label.set_alignment(0.5, 0.5)
         respuesta = dialogo.iniciar()
         dialogo.cerrar()
@@ -587,51 +612,46 @@ class Cobranza(gtk.Window):
             igv = 0
             inafecta = 0
             total = 0
-            for concepto in self.treeview.get_model():
-                c = concepto[len(self.columnas)]
-                if c['tipoCobro'] == 'X':  # Antes era 'F' para cobrar fondos ticket x ticket
-                    if c['afecto']:
-                        i = round(c['pagar'] * 0.18)
-                        b = c['pagar'] - i
-                        ina = 0
-                    else:
-                        ina = c['pagar']
-                        b = 0
-                        i = 0
+            for i in self.treeview.get_model():
+                item = i[len(self.columnas)]
+                if item._producto.fondo:
                     data = {
                         'json': json.dumps({
-                            'pagos': [c],
+                            'dia': datetime.datetime.now().strftime('%Y-%m-%d'),
+                            'efectivo': True,
+
+                            'caja': self.caja.id,
+                            'pagos': [item.get_dict()],
                             'cliente': self.cliente,
                             'documento': self.documento,
                             'movimiento': self.movimiento,
                             'venta': {
-                                'moneda': self.moneda,
-                                'base': b,
-                                'igv': i,
-                                'inafecta': ina,
-                                'total': c['pagar'],
+                                'moneda': item.moneda,
+                                'base': item.get_base(),
+                                'igv': item.get_igv(),
+                                'inafecta': item.get_inafecta(),
+                                'total': item.get_total(),
                             }
                         })
                     }
-                    pagado = self.http.load('pagar-modulo-cobranza', data)
+                    pagado = self.http.load('crear-recibo', data)
                     if pagado:
                         print('pagado Fondo OK')
                 else:
-                    pagos.append(c)
-                    if c['afecto']:
-                        i = round(c['pagar'] * 0.18)
-                        b = c['pagar'] - i
-                        base += b
-                        igv += i
-                    else:
-                        inafecta += c['pagar']
-                    total += c['pagar']
+                    pagos.append(item.get_dict())
+                    igv += item.get_igv()
+                    base += item.get_base()
+                    inafecta += item.get_inafecta()
+                    total += item.get_total()
             if len(pagos):
-                data = {
-                    'json': json.dumps({
+                js = {
+                        'dia': datetime.datetime.now().strftime('%Y-%m-%d'),
+                        'efectivo': True,
+
+                        'caja': self.caja.id,
                         'pagos': pagos,
-                        'cliente': self.cliente,
-                        'documento': self.documento,
+                        'cliente': self.cliente.id,
+                        'documento': self.documento.id,
                         'movimiento': self.movimiento,
                         'venta': {
                             'moneda': self.moneda,
@@ -640,9 +660,12 @@ class Cobranza(gtk.Window):
                             'inafecta': inafecta,
                             'total': total,
                         }
-                    })
+                    }
+                print('tojson', js)
+                data = {
+                    'json': json.dumps(js)
                 }
-                pagado = self.http.load('pagar-modulo-cobranza', data)
+                pagado = self.http.load('crear-recibo', data)
             if pagado:
                 print('pagado OK')
                 self.limpiar_form()
@@ -659,6 +682,18 @@ class Cobranza(gtk.Window):
     def generar_deuda(self, p):
         GenerarDeuda(self.http, self.cliente, p)
 
+    def reporte_caja(self, *args):
+        ReporteCaja()
+
+    def reporte_caja(self, *args):
+        dialog = Widgets.Alerta_SINO('Cerrar Caja', 'caja_central.png', 'Confirme si desea cerrar su caja')
+        respuesta = dialog.iniciar()
+        dialog.cerrar()
+        if respuesta:
+            respuesta = self.http.load('cerrar-caja')
+            if respuesta:
+                # TODO: Imprimir Ticket de Caja
+                pass
 
 
 class Deudas(gtk.Dialog):
@@ -680,6 +715,7 @@ class Deudas(gtk.Dialog):
         self.set_title('Deudas del Cliente: %s' % self.cliente['nombre'])
         self.set_position(gtk.WIN_POS_CENTER)
         self.connect('delete_event', self.cerrar)
+
         sw = gtk.ScrolledWindow()
         sw.set_size_request(400, 300)
         sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
@@ -704,7 +740,7 @@ class Deudas(gtk.Dialog):
             else:
                 moneda = 'US$'
             if l['total'] > 0:
-                self.model.append((l['dia'], '%s-%s' % (l['numero'], l['detalle']), moneda, Widgets.currency(l['total']), l))
+                self.model.append((l['dia'], '%s-%s' % (l['numero'], l['detalle']), moneda, models.currency(l['total']), l))
 
         self.menu = gtk.Menu()
         item1 = gtk.MenuItem('Conciliar Deuda')
@@ -1046,7 +1082,7 @@ class PorCobrar(gtk.Window):
                         codigo = d['cliente'][m + 1: -1]
                         cliente = d['cliente'][n + 1:m]
 
-                    model.append([i, codigo, referencia, cliente, Widgets.currency(d['monto']), d])
+                    model.append([i, codigo, referencia, cliente, models.currency(d['monto']), d])
 
                 model = self.treeview_deposito.get_model()
                 model.clear()
@@ -1072,7 +1108,7 @@ class PorCobrar(gtk.Window):
                 for d in respuesta['deudas']:
                     i += 1
                     acumulado += d['currency']
-                    model.prepend([d['dia'], d['concepto'], Widgets.currency(d['currency']), Widgets.currency(acumulado), d])
+                    model.prepend([d['dia'], d['concepto'], models.currency(d['currency']), Widgets.currency(acumulado), d])
 
     def imprimir(self, *args):
         cabeceras = ['Nº', 'CODIGO', 'REF', 'CLIENTE', 'SALDO']
@@ -1500,6 +1536,55 @@ class ClienteDialogo(Widgets.Dialogo):
 
     def repetir(self, *args):
         self.entry_nombre.set_text(self.entry_corto.get_text())
+
+
+class ReporteCaja(gtk.Dialog):
+
+    def __init__(self):
+        super(ReporteCaja, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
+        ventanas = gtk.window_list_toplevels()
+        parent = ventanas[0]
+        for v in ventanas:
+            if v.is_active():
+                parent = v
+                break
+        self.set_modal(True)
+        self.set_transient_for(parent)
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect('delete_event', self.cerrar)
+
+        self.http = Http()
+        self.set_title('Reporte de Caja: %s' % self.http.usuario.nombre)
+
+        self.treeview = Widgets.TreeViewId('Recibos', [])
+        self.treeview.columna_expand = 3
+        self.treeview.set_size_request(500, 500)
+        self.treeview.set_columnas_object(models.Recibo.columnas)
+        self.vbox.pack_end(self.treeview, True, True, 0)
+
+        respuesta = self.http.load('reporte-caja')
+        if respuesta:
+            caja = models.Caja(respuesta['caja'])
+            recibos = respuesta['recibos']
+            self.treeview.model.clear()
+            for r in recibos:
+                recibo = models.Recibo(r)
+                self.treeview.model.append(recibo.get_fila())
+            label = gtk.Label()
+            label.set_markup('<b>INICIO: </b> %s' % caja.get_inicio().strftime('%Y-%m-%d %H:%M:%S'))
+            self.vbox.pack_start(label, False, False, 0)
+            label = gtk.Label()
+            label.set_markup('<b>FIN: </b> %s' % caja.get_fin().strftime('%Y-%m-%d %H:%M:%S'))
+            self.vbox.pack_start(label, False, False, 0)
+            label = gtk.Label()
+            label.set_markup('<b>TOTAL: %s</b>' % caja.get_total())
+            self.vbox.pack_end(label, False, False, 0)
+        self.show_all()
+        self.run()
+        self.cerrar()
+
+    def cerrar(self, *args):
+        self.destroy()
 
 
 if __name__ == '__main__':

@@ -7,8 +7,10 @@ import Widgets
 import gobject
 import os
 import DataLocal
+import models
 from Http import Http
 
+from uuid import getnode
 
 if __name__ == '__main__':
     gobject.threads_init()
@@ -41,26 +43,11 @@ class Splash(gtk.Window):
 class Aplicacion:
 
     def __init__(self):
-        d = DataLocal.DataLocal()
-        d.load_main()
-        d.load_config()
         self.grupo = gtk.WindowGroup()
         self.ventanas = []
         self.http = Http()
-        self.http.construir(self.ventanas)
-        d.http = self.http
+        self.http.set_ventanas(self.ventanas)
         self.ventana = self.nueva_ventana()
-
-    def login(self, *args):
-        dialog = Widgets.Login()
-        s.hide_all()
-
-        respuesta = dialog.iniciar()
-        if respuesta:
-            self.ventana.login()
-            dialog.cerrar()
-        else:
-            dialog.cerrar()
 
     def nueva_ventana(self, *args):
         ventana = Salidas.Ventana()
@@ -68,10 +55,8 @@ class Aplicacion:
         ventana.present()
         self.ventanas.append(ventana)
         ventana.connect('cerrar', self.cerrar)
-        ventana.connect('login', self.login)
         ventana.connect('nueva-ventana', self.nueva_ventana)
-        if len(self.ventanas) > 1:
-            ventana.login()
+        ventana.login()
         ventana.grab_focus()
         return ventana
 
@@ -92,10 +77,156 @@ class Aplicacion:
             gtk.main_quit()
 
 
+class Login(gtk.Window):
+
+    tokens = []
+
+    def __init__(self):
+        super(Login, self).__init__()
+        self.user = None
+        self.pw = None
+        self.http = Http()
+        self.set_default_size(930, 500)
+        self.set_title('Inicie Sesión:')
+        self.set_position(gtk.WIN_POS_CENTER)
+        self.connect("delete_event", self.cerrar)
+
+        self.set_decorated(False)
+        # self.set_resizable(False)
+        path = os.path.join('images', 'splash.png')
+        pixbuf = gtk.gdk.pixbuf_new_from_file("images/splash.png")
+        pixmap, mask = pixbuf.render_pixmap_and_mask()
+        width, height = pixmap.get_size()
+        del pixbuf
+        self.set_app_paintable(gtk.TRUE)
+        self.realize()
+        self.window.set_back_pixmap(pixmap, gtk.FALSE)
+
+        image = gtk.Image()
+        image.set_from_file(path)
+
+        hbox = gtk.HBox(False, 0)
+        self.add(hbox)
+        # image = gtk.Image()
+        # image.set_from_file('images/PNG-48/login.png')
+        # hbox.pack_start(image, False, False, 20)
+
+        vbox_main = gtk.VBox(False, 0)
+        hbox.pack_end(vbox_main, False, True, 30)
+
+        vbox = gtk.VBox(False, 60)
+        vbox_main.pack_end(vbox, False, True, 50)  # margen inferior
+
+        self.combo = Widgets.ComboBox()
+        self.combo.set_lista(self.http.dataLocal.get_empresas())
+
+        hbox = gtk.HBox(False, 0)
+        vbox.pack_start(hbox, True, False, 0)
+        hbox.pack_start(self.combo, True, False, 0)
+
+        hbox = gtk.HBox(True, 0)
+        vbox.pack_end(hbox, False, False, 0)
+
+        action_area = gtk.HBox(False, 0)
+        hbox.pack_end(action_area, False, False, 50)
+
+        self.but_salir = Widgets.Button('cancelar.png', None)
+        action_area.pack_end(self.but_salir, False, False, 0)
+        self.but_salir.connect('clicked', self.salir)
+        self.but_aceptar = Widgets.Button('checkmark.png', "_Ingresar")
+        action_area.pack_end(self.but_aceptar, False, False, 0)
+        self.but_aceptar.connect('clicked', self.comprobar)
+
+        self.clave = Widgets.PlaceholderEntry()
+        self.clave.placeholder = 'Clave Personal'
+        self.clave.visible = False
+
+        hbox = gtk.HBox(False, 0)
+        vbox.pack_end(hbox, True, False, 0)
+        hbox.pack_end(self.clave, True, False, 100)
+
+        self.password = Widgets.PlaceholderEntry()
+        self.password.placeholder = 'Password Perfil'
+        self.password.visible = False
+
+        hbox = gtk.HBox(False, 0)
+        vbox.pack_end(hbox, True, False, 0)
+        hbox.pack_start(self.password, True, False, 0)
+        self.password.connect('activate', lambda w: self.set_focus(self.clave))
+
+        self.username = Widgets.PlaceholderEntry()
+        self.username.placeholder = 'Username'
+
+        hbox = gtk.HBox(False, 0)
+        vbox.pack_end(hbox, True, False, 0)
+        hbox.pack_start(self.username, True, False, 0)
+        self.username.connect('activate', lambda w: self.set_focus(self.password))
+
+
+        self.clave.connect('activate', self.comprobar)
+        self.set_focus(self.username)
+        self.mac = str(getnode())
+        self.secret_key = 'S3CRE1K3Y'
+        self.show_all()
+        self.combo.hide()
+        self.get_credentials()
+        self.username._focus_out_event(None, None)
+        self.password._focus_out_event(None, None)
+        self.clave._focus_out_event(None, None)
+
+    def get_credentials(self):
+        if self.http.dataLocal.username:
+            self.username.set_text(self.http.dataLocal.username)
+        if self.http.dataLocal.password:
+            self.password.set_text(self.http.dataLocal.password)
+        if self.http.dataLocal.empresa:
+            self.combo.hide()
+            self.combo.set_id(self.http.dataLocal.empresa)
+
+    def comprobar(self, *args):
+        self.clave._focus_out_event(None, None)
+        self.emp = self.combo.get_id()
+        self.user = self.username.get_text()
+        self.pw = self.password.get_text()
+        self.cl = self.clave.get_text()
+        login = self.http.login(self.emp, self.user, self.pw, self.cl)
+        if login:
+            self.http.set_usuario(models.Usuario(login))
+            Aplicacion()
+            self.cerrar()
+
+    def cerrar(self, *args):
+        self.destroy()
+
+    def salir(self, *args):
+        self.destroy()
+        gtk.main_quit()
+
 if __name__ == '__main__':
-    s = Splash()
-    gtk.main()
-    print('EXIT')
+    # s = Splash()
+
+    d = DataLocal.DataLocal()
+    d.load_main()
+    d.load_config()
+    http = Http()
+    http.construir()
+    d.http = http
+    http.dataLocal = d
+    dialog = Login()
+    try:
+        gtk.main()
+    except:
+        print('Ctrl + C')
+        try:
+            http.reloj.cerrar()
+        except:
+            pass
+        try:
+            http.sonido.cerrar()
+        except:
+            pass
+    else:
+        print('EXIT GTK')
     # try:
     #     gtk.main()
     # except BaseException:

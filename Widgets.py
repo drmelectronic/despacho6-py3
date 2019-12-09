@@ -15,9 +15,6 @@ import gobject
 import datetime
 import os
 import time
-import json
-import base64
-from uuid import getnode
 from Http import Http
 import xlrd
 
@@ -2327,6 +2324,11 @@ class PlaceholderEntry(gtk.Entry):
         self.connect('focus-in-event', self._focus_in_event)
         self.connect('focus-out-event', self._focus_out_event)
         self.set_visibility(self.visible)
+        self.set_size_request(130, 30)
+
+        style = self.get_style().copy()
+        style.bg[gtk.STATE_NORMAL] = gtk.gdk.color_parse('#FFFFFF')
+        self.set_style(style)
 
     def _focus_in_event(self, widget, event):
         if self._default:
@@ -2348,107 +2350,6 @@ class PlaceholderEntry(gtk.Entry):
         if self._default:
             return ''
         return gtk.Entry.get_text(self)
-
-
-class Login(gtk.Dialog):
-
-    tokens = []
-
-    def __init__(self):
-        super(Login, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
-        ventanas = gtk.window_list_toplevels()
-        parent = ventanas[0]
-        for v in ventanas:
-            if v.is_active():
-                parent = v
-                break
-        self.user = None
-        self.pw = None
-        self.set_modal(True)
-        self.http = Http()
-        self.set_transient_for(parent)
-        self.set_default_size(200, 50)
-        self.set_title('Inicie Sesión:')
-        self.set_position(gtk.WIN_POS_CENTER)
-        self.connect("delete_event", self.cerrar)
-        hbox = gtk.HBox(False, 0)
-        self.vbox.pack_start(hbox, False, False, 15)
-        image = gtk.Image()
-        image.set_from_file('images/PNG-48/login.png')
-        hbox.pack_start(image, False, False, 20)
-        vbox = gtk.VBox()
-        hbox.pack_start(vbox, True, True, 10)
-
-        self.combo = ComboBox()
-        self.combo.set_lista(self.http.dataLocal.get_empresas())
-        vbox.pack_start(self.combo, False, False, 5)
-
-        self.username = PlaceholderEntry()
-        self.username.placeholder = 'Username'
-        vbox.pack_start(self.username, False, False, 5)
-        self.username.connect('activate', lambda w: self.set_focus(self.password))
-        self.password = PlaceholderEntry()
-        self.password.placeholder = 'Password Perfil'
-        self.password.visible = False
-        vbox.pack_start(self.password, False, False, 5)
-        self.password.connect('activate', lambda w: self.set_focus(self.clave))
-
-        self.clave = PlaceholderEntry()
-        self.clave.placeholder = 'Clave Personal'
-        self.clave.visible = False
-        vbox.pack_start(self.clave, False, False, 5)
-        self.but_aceptar = Button('checkmark.png', "_Aceptar")
-        self.action_area.pack_start(self.but_aceptar, False, False, 0)
-        self.but_aceptar.connect('clicked', self.comprobar)
-        self.but_ok = Button('checkmark.png', "_Aceptar")
-        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
-        self.clave.connect('activate', self.comprobar)
-        self.set_focus(self.username)
-        self.mac = str(getnode())
-        self.secret_key = 'S3CRE1K3Y'
-        self.show_all()
-        self.get_credentials()
-        self.username._focus_out_event(None, None)
-        self.password._focus_out_event(None, None)
-        self.clave._focus_out_event(None, None)
-
-    def get_credentials(self):
-        if self.http.dataLocal.username:
-            self.username.set_text(self.http.dataLocal.username)
-        if self.http.dataLocal.password:
-            self.password.set_text(self.http.dataLocal.password)
-        if self.http.dataLocal.empresa:
-            self.combo.hide()
-            self.combo.set_id(self.http.dataLocal.empresa)
-            self.set_default_size(200, 50)
-
-    def comprobar(self, *args):
-        self.clave._focus_out_event(None, None)
-        self.emp = self.combo.get_id()
-        self.user = self.username.get_text()
-        self.pw = self.password.get_text()
-        self.cl = self.clave.get_text()
-        login = self.http.login(self.emp, self.user, self.pw, self.cl)
-        if login:
-            self.http.set_usuario(models.Usuario(login))
-            self.but_ok.clicked()
-
-    def iniciar(self):
-        self.but_ok.hide_all()
-        print 'LOGIN'
-        if self.run() == gtk.RESPONSE_OK:
-            print 'LOGIN widget'
-            return True
-        else:
-            print 'LOGIN False'
-            return False
-
-    def cerrar(self, *args):
-        self.destroy()
-
-    def autologin(self):
-        self.clave.set_text('0000')
-        self.comprobar()
 
 
 class Cell(gtk.CellRendererText):
@@ -2935,6 +2836,7 @@ class TreeViewColumn(gtk.TreeViewColumn):
             button.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#328aa4'))
             button.modify_bg(gtk.STATE_INSENSITIVE, gtk.gdk.color_parse('#328aa4'))
 
+
 class TreeViewId(Frame):
 
     __gsignals__ = {
@@ -2943,6 +2845,7 @@ class TreeViewId(Frame):
 
     def __init__(self, titulo, columnas):
         super(Frame, self).__init__(titulo)
+        self.columna_expand = 0
         self.scroll = gtk.ScrolledWindow()
         self.add(self.scroll)
         self.scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
@@ -3007,20 +2910,10 @@ class TreeViewId(Frame):
                 tvcolumn = TreeViewColumn(c)
                 tvcolumn.pack_start(cell, True)
                 tvcolumn.set_attributes(cell, markup=i)
-            if i == 0:
+            if i == self.columna_expand:
                 tvcolumn.set_expand(True)
             self.treeview.append_column(tvcolumn)
             tvcolumn.encabezado()
-
-
-    def activated(self, *args):
-        try:
-            path, column = self.treeview.get_cursor()
-            self.path = int(path[0])
-            row = self.model[path]
-        except:
-            return False
-        self.emit('activado', row)
 
     def activated(self, *args):
         try:
@@ -3161,255 +3054,6 @@ class Window(gtk.Window):
         boton.connect('clicked', funcion)
         self.action_area.pack_end(boton, False, False, 0)
         return boton
-
-    def cerrar(self, *args):
-        self.destroy()
-
-class Configuracion(gtk.Dialog):
-
-    def __init__(self, http):
-        super(Configuracion, self).__init__(flags=gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT)
-        self.ticketera = http.ticketera
-        self.http = http
-        ventanas = gtk.window_list_toplevels()
-        parent = ventanas[0]
-        for v in ventanas:
-            if v.is_active():
-                parent = v
-                break
-        self.set_modal(True)
-        self.set_transient_for(parent)
-        self.set_default_size(150, 50)
-        self.set_title('Configuración')
-        self.set_position(gtk.WIN_POS_CENTER)
-        self.connect("delete_event", self.cerrar)
-        frame = Frame('CONFIGURACIÓN DE TICKETERA')
-        frame.set_property('shadow-type', gtk.SHADOW_OUT)
-        self.vbox.pack_start(frame, False, False, 5)
-        vbox = gtk.VBox(False, 10)
-        hbox = gtk.HBox(True, 0)
-        frame.add(vbox)
-        tabla = gtk.Table(2, 7)
-        # tabla.set_col_spacings(5)
-        tabla.set_row_spacings(5)
-        vbox.pack_start(hbox, False, False, 10)
-        hbox.pack_start(tabla, True, True, 10)
-        self.lista = [('LPT1', 1), ('LPT2', 2), ('LPT3', 3)]
-        self.lista_tarjeta = []
-        i = 3
-        for p in self.ticketera.seriales:
-            i += 1
-            self.lista.append((p, i))
-        if os.name == 'nt':
-            printers = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)
-            for p in printers:
-                i += 1
-                self.lista.append((p[2], i))
-                self.lista_tarjeta.append((p[2], i))
-        label = gtk.Label('Ticketera por Defecto: ')
-        label.set_alignment(0, 0.5)
-        tabla.attach(label, 0, 1, 0, 1, gtk.FILL, gtk.EXPAND)
-        self.combo = ComboBox()
-        self.combo.set_lista(self.lista)
-        tabla.attach(self.combo, 1, 2, 0, 1)
-        label = gtk.Label('Ticketera SUNAT: ')
-        label.set_alignment(0, 0.5)
-        tabla.attach(label, 0, 1, 1, 2, gtk.FILL, gtk.EXPAND)
-        self.comboSunat = ComboBox()
-        self.comboSunat.set_lista(self.lista)
-        tabla.attach(self.comboSunat, 1, 2, 1, 2)
-        label = gtk.Label('Imprimir con Formato')
-        label.set_alignment(0, 0.5)
-        tabla.attach(label, 0, 1, 2, 3)
-        self.formato = gtk.CheckButton()
-        tabla.attach(self.formato, 1, 2, 2, 3)
-        label = gtk.Label('Espacios al final del ticket')
-        label.set_alignment(0, 0.5)
-        tabla.attach(label, 0, 1, 3, 4)
-        self.espacios = Numero(2)
-        tabla.attach(self.espacios, 1, 2, 3, 4)
-        self.radio_sin_corte = gtk.RadioButton(None, 'Sin Corte de Papel')
-        tabla.attach(self.radio_sin_corte, 0, 1, 4, 5)
-        self.radio_corte = gtk.RadioButton(self.radio_sin_corte, 'Corte por defecto')
-        tabla.attach(self.radio_corte, 0, 1, 5, 6)
-        self.radio_corte_custom = gtk.RadioButton(self.radio_sin_corte, 'Corte Personalizado')
-        tabla.attach(self.radio_corte_custom, 0, 1, 6, 7)
-        self.entry_corte = Texto(24)
-        tabla.attach(self.entry_corte, 1, 2, 6, 7)
-        button = Button(None, 'Probar Ticketera')
-        button.connect('clicked', self.probar)
-        tabla.attach(button, 0, 2, 7, 8)
-
-        frame = Frame('CONFIGURACIÓN DE IMPRESORA')
-        frame.set_property('shadow-type', gtk.SHADOW_IN)
-        self.vbox.pack_start(frame, False, False, 0)
-        vbox = gtk.VBox(False, 0)
-        frame.add(vbox)
-        hbox = gtk.HBox(False, 10)
-        vbox.pack_start(hbox, False, False, 10)
-        label = gtk.Label('Impresora de Tarjetas')
-        label.set_alignment(0, 0.5)
-        hbox.pack_start(label, False, False, 10)
-        self.combo_tarjetas = ComboBox()
-        hbox.pack_start(self.combo_tarjetas, True, True, 10)
-        self.combo_tarjetas.set_lista(self.lista_tarjeta)
-        button = Button(None, 'Probar Impresora')
-        button.connect('clicked', self.probar_impresora)
-        hbox = gtk.HBox(False, 0)
-        vbox.pack_start(hbox)
-        hbox.pack_start(button, True, True, 10)
-
-        frame = Frame('CONFIGURACIÓN DEL NAVEGADOR WEB')
-        frame.set_property('shadow-type', gtk.SHADOW_IN)
-        self.vbox.pack_start(frame, False, False, 0)
-        vbox = gtk.VBox(False, 0)
-        frame.add(vbox)
-        hbox = gtk.HBox(False, 10)
-        vbox.pack_start(hbox, False, False, 10)
-        label = gtk.Label('Navegador')
-        label.set_alignment(0, 0.5)
-        hbox.pack_start(label, False, False, 10)
-        self.combo_browsers = ComboBox()
-        hbox.pack_start(self.combo_browsers, True, True, 10)
-        self.lista_browsers = [
-            ('chrome', 1),
-            ('firefox', 2),
-            ('opera', 3),
-            ('edge', 4),
-            ('windows-default', 5)
-        ]
-        self.combo_browsers.set_lista(self.lista_browsers)
-        self.combo_browsers.connect('changed', self.update_browser)
-        self.entry_browser = Texto(256)
-        hbox = gtk.HBox(False, 0)
-        label = gtk.Label('Ubicación:')
-        vbox.pack_start(hbox, False, False, 0)
-        hbox.pack_start(label, False, False, 10)
-        hbox.pack_start(self.entry_browser, True, True, 0)
-        button = Button('buscar.png', None, 16, 'Buscar ejecutable')
-        button.connect('clicked', self.choose_file)
-        hbox.pack_start(button, False, False, 10)
-
-        but_excel = Button('excel.png', 'XLS')
-        self.action_area.pack_start(but_excel, False, False, 0)
-        but_excel.connect('clicked', self.excel_dialog)
-        self.but_ok = Button('guardar.png', "Guardar")
-        self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
-        self.but_salir = Button('delete.png', "_Salir")
-        self.add_action_widget(self.but_salir, gtk.RESPONSE_CANCEL)
-        self.set_focus(self.but_salir)
-        self.iniciar()
-
-    def iniciar(self):
-        self.show_all()
-        config = self.ticketera.config
-        if 'puerto' in config:
-            for s, i in self.lista:
-                if s == config['puerto']:
-                    self.combo.set_id(i)
-        if 'sunat' in config:
-            for s, i in self.lista:
-                if s == config['sunat']:
-                    self.comboSunat.set_id(i)
-        if 'tarjeta' in config:
-            for s, i in self.lista:
-                if s == config['tarjeta']:
-                    self.combo_tarjetas.set_id(i)
-        if isinstance(config['corte'], str) or isinstance(config['corte'], unicode):
-            print 'str', config['corte']
-            self.radio_corte_custom.set_active(True)
-            self.entry_corte.set_text(config['corte'])
-        elif config['corte'] is True:
-            print 'true', config['corte']
-            self.radio_corte.set_active(True)
-        elif config['corte'] is False:
-            print 'false', config['corte']
-            self.radio_sin_corte.set_active(True)
-        self.formato.set_active(config['formato'])
-        self.espacios.set_text(str(config['lineas_final']))
-
-        self.combo_browsers.set_text(self.http.config.browser)
-        if self.http.config.browser == 'chrome':
-            self.entry_browser.set_text(self.http.config.chrome)
-        elif self.http.config.browser == 'firefox':
-            self.entry_browser.set_text(self.http.config.firefox)
-        elif self.http.config.browser == 'opera':
-            self.entry_browser.set_text(self.http.config.opera)
-        elif self.http.config.browser == 'edge':
-            self.entry_browser.set_text(self.http.config.edge)
-        else:
-            self.combo_browsers.set_text('windows-default')
-
-        if self.run() == gtk.RESPONSE_OK:
-            puerto = self.combo.get_text()
-            sunat = self.comboSunat.get_text()
-            tarjeta = self.combo_tarjetas.get_text()
-            if self.radio_corte.get_active():
-                corte = True
-            elif self.radio_sin_corte.get_active():
-                corte = False
-            else:
-                corte = self.entry_corte.get_text()
-            self.ticketera.config['tarjeta'] = tarjeta
-            self.ticketera.config['puerto'] = puerto
-            self.ticketera.config['sunat'] = sunat
-            self.ticketera.config['corte'] = corte
-            self.ticketera.config['formato'] = self.formato.get_active()
-            self.ticketera.config['lineas_final'] = self.espacios.get_int()
-            self.ticketera.guardar_config()
-            self.ticketera.set_config()
-
-            browser = self.combo_browsers.get_text()
-            if browser == 'chrome':
-                self.http.config.chrome = self.entry_browser.get_text()
-            elif browser == 'firefox':
-                self.http.config.firefox = self.entry_browser.get_text()
-            elif browser == 'opera':
-                self.http.config.opera = self.entry_browser.get_text()
-            elif browser == 'edge':
-                self.http.config.edge = self.entry_browser.get_text()
-            self.http.config.save()
-            return True
-        else:
-            return False
-
-    def update_browser(self, *args):
-        self.entry_browser.set_sensitive(True)
-        self.http.config.browser = self.combo_browsers.get_text()
-        if self.http.config.browser == 'chrome':
-            browser = self.http.config.chrome
-        elif self.http.config.browser == 'firefox':
-            browser = self.http.config.firefox
-        elif self.http.config.browser == 'opera':
-            browser = self.http.config.opera
-        elif self.http.config.browser == 'edge':
-            browser = self.http.config.edge
-        else:
-            browser = ''
-            self.entry_browser.set_sensitive(False)
-        self.entry_browser.set_text(browser)
-
-    def choose_file(self, *args):
-        dlg = gtk.FileChooserDialog(title='Encuentre la ruta al Navegador', parent=self,
-                                    action=gtk.FILE_CHOOSER_ACTION_OPEN,
-                                    buttons=('Seleccionar', gtk.RESPONSE_OK, 'Cancelar', gtk.RESPONSE_CANCEL),
-                                    backend=None)
-        response = dlg.run()
-        print('response', response)
-        if response == gtk.RESPONSE_OK:
-            if dlg.get_filename():
-                self.entry_browser.set_text(dlg.get_filename())
-        dlg.destroy()
-
-    def probar(self, *args):
-        self.ticketera.probar()
-
-    def probar_impresora(self, *args):
-        Impresion.Test()
-
-    def excel_dialog(self, *args):
-        dialog = Excel_Dialog(self.http)
-        dialog.cerrar()
 
     def cerrar(self, *args):
         self.destroy()
@@ -3570,7 +3214,6 @@ class Excel_Dialog(gtk.Dialog):
         self.ticketera.imprimir(ticket)
         time.sleep(2)
 
-
     def cerrar(self, *args):
         self.destroy()
 
@@ -3602,16 +3245,13 @@ gtk.rc_parse_string("""
         GtkTreeView::allow-rules = 1
     }
     widget "*.vueltas-treeview" style "vueltas-treestyle"
+
+    style "white-placeholder" {
+        GtkEntry::draw-border = False
+    }
+    widget "*.placeholder" style "white-placeholder"
 """)
 gobject.type_register(Cell)
-
-
-def currency(entero):
-    return "%.2f" % (entero / 100.)
-
-
-def quantity(entero):
-    return "%.3f" % (entero / 1000.)
 
 
 
