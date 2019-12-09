@@ -15,8 +15,8 @@ import Reloj
 class Http(object):
 
     local = 1
-    version = 6.00
-    dia = 'Actualización martes 29 de octubre de 2019'
+    version = 6.01
+    dia = 'Actualización lunes 9 de diciembre de 2019'
 
     __instance = None
     dataLocal = None

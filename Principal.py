@@ -16,30 +16,6 @@ if __name__ == '__main__':
     gobject.threads_init()
 
 
-class Splash(gtk.Window):
-
-    def __init__(self):
-        gtk.Window.__init__(self, gtk.WINDOW_POPUP)
-        self.set_position(gtk.WIN_POS_CENTER_ALWAYS)
-        self.show_all()
-        path = os.path.join('images', 'splash.png')
-        pixbuf = gtk.gdk.pixbuf_new_from_file(path)
-        pixmap, mask = pixbuf.render_pixmap_and_mask()
-        width, height = pixmap.get_size()
-        del pixbuf
-        self.set_app_paintable(True)
-        self.resize(width, height)
-        self.realize()
-        self.window.set_back_pixmap(pixmap, False)
-        self.show_all()
-        gobject.idle_add(self.aplicacion)
-
-    def aplicacion(self, *args):
-        self.a = Aplicacion()
-        self.hide_all()
-        self.a.login()
-
-
 class Aplicacion:
 
     def __init__(self):
@@ -86,30 +62,24 @@ class Login(gtk.Window):
         self.user = None
         self.pw = None
         self.http = Http()
-        self.set_default_size(930, 500)
         self.set_title('Inicie Sesión:')
         self.set_position(gtk.WIN_POS_CENTER)
         self.connect("delete_event", self.cerrar)
 
         self.set_decorated(False)
         # self.set_resizable(False)
-        path = os.path.join('images', 'splash.png')
-        pixbuf = gtk.gdk.pixbuf_new_from_file("images/splash-oscuro.png")
+        pixbuf = gtk.gdk.pixbuf_new_from_file("images/splash.png")
         pixmap, mask = pixbuf.render_pixmap_and_mask()
         width, height = pixmap.get_size()
+        self.set_default_size(width, height)
         del pixbuf
         self.set_app_paintable(gtk.TRUE)
         self.realize()
         self.window.set_back_pixmap(pixmap, gtk.FALSE)
 
-        image = gtk.Image()
-        image.set_from_file(path)
 
         hbox = gtk.HBox(False, 0)
         self.add(hbox)
-        # image = gtk.Image()
-        # image.set_from_file('images/PNG-48/login.png')
-        # hbox.pack_start(image, False, False, 20)
 
         vbox_main = gtk.VBox(False, 0)
         hbox.pack_end(vbox_main, False, True, 0)
@@ -240,5 +210,5 @@ if __name__ == '__main__':
     # except BaseException:
     #     s.a.http.reloj.cerrar()
         # gtk.main_quit()
-    # if os.name == 'nt':
-    #     os.system('taskkill /im TCONTUR6.exe /f')
+    if os.name == 'nt':
+        os.system('taskkill /im TCONTUR6.exe /f')
