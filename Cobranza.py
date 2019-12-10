@@ -685,7 +685,7 @@ class Cobranza(gtk.Window):
     def reporte_caja(self, *args):
         ReporteCaja()
 
-    def reporte_caja(self, *args):
+    def cerrar_caja(self, *args):
         dialog = Widgets.Alerta_SINO('Cerrar Caja', 'caja_central.png', 'Confirme si desea cerrar su caja')
         respuesta = dialog.iniciar()
         dialog.cerrar()
