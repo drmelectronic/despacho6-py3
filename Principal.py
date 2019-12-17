@@ -146,7 +146,6 @@ class Login(gtk.Window):
         self.mac = str(getnode())
         self.secret_key = 'S3CRE1K3Y'
         self.show_all()
-        self.combo.hide()
         self.get_credentials()
         self.username._focus_out_event(None, None)
         self.password._focus_out_event(None, None)
@@ -157,6 +156,7 @@ class Login(gtk.Window):
             self.username.set_text(self.http.dataLocal.username)
         if self.http.dataLocal.password:
             self.password.set_text(self.http.dataLocal.password)
+        print('empresa', self.http.dataLocal.empresa)
         if self.http.dataLocal.empresa:
             self.combo.hide()
             self.combo.set_id(self.http.dataLocal.empresa)
@@ -172,6 +172,12 @@ class Login(gtk.Window):
             self.http.set_usuario(models.Usuario(login))
             Aplicacion()
             self.cerrar()
+
+    def autologin(self):
+        self.username.set_text('daniel')
+        self.password.set_text('clavetest')
+        self.clave.set_text('0000')
+        self.comprobar()
 
     def cerrar(self, *args):
         self.destroy()
@@ -191,6 +197,7 @@ if __name__ == '__main__':
     d.http = http
     http.dataLocal = d
     dialog = Login()
+    dialog.autologin()
     try:
         gtk.main()
     except:

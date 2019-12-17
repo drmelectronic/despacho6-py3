@@ -14,7 +14,6 @@ import Reloj
 
 class Http(object):
 
-    local = 0
     version = 6.01
     dia = 'Actualización lunes 9 de diciembre de 2019'
 
@@ -37,6 +36,7 @@ class Http(object):
     ticketera = None
     ticketera_sunat = None
     headers = None
+    local = True
 
     def __new__(cls):
         if Http.__instance is None:
@@ -64,17 +64,17 @@ class Http(object):
         self.ventanas = ventanas
 
     def conectar(self, empresa):
-        if os.name == 'nt':
-            self.local = 0
-        if self.local:
+        self.dataLocal.set_empresa(empresa)
+        self.server = self.dataLocal.server
+        self.sin_dns = self.dataLocal.sin_dns
+        self.titulo = 'Sistema de Despacho TCONTUR v%s' % self.version
+        if empresa == 0:
+            self.local = True
             self.conn = urllib3.HTTPConnectionPool(self.server, timeout=30)
         else:
-            self.dataLocal.set_empresa(empresa)
-            self.server = self.dataLocal.server
-            self.sin_dns = self.dataLocal.sin_dns
-            self.titulo = 'Sistema de Despacho TCONTUR v%s' % self.version
             self.test_server()
             self.conn = urllib3.HTTPSConnectionPool(self.server, timeout=30)
+            self.local = False
         print 'SERVER', self.server
         ticketera_data = self.dataLocal.get_config('ticketera')
         if ticketera_data:

@@ -111,18 +111,31 @@ class model_base(object):
     def get_precio(self):
         return "%.2f" % (self.precio / 100.)
 
+    def get_placa(self):
+        return self.placa[0:3] + '-' + self.placa[3:]
+
 
 class Ruta(model_base):
 
     def __init__(self, js):
         self.tipos = {
             'id': long,
-            'codigo': unicode
+            'codigo': unicode,
+            'tarjetaA': unicode,
+            'tarjetaB': unicode,
         }
         self.plantilla = None
         self.frecuencias = None
         self.manual = [{'inicio': None, 'frecuencia': None}, {'inicio': None, 'frecuencia': None}]
         super(Ruta, self).__init__(js)
+        self._tarjetaA = json.loads(self.tarjetaA)
+        self._tarjetaB = json.loads(self.tarjetaB)
+
+    def get_tarjetaA(self):
+        return self._tarjetaA
+
+    def get_tarjetaB(self):
+        return self._tarjetaB
 
     def set_plantilla(self, plantillas):
         for p in plantillas:
@@ -260,7 +273,7 @@ class Geocerca(model_base):
         super(Geocerca, self).__init__(js)
 
     def set_hora(self, hora, tiempos):
-        tiempos = self.dataLocal.filtrar(tiempos, {'geocerca': self.id})
+        tiempos = filtrar(tiempos, {'geocerca': self.id})
 
         for t in tiempos:
             if t.contiene(hora):
@@ -270,7 +283,7 @@ class Geocerca(model_base):
                 self.hora = hora + datetime.timedelta(0, self.tiempo * 60)
                 self.real = None
                 return self.hora
-        raise TconturError('No hay tiempo para esta geocerca %' % self.nombre)
+        raise TconturError('No hay tiempo para esta geocerca %s' % self.nombre)
 
 
 class Llegada(model_base):
@@ -757,10 +770,10 @@ class Unidad(model_base):
 
     def calcular_controles(self):
         query = self.dataLocal.get_geocercas()
-        geocercas = self.dataLocal.filtrar(query, {'activo': True, 'ruta': self.ruta, 'lado': self.lado})
-        self.dataLocal.ordenar(geocercas, [('orden', 1)])
+        geocercas = filtrar(query, {'activo': True, 'ruta': self.ruta, 'lado': self.lado})
+        ordenar(geocercas, [('orden', 1)])
 
-        query = self.dataLocal.get_plantillas()
+        query = filtrar(self.dataLocal.get_plantillas(), {'ruta': self.ruta})
         plantilla = None
         for q in query:
             if q.is_enable(self.inicio.date()):
@@ -770,10 +783,10 @@ class Unidad(model_base):
         if plantilla is None:
             raise TconturError('No hay plantilla para el día de hoy')
         query = self.dataLocal.get_tiempos()
-        tiempos = self.dataLocal.filtrar(query, {'plantilla': plantilla.id})
-        self.dataLocal.ordenar(tiempos, [('inicio', 1)])
+        tiempos = filtrar(query, {'plantilla': plantilla.id})
+        ordenar(tiempos, [('inicio', 1)])
 
-        self.dataLocal.ordenar(geocercas, [('orden', 1)])
+        ordenar(geocercas, [('orden', 1)])
         inicio = self.inicio
         for g in geocercas:
             inicio = g.set_hora(inicio, tiempos)
@@ -991,6 +1004,15 @@ class Stock(model_base):
 
 class salida_base(model_base):
 
+    def get_creado(self):
+        return self.get_datetime(self.creado)
+
+    def get_conductor(self):
+        return self.dataLocal.get_trabajador(self.conductor)
+
+    def get_cobrador(self):
+        return self.dataLocal.get_trabajador(self.cobrador)
+
     def get_produccion(self):
         d = self.produccionBoletos + self.produccionTickets + self.produccionDiferencia + self.produccionTransbordo
         return Decimal(d / 100.).quantize(Decimal('0.01'))
@@ -1067,6 +1089,7 @@ class Salida(salida_base):
             'estado': unicode,
             'record': long,
             'conductor': long,
+            'cobrador': long,
             'ingreso': unicode,
             'creado': unicode,
             'dia': unicode,
@@ -1100,6 +1123,7 @@ class SalidaCompleta(salida_base):
             'estado': unicode,
             'record': long,
             'conductor': long,
+            'cobrador': long,
             'ingreso': unicode,
             'creado': unicode,
             'dia': unicode,
@@ -1119,16 +1143,67 @@ class SalidaCompleta(salida_base):
         }
         super(SalidaCompleta, self).__init__(js)
 
+    def parse_tarjeta(self, salidas):
+        parsed = {}
+        parsed['vuelta'] = self.orden / 2.
+        parsed['conductor'] = self.get_conductor().codigo if self.conductor else 'Ninguno'
+        parsed['cobrador'] = self.get_cobrador().codigo if self.cobrador else 'Ninguno'
+        parsed['impresion'] = self.get_creado().strftime('%H:%M:%S %d/%m/%Y')
+        parsed['inicio'] = self.get_inicio().strftime('%H:%M')
+        parsed['dia'] = self.get_dia().strftime('%d/%m/%Y')
+        parsed['padron'] = self.get_padron()
+        parsed['placa'] = self.get_placa()
+
+        parsed['controles'] = []
+
+        for l in self.get_controles():
+            parsed['controles'].append(l.get_hora_str())
+
+        boletos1 = []
+        boletos2 = []
+
+        data = self.http.load('get-suministros', {'unidad': self.unidad})
+        if data:
+            boletos = self.http.dataLocal.get_boletos()
+            boletos = filtrar(boletos, {'ruta': self.ruta})
+            ordenar(boletos, [('estado', -1), ('orden', 1)])
+            boletos_1 = []
+            boletos_2 = []
+            for b in boletos:
+                if b.segunda:
+                    boletos_2.append(b)
+                    boletos2.append([])
+                else:
+                    boletos_1.append(b)
+                    boletos1.append([])
+            for i, b in enumerate(boletos_1):
+                for s in data['suministros']:
+                    if b.id == s['boleto']:
+                        boletos1[i].append(str(s['actual']).zfill(6))
+            for i, b in enumerate(boletos_2):
+                for s in data['suministros']:
+                    if b.id == s['boleto']:
+                        boletos2[i].append(str(s['actual']).zfill(6))
+        parsed['boletos'] = boletos1
+        parsed['boletos2'] = boletos2
+
+        parsed['producciones'] = []
+        for s in salidas:
+            parsed['producciones'].append(s.get_produccion())
+
+        return parsed
+
     def get_controles(self):
         js = json.loads(self.controles)
         controles = []
         inicio = self.get_inicio()
         for k in js:
             llegada = Llegada(js[k])
-            llegada.nombre = self.dataLocal.get_geocerca(llegada.g).nombre
-            inicio = llegada.set_inicio(inicio)
             controles.append(llegada)
-        controles.sort(key=lambda k: k.o)
+        ordenar(controles, [('o', 1)])
+        for c in controles:
+            c.nombre = self.dataLocal.get_geocerca(c.g).nombre
+            inicio = c.set_inicio(inicio)
         return controles
 
     def get_boletos(self):
@@ -1220,7 +1295,7 @@ class Item(model_base):
 
     def get_producto(self):
         if self._producto is None:
-            self._producto = self.http.get_producto(self.producto)
+            self._producto = self.http.dataLocal.get_producto(self.producto)
         return self._producto
 
     def get_total(self):
@@ -1333,9 +1408,15 @@ class Recibo(model_base):
             'total': long
         }
         super(Recibo, self).__init__(js)
+        self._cliente = None
 
     def get_hora(self):
         return self.get_datetime(self.hora)
+
+    def get_cliente(self):
+        if self._cliente is None:
+            self._cliente = self.http.dataLocal.get_cliente(self.cliente)
+        return self._cliente
 
     def get_efectivo(self):
         if self.efectivo:
@@ -1345,7 +1426,7 @@ class Recibo(model_base):
 
     def get_fila(self):
         return [self.serie, self.numero, self.get_hora().strftime('%Y-%m-%d %H:%M:%S'),
-                self.cliente, self.get_total(), self.get_efectivo(), self]
+                self.get_cliente().codigo, self.get_total(), self.get_efectivo(), self]
 
     def get_total(self):
         return "%.2f" % (self.total / 100.)
@@ -1499,3 +1580,28 @@ def currency(entero):
 
 def quantity(entero):
     return "%.3f" % (entero / 1000.)
+
+
+def filtrar(lista, filter):
+    query = []
+    for l in lista:
+        if cumple(l, filter):
+            query.append(l)
+    return query
+
+
+def cumple(item, filter):
+    for f in filter:
+        if item.get_param(f) == filter[f]:
+            continue
+        else:
+            return False
+    return True
+
+
+def ordenar(lista, sort):
+    sort.reverse()
+    for k, orden in sort:
+        lista.sort(key=lambda x: x.__getattribute__(k))
+        if orden < 0:
+            lista.reverse()

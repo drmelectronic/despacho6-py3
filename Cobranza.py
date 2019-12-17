@@ -407,12 +407,17 @@ class Cobranza(gtk.Window):
                 break
             print('no coincide', c.codigo, codigo)
 
+        for c in self.dataLocal.get_clientes():
+            if c.referencia == codigo:
+                self.cliente = c
+                break
+            print('no coincide', c.codigo, codigo)
+
         if self.cliente is None:
             data = {'codigo': codigo}
             respuesta = self.http.load('buscar-cliente', data)
             if respuesta:
-                self.cliente = respuesta['cliente']
-                self.dataLocal.add_cliente(self.cliente)
+                self.cliente = self.dataLocal.add_cliente(respuesta['cliente'])
             else:
                 dialog = ClienteDialogo()
                 dialog.entry_codigo.set_text(codigo)
@@ -429,7 +434,7 @@ class Cobranza(gtk.Window):
                         self.cliente = self.dataLocal.add_cliente(respuesta)
 
         if self.cliente:
-            label_cliente = '<b><big>CLIENTE: %s</big></b>' % self.cliente.nombre
+            label_cliente = '<b><big>CLIENTE: %s %s</big></b>' % (self.cliente.codigo, self.cliente.nombre)
             self.label_cliente.set_markup(label_cliente)
             self.abrir_deudas()
         else:

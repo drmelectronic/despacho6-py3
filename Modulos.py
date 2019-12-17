@@ -330,6 +330,7 @@ class EnRuta(Widgets.Frame):
     __gsignals__ = {
         'falla-mecanica': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
         'eliminar-salida': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
+        'imprimir-salida': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
 
         'salida-seleccionada': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, )),
         'editar-llegadas': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
@@ -462,6 +463,8 @@ class EnRuta(Widgets.Frame):
         return self.model[i][len(self.model[i]) - 1]
 
     def set_modelo(self, i, modelo):
+        orden = self.get_modelo(i).orden
+        modelo.orden = orden
         self.model[i][len(self.model[i]) - 1] = modelo
 
     def get_selected(self):
@@ -536,23 +539,10 @@ class EnRuta(Widgets.Frame):
             self.emit('ver-boletos')
 
     def imprimir_clicked(self, *args):
-        try:
-            path, column = self.treeview.get_cursor()
-            if path is None:
-                Widgets.Alerta('Error', 'falta_escoger.png', 'Escoja una salida para imprimir.')
-                return
-            path = int(path[0])
-            salida = self.model[path][5].id
-        except:
-            return
+        salida = self.get_selected()
+        self.emit('imprimir-salida', salida)
 
-        datos = {'salida_id': salida,
-         'ruta_id': self.ruta,
-         'lado': self.lado,
-         'dia': self.dia}
-        self.http.load('imprimir-tarjeta', datos)
-
-    def llamar_clicked(self, widget, obligatorio = True):
+    def llamar_clicked(self, widget, obligatorio=True):
         try:
             path = self.indice - 1
             hora = self.horas[path]
@@ -1091,9 +1081,7 @@ class Datos(gtk.VBox):
         self.js_count = 0
         datos = {
             'padron': self.padron,
-            'dia': str(self.dia),
-            'ruta_id': self.ruta,
-            'lado': self.lado
+            'dia': str(self.dia)
         }
         respuesta = self.http.load('unidad-vueltas', datos)
         if respuesta:
@@ -1108,6 +1096,11 @@ class Datos(gtk.VBox):
                     self.salida = salida
             self.padron_dia = self.dia
             self.escribir_datos_unidad()
+            return True
+
+    def add_salida(self, salida):
+        self.salidas.append(salida)
+        self.vueltas.actualizar(self.salidas)
 
     def padron_activate(self, *args):
         self._vuelta_completa = False
@@ -1127,8 +1120,8 @@ class Datos(gtk.VBox):
             self.activado = False
             return
         self.entry_padron.modify_base(gtk.STATE_NORMAL, gtk.gdk.color_parse('#FFFFFF'))
-        self.cargar_unidad()
-        self.set_salida_id(self.unidad.actual)
+        if self.cargar_unidad():
+            self.set_salida_id(self.unidad.actual)
 
     def set_padron(self, widget, padron):
         self.entry_padron.set_text(str(padron))
@@ -1154,6 +1147,7 @@ class Datos(gtk.VBox):
         self.salida = models.SalidaCompleta(data['salida'])
         self.escribir_datos_salida()
         self.emit('agregar-espera', self.unidad)
+        self.vueltas.update_salida(self.salida)
 
     def boletaje_guardado(self, widget, data):
         self.unidad = models.Unidad(data['unidad'])
@@ -1759,7 +1753,7 @@ class Boletos(gtk.VBox):
     def __init__(self, padre):
         super(Boletos, self).__init__()
         self.salida = None
-        self.http = Http
+        self.http = Http()
         self.padre = padre
         self.w = self.get_parent_window()
         hbox_label = gtk.HBox(True, 0)

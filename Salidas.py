@@ -14,6 +14,7 @@ import os
 import gobject
 import models
 from Http import Http
+from Impresion import Impresion
 
 if os.name != 'nt':
     import sh
@@ -182,6 +183,7 @@ class Ventana(gtk.Window):
         self.disponibles.connect('unidad-seleccionada', self.leer_unidad)
         self.disponibles.connect('unidad-excluida', self.actualizar_unidad)
         self.enruta.connect('salida-seleccionada', self.leer_salida)
+        self.enruta.connect('imprimir-salida', self.imprimir_salida)
         self.enruta.connect('falla-mecanica', self.falla_mecanica)
         self.enruta.connect('eliminar-salida', self.eliminar_salida)
 
@@ -321,7 +323,9 @@ class Ventana(gtk.Window):
             return tablas
 
     def falla_mecanica(self, widget, salida):
-        self.replace_salida(models.SalidaCompleta(salida))
+        s = models.SalidaCompleta(salida)
+        self.replace_salida(s)
+        self.datos_unidad.vueltas.update_salida(s)
 
     def eliminar_salida(self, widget, respuesta):
         for i, s in enumerate(self.salidas):
@@ -454,6 +458,7 @@ class Ventana(gtk.Window):
                 if self.datos_unidad.unidad and self.datos_unidad.unidad.id == unidad.id:
                     self.datos_unidad.unidad.estado = 'R'
                     self.datos_unidad.unidad.actual = salida.id
+                    self.datos_unidad.add_salida(salida)
                     self.datos_unidad.escribir_datos_unidad()
                     self.datos_unidad.set_salida(salida)
                 self.salidas.append(salida)
@@ -462,6 +467,21 @@ class Ventana(gtk.Window):
                         u.estado = 'R'
                         break
                 self.actualizar_tablas()
+                if self.check_imprimir.get_active():
+                    self.imprimir_salida(None, salida)
+
+    def imprimir_salida(self, widget, salida):
+        if self.lado:
+            tarjeta = self.ruta.get_tarjetaB()
+        else:
+            tarjeta = self.ruta.get_tarjetaA()
+        salidas = []
+        salida.orden = len(self.datos_unidad.vueltas.model)
+        for i, r in enumerate(self.datos_unidad.vueltas.model):
+            s = self.datos_unidad.vueltas.get_modelo(i)
+            salidas.append(s)
+        Impresion(tarjeta, salida, salidas)
+        Widgets.Alerta('Tarjeta Impresa', 'imprimir.png', 'Se imprimió correctamente la tarjeta')
 
     def leer_salida(self, widget, salida):
         if self.datos_unidad.unidad is None or salida.padron != self.datos_unidad.unidad.padron or self.dia != self.datos_unidad.padron_dia:

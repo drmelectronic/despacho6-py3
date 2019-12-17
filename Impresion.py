@@ -150,9 +150,9 @@ class Impresion:
     #bold = 'Helvetica'
     bold = 'Courier-Bold'
 
-    def __init__(self, tarjeta, datos):
+    def __init__(self, tarjeta, salida, salidas):
         self.tarjeta = tarjeta
-        self.datos = datos
+        self.datos = salida.parse_tarjeta(salidas)
         self.imprimir()
 
     def set_font(self, s):
@@ -174,7 +174,12 @@ class Impresion:
         self.pdf.rect(x + self.mx, self.A4y - y - self.my, ancho, alto, fill=fill)
 
     def decode(self, tarjeta, datos, direccion=None):
+        print(datos)
         for k in tarjeta.keys():
+            print('*******')
+            print(k)
+            print(tarjeta[k])
+            print(datos[k])
             if isinstance(tarjeta[k], dict):
                 for f in tarjeta[k].keys():
                     if len(tarjeta[k][f]) == 6:
@@ -221,6 +226,26 @@ class Impresion:
                 self.set_font(s)
                 for i in datos[k]:
                     self.escribir(x, y, a, i)
+                    if d:
+                        y += p
+                    else:
+                        x += p
+            elif len(tarjeta[k]) == 7:
+                x, y, p, d, s, a, e = tarjeta[k]
+                self.set_font(s)
+                X = x
+                Y = y
+                for i in datos[k]:
+                    if d:
+                        x = X
+                    else:
+                        y = Y
+                    for b in i:
+                        self.escribir(x, y, a, b)
+                        if d:
+                            x += e
+                        else:
+                            y += e
                     if d:
                         y += p
                     else:

@@ -22,10 +22,22 @@ class DataLocal(object):
     config_data = None
     EMPRESAS = [
         {
+            'id': 0,
+            'codigo': 'LOCAL',
+            'server': 'localhost:8000',
+            'sin_dns': 'localhost:8000'
+        },
+        {
             'id': 1,
             'codigo': 'ECONAIN',
             'server': 'api.tcontur.com',
             'sin_dns': 'django-4eyifataca-uc.a.run.app'
+        },
+        {
+            'id': 4,
+            'codigo': 'ETUPSA',
+            'server': 'etupsa.tcontur.com',
+            'sin_dns': 'etupsa-4eyifataca-uc.a.run.app'
         }
     ]
     exclusiones = [
@@ -44,6 +56,8 @@ class DataLocal(object):
     def get_empresas(self):
         lista = []
         for e in self.EMPRESAS:
+            if os.name == 'nt' and e['id'] == 0:
+                continue
             lista.append([e['codigo'], e['id']])
         print('empresas', lista)
         return lista
@@ -56,6 +70,9 @@ class DataLocal(object):
                 self.empresa_id = e['id']
                 self.empresa = e['codigo']
                 break
+
+    def get_tarjeta(self, ruta, lado):
+        return self.tarjeta[ruta][int(lado)]
 
     def load_config(self):
         try:
@@ -116,11 +133,14 @@ class DataLocal(object):
         self.password = password
         self.empresa = usuario.get_empresa()
 
+    def get_data_filename(self):
+        return 'outs/data%s.bkp' % self.empresa_id
+
     def load_data_file(self):
         # self.dataDump = {}
         # return
         try:
-            a = os.path.abspath('outs/data.bkp')
+            a = os.path.abspath(self.get_data_filename())
             f = open(a, 'r')
             data = f.read()
             f.close()
@@ -134,7 +154,7 @@ class DataLocal(object):
     def save_data_file(self):
         # return
         print('DATA SAVED')
-        a = os.path.abspath('outs/data.bkp')
+        a = os.path.abspath(self.get_data_filename())
         f = open(a, 'w')
         f.write(json.dumps(self.dataDump))
         f.close()
@@ -319,29 +339,7 @@ class DataLocal(object):
         return objeto
 
     def add_tipo_documento(self, value):
-        self.add_dato('documentos', value)
+        return self.add_dato('documentos', value)
 
     def add_cliente(self, value):
-        self.add_dato('clientes', value)
-
-    def filtrar(self, lista, filter):
-        query = []
-        for l in lista:
-            if self.cumple(l, filter):
-                query.append(l)
-        return query
-
-    def cumple(self, item, filter):
-        for f in filter:
-            if item.get_param(f) == filter[f]:
-                continue
-            else:
-                return False
-        return True
-
-    def ordenar(self, lista, sort):
-        sort.reverse()
-        for k, orden in sort:
-            lista.sort(key=lambda x: x.__getattribute__(k))
-            if orden < 0:
-                lista.reverse()
+        return self.add_dato('clientes', value)
