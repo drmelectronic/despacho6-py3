@@ -741,7 +741,6 @@ class ESCPOS:
                 self.epson = None
         return self.epson
 
-
     def update(self):
         self.config = self.http.dataLocal.config_data
 
@@ -758,7 +757,7 @@ class ESCPOS:
 
         ticket = open('outs/ticket.lpt', 'wb')
         previa = open('outs/ticket.txt', 'wb')
-        vista = 'EPSON ' + str(self.get_epson())
+        vista = 'EPSON ' + str(self.get_epson()) + '\n'
         ESC = chr(27)
         GS = chr(29)
         cutpaper = GS + 'V' + chr(49)
@@ -787,8 +786,8 @@ class ESCPOS:
                     texto += ESC + '-' + chr(2)
                 if 'b' in c[0][2]:
                     texto += ESC + 'E' + chr(1)
-                texto += c[1]
-                vista += c[1]
+                texto += c[1] + '\n'
+                vista += c[1] + '\n'
                 if 'u' in c[0][2]:
                     texto += ESC + '-' + chr(0)
                 if 'b' in c[0][2]:

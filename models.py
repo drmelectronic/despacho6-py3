@@ -1435,13 +1435,13 @@ class Recibo(model_base):
 
     def get_ticket(self):
         ticket = Voucher()
-        nombre = self.http.dataLocal.get_config('nombre')
+        codigo = self.http.dataLocal.get_config('codigo')
         direccion = self.http.dataLocal.get_config('direccion')
         ruc = self.http.dataLocal.get_config('ruc')
         dia = self.get_hora().strftime('%Y-%m-%d')
         cliente = self.get_cliente()
 
-        ticket.titulo(nombre.data)
+        ticket.titulo(codigo.data)
         ticket.subtitulo(direccion.data)
         ticket.subtitulo('R.U.C.: %s' % ruc.data)
         ticket.espacio()
