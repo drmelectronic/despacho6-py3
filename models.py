@@ -1723,7 +1723,7 @@ class Voucher:
         b = medio
         w = 29 - len(b)
         a = (izq + ' ' * w)[:w]
-        c =  (' ' * 9 + der)[-9:]
+        c = (' ' * 9 + der)[-9:]
         texto = a + b + c + '\n'
         if subrayado:
             self.subrayado(texto)

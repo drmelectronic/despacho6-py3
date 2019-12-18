@@ -356,6 +356,7 @@ class EnRuta(Widgets.Frame):
         self.set_property('label-xalign', 0.2)
         vbox.pack_start(self.sw, True, True, 2)
         self.sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+        self.sw.modify_bg(gtk.STATE_NORMAL,gtk.gdk.Color("#444444"))
         if os.name == 'nt':
             self.sw.set_size_request(150, 300)
         else:

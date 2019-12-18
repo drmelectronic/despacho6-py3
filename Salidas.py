@@ -13,6 +13,7 @@ import datetime
 import os
 import gobject
 import models
+from DataLocal import DataLocal
 from Http import Http
 from Impresion import Impresion
 
@@ -30,7 +31,7 @@ class Ventana(gtk.Window):
 
     def __init__(self):
         super(Ventana, self).__init__()
-        pixbuf = gtk.gdk.pixbuf_new_from_file("images/fondo-salida.jpg")
+        pixbuf = gtk.gdk.pixbuf_new_from_file("images/fondo-salida-dark.jpg")
         pixmap, mask = pixbuf.render_pixmap_and_mask()
         width, height = pixmap.get_size()
         del pixbuf
@@ -867,3 +868,18 @@ Ctrl + E = Cola de Espera"""
 
     def abrir_configuracion(self, *args):
         Modulos.Configuracion()
+
+
+if __name__ == '__main__':
+    d = DataLocal()
+    d.load_main()
+    d.load_config()
+    http = Http()
+    http.construir()
+    d.http = http
+    http.dataLocal = d
+
+    Ventana()
+    settings = gtk.Settings()
+    print(gtk.settings_get_default())
+    gtk.main()

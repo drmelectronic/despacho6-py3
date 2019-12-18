@@ -196,6 +196,7 @@ if __name__ == '__main__':
     http.construir()
     d.http = http
     http.dataLocal = d
+
     dialog = Login()
     # dialog.autologin()
     try:
