@@ -82,13 +82,40 @@ class DataLocal(object):
             f.close()
             js = json.loads(data)
         except:
-            self.config_data = {}
+            self.config_data = {
+                'ticketera': None,
+                'sunat': None,
+                'impresora': None,
+                'corte': '29,86,0',
+                'formato': True,
+                'lineas_final': 2,
+                'browser': 'chrome',
+                'chrome': '',
+                'firefox': '',
+                'opera': '',
+                'edge': '',
+                'windows-default': None,
+            }
         else:
             self.config_data = js
 
-    def get_config(self, key):
-        if key in self.config_data:
-            return self.config_data[key]
+    def get_config(self, nombre):
+        if not ('configuraciones' in self.dataServer):
+            print('ACTUALIZAR DATOS configuraciones')
+            datos = self.http.load('/api/configuraciones', method='GET')
+            self.dataDump['configuraciones'] = datos
+            self.save_data_file()
+            if datos:
+                self.dataServer['configuraciones'] = []
+                for d in datos:
+                    self.dataServer['configuraciones'].append(models.Config(d))
+            else:
+                return []
+
+        for d in self.dataServer['configuraciones']:
+            if d.nombre == nombre:
+                return d
+        return None
 
     def load_main(self):
         try:
@@ -289,8 +316,8 @@ class DataLocal(object):
     def get_item(self, _id):
         return self.get_dato('items', _id)
 
-    def get_documento(self, _id):
-        return self.get_dato('documentos', _id)
+    def get_tipo_documento(self, _id):
+        return self.get_dato('tiposDocumento', _id)
 
     def get_producto(self, _id):
         return self.get_dato('productos', _id)
@@ -327,6 +354,9 @@ class DataLocal(object):
 
     def get_cliente(self, _id):
         return self.get_dato('clientes', _id)
+
+    def get_usuario(self, _id):
+        return self.get_dato('usuarios', _id)
 
     # ADD METHODS
 

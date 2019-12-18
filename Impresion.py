@@ -3,6 +3,7 @@
 
 import xlwt
 import Widgets
+
 borders = xlwt.Borders()
 borders.left = xlwt.Borders.THIN
 borders.right = xlwt.Borders.THIN
@@ -142,6 +143,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 pdfmetrics.registerFont(TTFont('Arial', 'Arial.ttf'))
 # pdfmetrics.registerFont(TTFont('ArialBlack', 'Arial_Black.ttf'))
+
 
 class Impresion:
     normal = 'Courier'
@@ -725,19 +727,23 @@ class Imp:
 
 class ESCPOS:
 
-    def __init__(self, data):
-        self.config = data
-        self.puerto = 'LPT1'
+    def __init__(self, http):
+        self.http = http
+        self.config = self.http.dataLocal.config_data
         self.log = ''
-        self.buscar_serial()
-        # self.config = {
-        #     self.tipo: 'LPT1',
-        #     'corte': True,
-        #     'lineas_final': 5,
-        #     'tarjeta': '-',
-        #     'formato': False
-        # }
-        self.set_config()
+        self.epson = None
+
+    def get_epson(self):
+        if self.epson is None:
+            try:
+                self.epson = printer.Usb(0x04b8, 0x0202)
+            except:
+                self.epson = None
+        return self.epson
+
+
+    def update(self):
+        self.config = self.http.dataLocal.config_data
 
     def probar(self):
         print 'probar'
@@ -752,7 +758,7 @@ class ESCPOS:
 
         ticket = open('outs/ticket.lpt', 'wb')
         previa = open('outs/ticket.txt', 'wb')
-        vista = 'EPSON ' + str(self.epson)
+        vista = 'EPSON ' + str(self.get_epson())
         ESC = chr(27)
         GS = chr(29)
         cutpaper = GS + 'V' + chr(49)
@@ -813,27 +819,23 @@ class ESCPOS:
         previa.close()
         print vista
         if os.name == 'nt':
-            if self.usb:
-                hprinter = win32print.OpenPrinter(self.config[self.tipo])
+            hprinter = win32print.OpenPrinter(self.config['ticketera'])
+            try:
+                hJob = win32print.StartDocPrinter(hprinter, 1, ("TCONTUR", None, "RAW"))
                 try:
-                    hJob = win32print.StartDocPrinter(hprinter, 1, ("TCONTUR", None, "RAW"))
-                    try:
-                        win32print.StartPagePrinter(hprinter)
-                        if self.config['formato']:
-                            win32print.WritePrinter(hprinter, str(texto))
-                        else:
-                            win32print.WritePrinter(hprinter, str(vista))
-                        win32print.EndPagePrinter(hprinter)
-                    finally:
-                        win32print.EndDocPrinter(hprinter)
+                    win32print.StartPagePrinter(hprinter)
+                    if self.config['formato']:
+                        win32print.WritePrinter(hprinter, str(texto))
+                    else:
+                        win32print.WritePrinter(hprinter, str(vista))
+                    win32print.EndPagePrinter(hprinter)
                 finally:
-                    win32print.ClosePrinter(hprinter)
-                print self.config[self.tipo]
-            else:
-                os.system('cd outs && type ticket.lpt > ' + self.config[self.tipo])
-        else:
+                    win32print.EndDocPrinter(hprinter)
+            finally:
+                win32print.ClosePrinter(hprinter)
+            print self.config[self.tipo]
+        elif self.epson:
             print 'imprimir linux', self.epson
-            vista = 'EPSON NONE'
             for c in comandos:
                 if c is None:
                     self.epson.control('LF')

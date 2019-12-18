@@ -536,8 +536,24 @@ class Propietario(model_base):
         }
         super(Propietario, self).__init__(js)
 
-
 class Usuario(model_base):
+
+    def __init__(self, js):
+        self.tipos = {
+            'id': long,
+            'nombre': unicode,
+            'username': unicode,
+            'email': unicode,
+            'cargo': unicode,
+            'genero': bool,
+            'activo': bool,
+            'lado': bool,
+        }
+        super(Usuario, self).__init__(js)
+
+
+
+class MyUsuario(model_base):
 
     def __init__(self, js):
         self.tipos = {
@@ -552,7 +568,7 @@ class Usuario(model_base):
             'lado': bool,
             'permisos': unicode
         }
-        super(Usuario, self).__init__(js)
+        super(MyUsuario, self).__init__(js)
 
     @property
     def get_permisos(self):
@@ -1227,7 +1243,7 @@ class Config(model_base):
         self.tipos = {
             'id': long,
             'nombre': unicode,
-            'valor': unicode
+            'data': unicode
         }
         super(Config, self).__init__(js)
 
@@ -1409,6 +1425,51 @@ class Recibo(model_base):
         }
         super(Recibo, self).__init__(js)
         self._cliente = None
+        self._usuario = None
+        self._base = None
+        self._igv = None
+        self._total = None
+
+    def get_numero(self):
+        return str(self.numero).zfill(6)
+
+    def get_ticket(self):
+        ticket = Voucher()
+        nombre = self.http.dataLocal.get_config('nombre')
+        direccion = self.http.dataLocal.get_config('direccion')
+        ruc = self.http.dataLocal.get_config('ruc')
+        dia = self.get_hora().strftime('%Y-%m-%d')
+        cliente = self.get_cliente()
+
+        ticket.titulo(nombre.data)
+        ticket.subtitulo(direccion.data)
+        ticket.subtitulo('R.U.C.: %s' % ruc.data)
+        ticket.espacio()
+        ticket.subtitulo('%s - %s' % (self.serie, self.get_numero()))
+        ticket.espacio()
+        ticket.contenido('DIA: %s' % dia)
+        ticket.contenido('CLIENTE: %s' % cliente.referencia)
+        ticket.contenido('CODIGO: %s' % cliente.codigo)
+        ticket.contenido('NOMBRE: %s' % cliente.nombre)
+        ticket.espacio()
+        ticket.tabular3('  DETALLE', 'CANT', 'TOTAL', True)
+        for i, item in enumerate(self._items):
+            subrayado = i == (len(self._items) - 1)
+            ticket.tabular3(item.get_producto().nombre, item.get_cantidad(), item.get_subtotal(), subrayado)
+        if self._igv:
+            ticket.tabular3('', 'SUBTOTAL', currency(self._base))
+            ticket.tabular3('', 'IGV', currency(self._igv))
+        ticket.tabular3('', 'TOTAL', currency(self._total))
+        ticket.espacio()
+        if self.get_efectivo():
+            ticket.subtitulo('TICKET EMITIDO AL CONTADO')
+        else:
+            ticket.subtitulo('TICKET EMITIDO AL CREDITO')
+        ticket.espacio()
+        ticket.subtitulo('ID: %s' % self.id)
+        ticket.tabular2(self.get_usuario().nombre, self.get_hora().strftime('%H:%M:%S %d/%m/%Y'))
+        ticket.subtitulo('GRACIAS !!')
+        return ticket
 
     def get_hora(self):
         return self.get_datetime(self.hora)
@@ -1417,6 +1478,11 @@ class Recibo(model_base):
         if self._cliente is None:
             self._cliente = self.http.dataLocal.get_cliente(self.cliente)
         return self._cliente
+
+    def get_usuario(self):
+        if self._usuario is None:
+            self._usuario = self.http.dataLocal.get_usuario(self.usuario)
+        return self._usuario
 
     def get_efectivo(self):
         if self.efectivo:
@@ -1430,6 +1496,19 @@ class Recibo(model_base):
 
     def get_total(self):
         return "%.2f" % (self.total / 100.)
+
+    def set_items(self, items):
+        self._total = 0
+        self._igv = 0
+        self._base = 0
+        self._items = []
+        for i in self._items:
+            self._items.append(Item(i))
+            self._total += i.get_total()
+            self._igv += i.get_igv()
+            self._base += i.get_base()
+
+        return self._items
 
 
 class Cliente(model_base):
@@ -1556,6 +1635,7 @@ MODELOS = {
     'tiposDocumento': TipoDocumento,
     'clientes': Cliente,
     'deudas': Deuda,
+    'usuarios': Usuario
 }
 
 FERIADOS = [
@@ -1605,3 +1685,74 @@ def ordenar(lista, sort):
         lista.sort(key=lambda x: x.__getattribute__(k))
         if orden < 0:
             lista.reverse()
+
+
+class Voucher:
+
+    def __init__(self):
+        self.comandos = []
+
+    def titulo(self, texto):
+        self.comandos.append((('CENTER', 'b', 'normal', 1, 1), texto))
+
+    def subtitulo(self, texto):
+        self.comandos.append((('CENTER', 'b', 'normal', 1, 1), texto))
+
+    def negrita(self, texto):
+        self.comandos.append((('LEFT', 'b', 'b', 1, 1), texto))
+
+    def grande(self, texto):
+        self.comandos.append((('CENTER', 'b', 'g', 1, 1), texto))
+
+    def centrado_subrayado(self, texto):
+        self.comandos.append((('CENTER', 'b', 'u', 1, 1), texto))
+
+    def negrita_subrayado(self, texto):
+        self.comandos.append((('CENTER', 'b', 'ub', 1, 1), texto))
+
+    def subrayado(self, texto):
+        self.comandos.append((('LEFT', 'b', 'u', 1, 1), texto))
+
+    def espacio(self):
+        self.comandos.append(None)
+
+    def contenido(self, texto):
+        self.comandos.append((('LEFT', 'b', 'normal', 1, 1), texto))
+
+    def tabular3(self, izq, medio, der, subrayado=False):
+        b = medio
+        w = 29 - len(b)
+        a = (izq + ' ' * w)[:w]
+        c =  (' ' * 9 + der)[-9:]
+        texto = a + b + c + '\n'
+        if subrayado:
+            self.subrayado(texto)
+        else:
+            self.contenido(texto)
+
+    def tabular2(self, izq, der, subrayado=False):
+        b = der
+        w = 39 - len(b)
+        a = (izq + ' ' * w)[:w]
+        texto = a + b + '\n'
+        if subrayado:
+            self.subrayado(texto)
+        else:
+            self.contenido(texto)
+
+    def tabular2_grande(self, izq, der, subrayado=False):
+        b = der
+        w = 19 - len(b)
+        a = (izq + ' ' * w)[:w]
+        texto = a + b + '\n'
+        if subrayado:
+            self.grande(texto)
+        else:
+            self.grande(texto)
+
+    def tabular2negrita(self, izq, der):
+        b = der
+        w = 39 - len(b)
+        a = (izq + ' ' * w)[:w]
+        texto = a + b + '\n'
+        self.negrita(texto)

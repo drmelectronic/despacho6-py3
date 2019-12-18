@@ -1564,6 +1564,7 @@ class ReporteCaja(gtk.Dialog):
         self.treeview = Widgets.TreeViewId('Recibos', [])
         self.treeview.columna_expand = 3
         self.treeview.set_size_request(500, 500)
+        self.columnas = len(models.Recibo.columnas)
         self.treeview.set_columnas_object(models.Recibo.columnas)
         self.vbox.pack_end(self.treeview, True, True, 0)
 
@@ -1585,11 +1586,57 @@ class ReporteCaja(gtk.Dialog):
             label.set_markup('<b>TOTAL: %s</b>' % caja.get_total())
             self.vbox.pack_end(label, False, False, 0)
         self.show_all()
+
+        self.menu = gtk.Menu()
+        item1 = gtk.MenuItem('Reimprimir')
+        item2 = gtk.MenuItem('Anular')
+        item1.connect('activate', self.reimprimir)
+        item2.connect('activate', self.eliminar)
+        self.menu.append(item1)
+        self.menu.append(item2)
+        self.treeview.treeview.connect('button-release-event', self.on_release_button)
+
         self.run()
         self.cerrar()
 
+    def reimprimir(self, *args):
+        path, column = self.treeview.treeview.get_cursor()
+        path = int(path[0])
+        recibo = self.get_modelo(path)
+        respuesta = self.http.load('recibo-items', {'id': recibo.id})
+        if respuesta:
+            items = respuesta['items']
+            recibo.set_items(items)
+            ticket = recibo.get_ticket()
+            self.http.ticket(ticket.comandos)
+
+    def eliminar(self, *args):
+        path, column = self.treeview.treeview.get_cursor()
+        path = int(path[0])
+        recibo = self.get_modelo(path)
+        self.http.ticket(recibo.get_ticket())
+
+    def on_release_button(self, treeview, event):
+        if event.button == 3:
+            x = int(event.x)
+            y = int(event.y)
+            t = event.time
+            pthinfo = treeview.get_path_at_pos(x, y)
+            if pthinfo is not None:
+                path, col, cellx, celly = pthinfo
+                treeview.grab_focus()
+                treeview.set_cursor(path, col, 0)
+                self.menu.popup(None, None, None, event.button, t)
+                self.menu.show_all()
+            return True
+
     def cerrar(self, *args):
         self.destroy()
+
+    def get_modelo(self, path):
+        model = self.treeview.get_model()
+        row = model[path]
+        return row[self.columnas]
 
 
 if __name__ == '__main__':

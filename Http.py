@@ -76,12 +76,7 @@ class Http(object):
             self.conn = urllib3.HTTPSConnectionPool(self.server, timeout=30)
             self.local = False
         print 'SERVER', self.server
-        ticketera_data = self.dataLocal.get_config('ticketera')
-        if ticketera_data:
-            self.ticketera = Impresion.ESCPOS(ticketera_data)
-        ticketera_data = self.dataLocal.get_config('ticketera_sunat')
-        if ticketera_data:
-            self.ticketera_sunat = Impresion.ESCPOS(ticketera_data)
+        self.ticketera = Impresion.ESCPOS(self)
         self.headers = {
             'Cookie': '',
             'User-Agent': 'DesktopTCONTUR/%s' % self.version,
@@ -99,8 +94,7 @@ class Http(object):
         self.dataLocal.set_main(self.username, self.password, usuario)
 
     def login(self, empresa, username, password, clave):
-        if self.dataLocal.server is None:
-            self.conectar(empresa)
+        self.conectar(empresa)
         self.username = username
         self.password = password
         data = {
@@ -301,10 +295,11 @@ class Http(object):
         return True
 
     def ticket(self, comandos, cortar=True):
-        for c in comandos:
-            if 'AUTORIZACION:' in c[1]:
-                self.ticketera_sunat.imprimir(comandos, cortar)
-                return
+        # for c in comandos:
+        #     print('comando', c)
+        #     if 'AUTORIZACION:' in c[1]:
+        #         self.ticketera_sunat.imprimir(comandos, cortar)
+        #         return
         self.ticketera.imprimir(comandos, cortar)
 
     def connect(self, string, funcion):

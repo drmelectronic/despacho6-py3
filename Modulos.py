@@ -10422,6 +10422,8 @@ class Configuracion(gtk.Dialog):
         self.set_title('Configuración')
         self.set_position(gtk.WIN_POS_CENTER)
         self.connect("delete_event", self.cerrar)
+        self.dataLocal = DataLocal()
+
         frame = Widgets.Frame('CONFIGURACIÓN DE TICKETERA')
         frame.set_property('shadow-type', gtk.SHADOW_OUT)
         self.vbox.pack_start(frame, False, False, 5)
@@ -10435,10 +10437,6 @@ class Configuracion(gtk.Dialog):
         hbox.pack_start(tabla, True, True, 10)
         self.lista = [('LPT1', 1), ('LPT2', 2), ('LPT3', 3)]
         self.lista_tarjeta = []
-        i = 3
-        for p in self.ticketera.seriales:
-            i += 1
-            self.lista.append((p, i))
         if os.name == 'nt':
             printers = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)
             for p in printers:
@@ -10448,13 +10446,13 @@ class Configuracion(gtk.Dialog):
         label = gtk.Label('Ticketera por Defecto: ')
         label.set_alignment(0, 0.5)
         tabla.attach(label, 0, 1, 0, 1, gtk.FILL, gtk.EXPAND)
-        self.combo = ComboBox()
+        self.combo = Widgets.ComboBox()
         self.combo.set_lista(self.lista)
         tabla.attach(self.combo, 1, 2, 0, 1)
         label = gtk.Label('Ticketera SUNAT: ')
         label.set_alignment(0, 0.5)
         tabla.attach(label, 0, 1, 1, 2, gtk.FILL, gtk.EXPAND)
-        self.comboSunat = ComboBox()
+        self.comboSunat = Widgets.ComboBox()
         self.comboSunat.set_lista(self.lista)
         tabla.attach(self.comboSunat, 1, 2, 1, 2)
         label = gtk.Label('Imprimir con Formato')
@@ -10465,7 +10463,7 @@ class Configuracion(gtk.Dialog):
         label = gtk.Label('Espacios al final del ticket')
         label.set_alignment(0, 0.5)
         tabla.attach(label, 0, 1, 3, 4)
-        self.espacios = Numero(2)
+        self.espacios = Widgets.Numero(2)
         tabla.attach(self.espacios, 1, 2, 3, 4)
         self.radio_sin_corte = gtk.RadioButton(None, 'Sin Corte de Papel')
         tabla.attach(self.radio_sin_corte, 0, 1, 4, 5)
@@ -10473,13 +10471,13 @@ class Configuracion(gtk.Dialog):
         tabla.attach(self.radio_corte, 0, 1, 5, 6)
         self.radio_corte_custom = gtk.RadioButton(self.radio_sin_corte, 'Corte Personalizado')
         tabla.attach(self.radio_corte_custom, 0, 1, 6, 7)
-        self.entry_corte = Texto(24)
+        self.entry_corte = Widgets.Texto(24)
         tabla.attach(self.entry_corte, 1, 2, 6, 7)
-        button = Button(None, 'Probar Ticketera')
+        button = Widgets.Button(None, 'Probar Ticketera')
         button.connect('clicked', self.probar)
         tabla.attach(button, 0, 2, 7, 8)
 
-        frame = Frame('CONFIGURACIÓN DE IMPRESORA')
+        frame = Widgets.Frame('CONFIGURACIÓN DE IMPRESORA')
         frame.set_property('shadow-type', gtk.SHADOW_IN)
         self.vbox.pack_start(frame, False, False, 0)
         vbox = gtk.VBox(False, 0)
@@ -10489,16 +10487,16 @@ class Configuracion(gtk.Dialog):
         label = gtk.Label('Impresora de Tarjetas')
         label.set_alignment(0, 0.5)
         hbox.pack_start(label, False, False, 10)
-        self.combo_tarjetas = ComboBox()
+        self.combo_tarjetas = Widgets.ComboBox()
         hbox.pack_start(self.combo_tarjetas, True, True, 10)
         self.combo_tarjetas.set_lista(self.lista_tarjeta)
-        button = Button(None, 'Probar Impresora')
+        button = Widgets.Button(None, 'Probar Impresora')
         button.connect('clicked', self.probar_impresora)
         hbox = gtk.HBox(False, 0)
         vbox.pack_start(hbox)
         hbox.pack_start(button, True, True, 10)
 
-        frame = Frame('CONFIGURACIÓN DEL NAVEGADOR WEB')
+        frame = Widgets.Frame('CONFIGURACIÓN DEL NAVEGADOR WEB')
         frame.set_property('shadow-type', gtk.SHADOW_IN)
         self.vbox.pack_start(frame, False, False, 0)
         vbox = gtk.VBox(False, 0)
@@ -10508,7 +10506,7 @@ class Configuracion(gtk.Dialog):
         label = gtk.Label('Navegador')
         label.set_alignment(0, 0.5)
         hbox.pack_start(label, False, False, 10)
-        self.combo_browsers = ComboBox()
+        self.combo_browsers = Widgets.ComboBox()
         hbox.pack_start(self.combo_browsers, True, True, 10)
         self.lista_browsers = [
             ('chrome', 1),
@@ -10519,68 +10517,69 @@ class Configuracion(gtk.Dialog):
         ]
         self.combo_browsers.set_lista(self.lista_browsers)
         self.combo_browsers.connect('changed', self.update_browser)
-        self.entry_browser = Texto(256)
+        self.entry_browser = Widgets.Texto(256)
         hbox = gtk.HBox(False, 0)
         label = gtk.Label('Ubicación:')
         vbox.pack_start(hbox, False, False, 0)
         hbox.pack_start(label, False, False, 10)
         hbox.pack_start(self.entry_browser, True, True, 0)
-        button = Button('buscar.png', None, 16, 'Buscar ejecutable')
+        button = Widgets.Button('buscar.png', None, 16, 'Buscar ejecutable')
         button.connect('clicked', self.choose_file)
         hbox.pack_start(button, False, False, 10)
 
-        but_excel = Button('excel.png', 'XLS')
+        but_excel = Widgets.Button('excel.png', 'XLS')
         self.action_area.pack_start(but_excel, False, False, 0)
         but_excel.connect('clicked', self.excel_dialog)
-        self.but_ok = Button('guardar.png', "Guardar")
+        self.but_ok = Widgets.Button('guardar.png', "Guardar")
         self.add_action_widget(self.but_ok, gtk.RESPONSE_OK)
-        self.but_salir = Button('delete.png', "_Salir")
+        self.but_salir = Widgets.Button('delete.png', "_Salir")
         self.add_action_widget(self.but_salir, gtk.RESPONSE_CANCEL)
         self.set_focus(self.but_salir)
         self.iniciar()
 
     def iniciar(self):
         self.show_all()
-        config = self.ticketera.config
-        if 'puerto' in config:
+        config = self.dataLocal.config_data
+        if 'ticketera' in config:
             for s, i in self.lista:
-                if s == config['puerto']:
+                if s == config['ticketera']:
                     self.combo.set_id(i)
         if 'sunat' in config:
             for s, i in self.lista:
                 if s == config['sunat']:
                     self.comboSunat.set_id(i)
-        if 'tarjeta' in config:
+        if 'impresora' in config:
             for s, i in self.lista:
-                if s == config['tarjeta']:
+                if s == config['impresora']:
                     self.combo_tarjetas.set_id(i)
-        if isinstance(config['corte'], str) or isinstance(config['corte'], unicode):
-            print 'str', config['corte']
-            self.radio_corte_custom.set_active(True)
-            self.entry_corte.set_text(config['corte'])
-        elif config['corte'] is True:
+        if config['corte'] is True:
             print 'true', config['corte']
             self.radio_corte.set_active(True)
         elif config['corte'] is False:
             print 'false', config['corte']
             self.radio_sin_corte.set_active(True)
+        else:
+            print 'str', config['corte']
+            self.radio_corte_custom.set_active(True)
+            self.entry_corte.set_text(config['corte'])
         self.formato.set_active(config['formato'])
         self.espacios.set_text(str(config['lineas_final']))
 
-        self.combo_browsers.set_text(self.http.config.browser)
-        if self.http.config.browser == 'chrome':
-            self.entry_browser.set_text(self.http.config.chrome)
-        elif self.http.config.browser == 'firefox':
-            self.entry_browser.set_text(self.http.config.firefox)
-        elif self.http.config.browser == 'opera':
-            self.entry_browser.set_text(self.http.config.opera)
-        elif self.http.config.browser == 'edge':
-            self.entry_browser.set_text(self.http.config.edge)
+        self.combo_browsers.set_text(config['browser'])
+        if config['browser'] == 'chrome':
+            self.entry_browser.set_text(config['chrome'])
+        elif config['browser'] == 'firefox':
+            self.entry_browser.set_text(config['firefox'])
+        elif config['browser'] == 'opera':
+            self.entry_browser.set_text(config['opera'])
+        elif config['browser'] == 'edge':
+            self.entry_browser.set_text(config['edge'])
         else:
             self.combo_browsers.set_text('windows-default')
+            self.entry_browsers.set_text(config['windows-default'])
 
         if self.run() == gtk.RESPONSE_OK:
-            puerto = self.combo.get_text()
+            ticketera = self.combo.get_text()
             sunat = self.comboSunat.get_text()
             tarjeta = self.combo_tarjetas.get_text()
             if self.radio_corte.get_active():
@@ -10589,44 +10588,32 @@ class Configuracion(gtk.Dialog):
                 corte = False
             else:
                 corte = self.entry_corte.get_text()
-            self.ticketera.config['tarjeta'] = tarjeta
-            self.ticketera.config['puerto'] = puerto
-            self.ticketera.config['sunat'] = sunat
-            self.ticketera.config['corte'] = corte
-            self.ticketera.config['formato'] = self.formato.get_active()
-            self.ticketera.config['lineas_final'] = self.espacios.get_int()
-            self.ticketera.guardar_config()
-            self.ticketera.set_config()
+            self.dataLocal.config_data['tarjeta'] = tarjeta
+            self.dataLocal.config_data['puerto'] = ticketera
+            self.dataLocal.config_data['sunat'] = sunat
+            self.dataLocal.config_data['corte'] = corte
+            self.dataLocal.config_data['formato'] = self.formato.get_active()
+            self.dataLocal.config_data['lineas_final'] = self.espacios.get_int()
+            self.dataLocal.save_config()
 
             browser = self.combo_browsers.get_text()
             if browser == 'chrome':
-                self.http.config.chrome = self.entry_browser.get_text()
+                self.dataLocal.config_data.chrome = self.entry_browser.get_text()
             elif browser == 'firefox':
-                self.http.config.firefox = self.entry_browser.get_text()
+                self.dataLocal.config_data.firefox = self.entry_browser.get_text()
             elif browser == 'opera':
-                self.http.config.opera = self.entry_browser.get_text()
+                self.dataLocal.config_data.opera = self.entry_browser.get_text()
             elif browser == 'edge':
-                self.http.config.edge = self.entry_browser.get_text()
-            self.http.config.save()
+                self.dataLocal.config_data.edge = self.entry_browser.get_text()
+            self.dataLocal.config_data.save()
             return True
         else:
             return False
 
     def update_browser(self, *args):
         self.entry_browser.set_sensitive(True)
-        self.http.config.browser = self.combo_browsers.get_text()
-        if self.http.config.browser == 'chrome':
-            browser = self.http.config.chrome
-        elif self.http.config.browser == 'firefox':
-            browser = self.http.config.firefox
-        elif self.http.config.browser == 'opera':
-            browser = self.http.config.opera
-        elif self.http.config.browser == 'edge':
-            browser = self.http.config.edge
-        else:
-            browser = ''
-            self.entry_browser.set_sensitive(False)
-        self.entry_browser.set_text(browser)
+        browser = self.combo_browsers.get_text()
+        self.entry_browser.set_text(self.dataLocal.config_data[browser])
 
     def choose_file(self, *args):
         dlg = gtk.FileChooserDialog(title='Encuentre la ruta al Navegador', parent=self,
@@ -10647,18 +10634,22 @@ class Configuracion(gtk.Dialog):
         Impresion.Test()
 
     def excel_dialog(self, *args):
-        dialog = Excel_Dialog(self.http)
+        dialog = Widgets.Excel_Dialog(self.http)
         dialog.cerrar()
 
     def cerrar(self, *args):
         self.destroy()
 
+
 if __name__ == '__main__':
-    # t = Trackers(None, '2108', 1, 1, None)
-    from Http import Http
-    http = Http([])
-    t = Reporte(http, '2018-04-12', 1, None)
-    # http.grifo = []
-    # http.seriacion = {'facturas': []}
-    # g = Grifo(http, None, None)
+    print('Http')
+    d = DataLocal()
+    d.load_main()
+    d.load_config()
+    http = Http()
+    http.construir()
+    d.http = http
+    http.dataLocal = d
+
+    Configuracion()
     gtk.main()

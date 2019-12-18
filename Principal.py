@@ -169,7 +169,7 @@ class Login(gtk.Window):
         self.cl = self.clave.get_text()
         login = self.http.login(self.emp, self.user, self.pw, self.cl)
         if login:
-            self.http.set_usuario(models.Usuario(login))
+            self.http.set_usuario(models.MyUsuario(login))
             Aplicacion()
             self.cerrar()
 
@@ -197,7 +197,7 @@ if __name__ == '__main__':
     d.http = http
     http.dataLocal = d
     dialog = Login()
-    dialog.autologin()
+    # dialog.autologin()
     try:
         gtk.main()
     except:
